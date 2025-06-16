@@ -94,7 +94,7 @@ cdef class ares_query_cname_result(AresResult):
         return 'CNAME'
 
     @staticmethod
-    cdef ares_query_cname_result new(ares_addrinfo_cname* host):
+    cdef ares_query_cname_result new(hostent* host):
         cdef ares_query_cname_result r  = ares_query_cname_result.__new__(ares_query_cname_result)
         r.cname = PyBytes_FromString(host.h_name)
         r.ttl = -1
@@ -124,14 +124,6 @@ cdef class ares_query_mx_result(AresResult):
 
 
 cdef class ares_query_naptr_result(AresResult):
-    
-    cdef:
-        readonly int order
-        readonly unsigned short preference
-        readonly bytes flags
-        readonly bytes regex 
-        readonly bytes replacement
-        readonly int ttl
 
     @property
     def type(self):
@@ -154,26 +146,21 @@ cdef class ares_query_naptr_result(AresResult):
 
 
 cdef class ares_query_ns_result(AresResult):
-    __slots__ = ('host', 'ttl')
     
     @property
     def type(self):
         return 'NS'
 
     @staticmethod
-    cdef ares_query_ns_result new(char* ns, Py_ssize_t ns_size):
+    cdef ares_query_ns_result new(char* ns):
         cdef ares_query_ns_result r = ares_query_ns_result.__new__(ares_query_ns_result)
-        r.host = PyBytes_FromStringAndSize(ns, ns_size)
+        r.host = PyBytes_FromString(ns)
         r.ttl = -1
         r._attrs = ('host', 'ttl')
         return r
 
 
 cdef class ares_query_ptr_result(AresResult):
-    cdef:
-        readonly bytes name
-        readonly list aliases
-        readonly int ttl
 
     @property
     def type(self):
@@ -253,9 +240,18 @@ class ares_query_txt_result(AresResult):
     def type(self): 
         return 'TXT'
 
+    @staticmethod
     cdef ares_query_txt_result new(ares_txt_ext* txt_chunk):
         cdef ares_query_txt_result r = ares_query_txt_result.__new__(ares_query_txt_result)
-        r.text = PyBytes_FromStringAndSize(txt_chunk.text, <Py_ssize_t>txt_chunk.length)
+        r.text = PyBytes_FromStringAndSize(txt_chunk.txt, <Py_ssize_t>txt_chunk.length)
+        r.ttl = -1
+        r._attrs = ('text', 'ttl')
+        return r
+
+    @staticmethod
+    cdef ares_query_txt_result from_object(ares_query_txt_result obj):
+        cdef ares_query_txt_result r = ares_query_txt_result.__new__(ares_query_txt_result)
+        r.text = obj.text
         r.ttl = -1
         r._attrs = ('text', 'ttl')
         return r
@@ -340,8 +336,8 @@ class ares_addrinfo_node_result(AresResult):
             if NULL != ares_inet_ntop(s4.sin_family, s4.sin_addr, ip, INET6_ADDRSTRLEN):
                 # (address, port) 2-tuple for AF_INET
                 r.addr = PyBytes_FromStringAndSize(ip, INET6_ADDRSTRLEN), ntohs(s4.sin_port)
-        elif addr.sa_family == AF_INET6:
 
+        elif addr.sa_family == AF_INET6:
             r.family = AF_INET6
             s6 = <sockaddr_in6>addr
             if NULL != ares_inet_ntop(s6.sin6_family, <void*>s6.sin6_addr, ip, INET6_ADDRSTRLEN):

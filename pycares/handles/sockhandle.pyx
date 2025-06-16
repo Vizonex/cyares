@@ -29,7 +29,9 @@ cdef void __sock_handle_cb(
     # plan exit if we're not alive
     if handle.alive:
         try:
-            handle.cb(
+            handle.cb.__call__(
+                handle.channel,
+                handle.id
                 <object>socket_fd,
                 <object>readable
                 <object>writable
@@ -37,6 +39,7 @@ cdef void __sock_handle_cb(
         except BaseException as e:
             # callback the exception handler
             handle._throw_exception(e)
+    handle.done = True
 
 
 

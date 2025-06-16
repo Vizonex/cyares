@@ -6,7 +6,8 @@ cdef class Handle:
         self.h_id = h_id
         self.cb = cb
         self.alive = True
-        
+        self.done = True
+
     cdef void _throw_exception(self, object exc):
         return
     
