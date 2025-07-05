@@ -9,14 +9,16 @@ __Pycares__ was quick, dirty and fast but as the years of it's existance went by
 
 
 ### The Rewrite 
-It only felt right to me that migrating the library from __cffi__ to cython would be the best solution to the problem. Not __Rust__ or __C__, just __pure-cython__ and small amounts of __C__ whenever nessesary and re-changing many of the internals to incorperate a safer approch. The reason for not picking __Rust__ is that there wasn't nessesarly a need to be memory-safe. What I cared about was speed, when people are doing DNS Lookups, speed matters and __Rust__ did not have a friendly enough archetecture that would set a future or allow me to access the parent from the child. 
 
-There was no better canadate than to move to using handles the same way __uvloop__ & __winloop__ do it (In fact I wrote __winloop__ off of __uvloop__ so I kind of knew what I was doing).
+While contributing to the aio-libs repos whenever I had a gap of free-time on hand while waiting on a question to be answered and when my other python libraries felt stable enough such as (deprecated-params, aiocallback, aiothreading & winloop) this is where I spent my time on. It had a total of 3 re-writes until I was satisfied with the result. Turns out just doing everything in small chunks makes all the difference. 
+
+It only felt right to me that migrating the library from __cffi__ to __cython__ would be the best solution to the problem. Not __Rust__ or __C__, just __pure-cython__ and small amounts of __C__ whenever nessesary and re-changing many of the internals to incorperate a safer approch. The reason for not picking __Rust__ is that there wasn't nessesarly a need to be memory-safe. What I cared about was speed, when people are doing DNS Lookups, speed matters and __Rust__ did not have a friendly enough archetecture that would set a future or allow me to access the parent from the child. 
+
+There was no better canadate than to move to using handles the same way __uvloop__ & __winloop__ do it and having authored one of them I was familliar with this concept.
 
 The idea was not to reinvent the wheel rather move parts of the library over in chunks and look at __pycares__ for clues on how certain things should be laid out. At the end of the day, __Pycares__ was the blueprint and using __concurrent.futures__ & __Cython__ was the cure. __Py_buffer__ techniques brought over from __msgspec__ were utilized incase users were planning to use any bytes or string objects of any sort and I made sure the license was on it incase users wanted to know where it came from.
 
 If there was a deprecated function with an alternative & safer approch to use I felt using it would be a better move. For example, servers are now set with the csv functions rather than the original setup and because of that change you could now set dns servers in url formats and I might possibly look at adding in __yarl__ to be the cherry on top for those who might wish to get real creative about dns server urls. 
 
-Moving over the __ares_query__ function to use the dns recursion function is planned for the future. I still wanted to retain the original response data it gives so that migrating from __pycares__ to __cyares__ wouldn't be a pain to anyone who planned on moving and I also didn't want to take away from __pycares__ either if you prefer using __cffi__ over __cython__.
-
+Moving over the __ares_query__ function to use the dns recursion function is planned for the future (maybe after I do the first release of it). I still wanted to retain the original response data it gives so that migrating from __pycares__ to __cyares__ wouldn't be a pain to anyone who planned on moving and I also didn't want to take away from __pycares__ either if you prefer using __cffi__ over __cython__ the same way __curl-cffi__ and __cycurl__ were both done. I have my fingers crossed that __aiodns__ will adopt this library in the future or allow users to choose between __pycares__ and __cyares__.
 
