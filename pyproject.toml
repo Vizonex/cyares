@@ -1,0 +1,15 @@
+[project]
+name = "cyares"
+version = "0.1.0"
+description = "A Cython Version of c-ares"
+readme = "README.md"
+authors = [
+    { name = "Vizonex" }
+]
+requires-python = ">=3.9"
+
+[build-system]
+requires = ["setuptools", "cython"]
+
+[tool.setuptools]
+py-modules = []
