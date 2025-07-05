@@ -9,7 +9,7 @@ __Pycares__ was quick, dirty and fast but as the years of it's existance went by
 
 
 ### The Rewrite 
-It only felt right to me that migrating the library from __cffi__ to cython would be the best solution to the problem. Not __Rust__ or __C__, just __pure-cython__ and small amounts of __C__ whenever nessesary and re-changing many of the internals to incorperate a safer approch. The reason for not picking __Rust__ is that there wasn't nessesarly a need to memory-safe. What I cared about was speed, when people are doing DNS Lookups, speed matters and __Rust__ did not have a friendly enough archetecture that would set a future or allow me to access the parent from the child. 
+It only felt right to me that migrating the library from __cffi__ to cython would be the best solution to the problem. Not __Rust__ or __C__, just __pure-cython__ and small amounts of __C__ whenever nessesary and re-changing many of the internals to incorperate a safer approch. The reason for not picking __Rust__ is that there wasn't nessesarly a need to be memory-safe. What I cared about was speed, when people are doing DNS Lookups, speed matters and __Rust__ did not have a friendly enough archetecture that would set a future or allow me to access the parent from the child. 
 
 There was no better canadate than to move to using handles the same way __uvloop__ & __winloop__ do it (In fact I wrote __winloop__ off of __uvloop__ so I kind of knew what I was doing).
 
