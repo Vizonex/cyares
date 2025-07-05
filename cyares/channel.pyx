@@ -1,40 +1,45 @@
 # cython: embed_signature=Trie
 from cpython.exc cimport PyErr_NoMemory
 from cpython.mem cimport PyMem_Free, PyMem_Malloc
-from .inc cimport pycares_check_qtypes, pycares_check_qclasses, pycares_get_buffer, pycares_release_buffer
+
 from .ares cimport *
-from .exception cimport AresError
-from .resulttypes cimport *
 from .callbacks cimport *
+from .exception cimport AresError
+from .inc cimport (cyares_check_qclasses, cyares_check_qtypes,
+                   cyares_get_buffer, cyares_release_buffer)
+from .resulttypes cimport *
+
 include "handles.pxi"
 
 # TODO: Transform use a htonl, htons function from cython or C for better speed...
+
 from socket import htonl, htons
 
 from .socket_handle cimport SocketHandle, __socket_state_callback
 
 # Secondary Enums if Writing Strings is not your style...
 
-cpdef enum QueryType:
-    A = T_A
-    AAAA = T_AAAA
-    QT_ANY = T_ANY
-    CAA = T_CAA
-    CNAME = T_CNAME
-    MX = T_MX 
-    NAPTR = T_NAPTR
-    NS = T_NS
-    PTR = T_PTR
-    SOA = T_SOA
-    SRV = T_SRV
-    TXT = T_TXT
+# NOTE: This will need fixing...
+# cpdef enum QueryType:
+#     A = T_A
+#     AAAA = T_AAAA
+#     QT_ANY = T_ANY
+#     CAA = T_CAA
+#     CNAME = T_CNAME
+#     MX = T_MX 
+#     NAPTR = T_NAPTR
+#     NS = T_NS
+#     PTR = T_PTR
+#     SOA = T_SOA
+#     SRV = T_SRV
+#     TXT = T_TXT
 
-cpdef enum QueryClass:
-    IN = C_IN
-    CHAOS = C_CHAOS
-    HS = C_HS
-    NONE = C_NONE
-    QC_ANY = C_ANY 
+# cpdef enum QueryClass:
+#     IN = C_IN
+#     CHAOS = C_CHAOS
+#     HS = C_HS
+#     NONE = C_NONE
+#     QC_ANY = C_ANY 
 
 
 cdef class Channel:
@@ -138,18 +143,18 @@ cdef class Channel:
             self.options.evsys = ARES_EVSYS_DEFAULT
         
         if lookups:
-            pycares_get_buffer(lookups, &view)
+            cyares_get_buffer(lookups, &view)
             self.options.lookups = <char*>view.buf
             optmask |= ARES_OPT_LOOKUPS
-            pycares_release_buffer(&view)
+            cyares_release_buffer(&view)
 
         if domains:
             strs = <char**>PyMem_Malloc(sizeof(char*) *  len(domains))
 
             for i in domains:
-                pycares_get_buffer(i, &view)
-                strs[i] = view.buf
-                pycares_release_buffer(&view)
+                cyares_get_buffer(i, &view)
+                strs[i] = <char*>view.buf
+                cyares_release_buffer(&view)
 
             self.options.domains = strs
             self.options.ndomains = len(domains)
@@ -160,9 +165,9 @@ cdef class Channel:
 
         if resolvconf_path:
             optmask |= ARES_OPT_RESOLVCONF
-            pycares_get_buffer(resolvconf_path, &view)
+            cyares_get_buffer(resolvconf_path, &view)
             self.options.resolvconf_path = <char*>view.buf
-            pycares_release_buffer(&view)
+            cyares_release_buffer(&view)
 
         r = ares_init_options(&self.channel, &self.options, optmask)
         if r != ARES_SUCCESS:
@@ -170,7 +175,23 @@ cdef class Channel:
 
         if servers:
             self.servers = servers
-       
+    
+    # TODO (Vizonex): Separate Server into a Seperate class and incorperate support for yarl
+    # if you want to learn more about ares_get_servers_csv This should explain why
+    # Yarl might be a good idea: 
+    # - https://c-ares.org/docs/ares_get_servers_csv.html
+    # - https://c-ares.org/docs/ares_set_servers_csv.html
+
+    # Some Examples Brought over from c-ares should explain why I want to add yarl in...
+    # dns://8.8.8.8
+    # dns://[2001:4860:4860::8888]
+    # dns://[fe80::b542:84df:1719:65e3%en0]
+    # dns://192.168.1.1:55
+    # dns://192.168.1.1?tcpport=1153
+    # dns://10.0.1.1?domain=myvpn.com
+    # dns+tls://8.8.8.8?hostname=dns.google
+    # dns+tls://one.one.one.one?ipaddr=1.1.1.1
+
     @property
     def servers(self):
         cdef char* data = ares_get_servers_csv(self.channel)
@@ -185,11 +206,11 @@ cdef class Channel:
         cdef Py_buffer view
         cdef str csv_list  = ",".join(servers)
         
-        pycares_get_buffer(csv_list, &view)
+        cyares_get_buffer(csv_list, &view)
 
         r = ares_set_servers_csv(self.channel, <const char*>view.buf)
         
-        pycares_release_buffer(&view)
+        cyares_release_buffer(&view)
 
         if r != ARES_SUCCESS:
             raise AresError(r)
@@ -223,7 +244,7 @@ cdef class Channel:
     # wrote my own malloc function wrapper because 
     # there will be many instances of
     # allocating and then freeing memory...
-    # cython will remeber to throw the memory error 
+    # cython will remember to throw the memory error 
     cdef void* _malloc(self, size_t size) except NULL:
         cdef void* memory = <void*>PyMem_Malloc(size)
         if memory == NULL:
@@ -261,10 +282,10 @@ cdef class Channel:
         else:
             _qtype = <int>qtype
    
-        if pycares_check_qclasses(qclass) < 0:
+        if cyares_check_qclasses(qclass) < 0:
             raise 
 
-        if pycares_get_buffer(qname, &view) < 0:
+        if cyares_get_buffer(qname, &view) < 0:
             raise 
 
 
@@ -384,7 +405,7 @@ cdef class Channel:
         return fut
 
     def query(self, object name, object query_type, object callback = None , object query_class = None):
-        return self._query(name, query_type, C_IN if query_class is None else <int>query_class)
+        return self._query(name, query_type, C_IN if query_class is None else <int>query_class, callback)
  
     def process_fd(self, int read_fd, int write_fd):
         ares_process_fd(self.channel, <ares_socket_t>read_fd, <ares_socket_t>write_fd)
@@ -409,11 +430,11 @@ cdef class Channel:
         if port:
             if isinstance(port, int):
                 port = bytes(port)
-            pycares_get_buffer(port, &service_data)
+            cyares_get_buffer(port, &service_data)
             service = <char*>service_data.buf
             buffer_carried = 1
 
-        pycares_get_buffer(host, &view)
+        cyares_get_buffer(host, &view)
 
         hints.ai_flags = flags
         hints.ai_family = family
@@ -429,9 +450,9 @@ cdef class Channel:
             <void*>fut
         )
 
-        pycares_release_buffer(&view)
+        cyares_release_buffer(&view)
         if buffer_carried:
-            pycares_release_buffer(&service_data)
+            cyares_release_buffer(&service_data)
         if callback:
             fut.add_done_callback(callback)
         return fut 
@@ -450,17 +471,17 @@ cdef class Channel:
         cdef Py_buffer view
         if len(address) == 2:
             ip, port = address
-            pycares_get_buffer(ip, &view)
+            cyares_get_buffer(ip, &view)
             if not ares_inet_pton(AF_INET, <char*>view.buf, &sa4.sin_addr):
-                pycares_release_buffer(&view)
+                cyares_release_buffer(&view)
                 raise ValueError("Invalid IPv4 address %r" % ip)
             sa4.sin_family = AF_INET
             sa4.sin_port = htons(port)
-            pycares_release_buffer(&view)
+            cyares_release_buffer(&view)
             fut = self.__create_future(callback)
             ares_getnameinfo(
                 self.channel, 
-                <sockaddr*>sa4, 
+                <sockaddr*>&sa4, 
                 sizeof(sa4), 
                 flags, 
                 __callback_nameinfo, # type: ignore 
@@ -468,19 +489,19 @@ cdef class Channel:
             )
         elif len(address) == 4:
             (ip, port, flowinfo, scope_id) = address
-            pycares_get_buffer(ip, &view)
+            cyares_get_buffer(ip, &view)
             if not ares_inet_pton(AF_INET6, <char*>view.buf, &sa6.sin6_addr):
-                pycares_release_buffer(&view)
+                cyares_release_buffer(&view)
                 raise ValueError("Invalid IPv6 address %r" % ip)
             sa6.sin6_family = AF_INET6
             sa6.sin6_port = htons(port)
             sa6.sin6_flowinfo = htonl(flowinfo) # Pycares Comment: I'm unsure about byteorder here.
             sa6.sin6_scope_id = scope_id # Pycares Comment: Yes, without htonl.
-            pycares_release_buffer(&view)
+            cyares_release_buffer(&view)
             fut = self.__create_future(callback)
             ares_getnameinfo(
                 self.channel, 
-                <sockaddr*>sa6, 
+                <sockaddr*>&sa6, 
                 sizeof(sa6), 
                 flags, 
                 __callback_nameinfo, # type: ignore 
@@ -506,36 +527,36 @@ cdef class Channel:
                 raise TypeError("Provided callback must be callable")
             fut.add_done_callback(callback)
 
-        pycares_get_buffer(name, &view)
+        cyares_get_buffer(name, &view)
         ares_gethostbyname(self.channel, <char*>view.buf, family, 
         __callback_gethostbyname, # type: ignore
         <void*>fut
         )
-        pycares_release_buffer(&view)
+        cyares_release_buffer(&view)
         return fut
         
 
 
     def set_local_dev(self, object dev):
         cdef Py_buffer view
-        pycares_get_buffer(dev, &view)
+        cyares_get_buffer(dev, &view)
         ares_set_local_dev(self.channel, <char*>view.buf)
-        pycares_release_buffer(&view)
+        cyares_release_buffer(&view)
 
     def set_local_ip(self, object ip):
         cdef in_addr addr4
         cdef ares_in6_addr addr6
         cdef Py_buffer view
-        pycares_get_buffer(ip, &view)
+        cyares_get_buffer(ip, &view)
         try:
             if ares_inet_pton(AF_INET, <char*>view.buf, &addr4):
                 ares_set_local_ip4(self.channel, <unsigned int>htonl(addr4.s_addr))
             elif ares_inet_pton(AF_INET, <char*>view.buf, &addr6):
-                ares_set_local_ip6(self.channel, <char*>view.buf)
+                ares_set_local_ip6(self.channel, <unsigned char*>view.buf)
             else:
                 raise ValueError("invalid IP address")
         finally:
-            pycares_release_buffer(&view)
+            cyares_release_buffer(&view)
     
     
 

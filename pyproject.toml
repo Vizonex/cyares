@@ -8,6 +8,11 @@ authors = [
 ]
 requires-python = ">=3.9"
 
+# Planned but not ready...
+# dependencies = [
+#     "yarl>=1.20.1"
+# ]
+
 [build-system]
 requires = ["setuptools", "cython"]
 

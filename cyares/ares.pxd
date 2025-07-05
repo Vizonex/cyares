@@ -468,12 +468,13 @@ cdef extern from "inc/cares_headers.h" nogil:
                                          ares_host_callback callback,
                                          void *arg)
 
-    void ares_getnameinfo(ares_channel_t* channel,
-                                       const sockaddr *sa,
-                                       ares_socklen_t salen,
-                                       int flags,
-                                       ares_nameinfo_callback callback,
-                                       void *arg)
+    ctypedef void (*ares_nameinfo_callback)(void *arg, int status,
+                                       int timeouts, char *node,
+                                       char *service) with gil
+ 
+    void ares_getnameinfo(ares_channel_t *channel, const sockaddr *sa,
+                      ares_socklen_t salen, int flags,
+                      ares_nameinfo_callback callback, void *arg)
 
     int ares_getsock(ares_channel_t* channel,
                                   ares_socket_t *socks,

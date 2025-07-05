@@ -6,17 +6,21 @@ extern "C" {
 #endif /* __cplusplus */
 
 #ifdef _WIN32
-#define PYCARES_USE_WINDOWS 1
+#define CYARES_USE_WINDOWS 1
 #define WIN32_LEAN_AND_MEAN
 # include <WinSock2.h>
 
+// Incae we didn't have it previously...
+typedef uint16_t in_port_t;
+
+
 #ifdef __clang__
-    // pxdgen is in use don't let it be a scavenger hunt... 
+    // pxdgen is in use don't let this type end up being a scavenger hunt... 
     typedef int socklen_t;
 #endif
 
 #else
-#define PYCARES_USE_WINDOWS 0
+#define CYARES_USE_WINDOWS 0
 # include <sys/types.h>
 # include <sys/socket.h>
 # include <netdb.h> /* struct hostent */
@@ -24,6 +28,7 @@ extern "C" {
 #endif
 
 // We would like to compile to one static file please....
+// NOTE: It's already defined...
 // #define CARES_STATICLIB
 
 #include "ares_nameser.h"

@@ -148,7 +148,7 @@ cdef class ares_nameinfo_result(AresResult):
         readonly object service # bytes | None
     
     @staticmethod
-    cdef ares_nameinfo_result new(self, char* node, char* service)
+    cdef ares_nameinfo_result new(char* node, char* service)
 
 
 cdef class ares_addrinfo_node_result(AresResult):

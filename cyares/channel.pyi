@@ -1,10 +1,11 @@
 
+import socket
 import types
-from typing import Callable, Any, overload
 from concurrent.futures import Future
+from typing import Any, Callable, overload
+
 from resulttypes import *
-from typing_extensions import Self 
-import socket 
+from typing_extensions import Self
 
 __pyx_capi__: dict
 __test__: dict

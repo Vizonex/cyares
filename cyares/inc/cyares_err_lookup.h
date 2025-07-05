@@ -8,7 +8,7 @@
 extern "C" {
 #endif /* __cplusplus */
 
-// I Learned this macro technique from llhttp / libuv - Vizonex
+// CYARES NOTE: I Learned this macro technique from llhttp / libuv - Vizonex
 
 #define CYARES_ERROR_CODES(XX) \
     XX(ARES_SUCCESS, "Successful completion") \

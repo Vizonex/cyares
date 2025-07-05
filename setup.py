@@ -202,7 +202,9 @@ if __name__ == "__main__":
             ["cyares/channel.pyx",
              "cyares/exception.pyx", 
              "cyares/callbacks.pyx",
-             "cyares/resulttypes.pyx"],
+             "cyares/resulttypes.pyx",
+             "cyares/socket_handle.pyx"
+            ],
         ),
         cmdclass={"build_ext": cares_build_ext}
     )

@@ -6,7 +6,7 @@
 
 #include "Python.h"
 
-#define PY_ARES_QTYPES(XX) \
+#define CYARES_QTYPES(XX) \
     XX(T_A) \
     XX(T_AAAA) \
     XX(T_ANY) \
@@ -20,7 +20,7 @@
     XX(T_SRV) \
     XX(T_TXT)
 
-#define PY_ARES_QCLASSES(XX) \
+#define CYARES_QCLASSES(XX) \
     XX(C_IN) \
     XX(C_CHAOS) \
     XX(C_HS) \
@@ -28,12 +28,12 @@
     XX(C_ANY)
 
 // returns -1 if it failed
-static int pycares_check_qtypes(int qtype){
+static int cyares_check_qtypes(int qtype){
     switch (qtype) {
-        #define __PYCARES_QTYPE_CASE(TYPE) \
+        #define __CYARES_QTYPE_CASE(TYPE) \
             case TYPE: return 0;
-        PY_ARES_QTYPES(__PYCARES_QTYPE_CASE)
-        #undef __PYCARES_QTYPE_CASE
+        CYARES_QTYPES(__CYARES_QTYPE_CASE)
+        #undef __CYARES_QTYPE_CASE
         default: {
             goto FAIL;
         }
@@ -43,12 +43,12 @@ static int pycares_check_qtypes(int qtype){
         return -1;
 }
 
-static int pycares_check_qclasses(int qclass){
+static int cyares_check_qclasses(int qclass){
     switch (qclass) {
-        #define __PYCARES_QCLASS_CASE(TYPE) \
+        #define __CYARES_QCLASS_CASE(TYPE) \
             case TYPE: return 0;
-        PY_ARES_QCLASSES(__PYCARES_QCLASS_CASE)
-        #undef __PYCARES_QCLASS_CASE
+        CYARES_QCLASSES(__CYARES_QCLASS_CASE)
+        #undef __CYARES_QCLASS_CASE
         default: {
             goto FAIL;
         }

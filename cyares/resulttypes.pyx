@@ -260,7 +260,7 @@ cdef class ares_host_result(AresResult):
 cdef class ares_nameinfo_result(AresResult):
 
     @staticmethod
-    cdef ares_nameinfo_result new(self, char* node, char* service):
+    cdef ares_nameinfo_result new(char* node, char* service):
         cdef ares_nameinfo_result r = ares_nameinfo_result.__new__(ares_nameinfo_result) 
         r.node = PyBytes_FromString(node)
         r.service = PyBytes_FromString(service) if service != NULL else None

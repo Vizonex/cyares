@@ -1,6 +1,9 @@
 from .ares cimport *
 
+
 cdef class SocketHandle:
+    
+    @staticmethod
     cdef SocketHandle new(object callback):
         cdef SocketHandle handle = SocketHandle.__new__(SocketHandle)
         handle.state = STATE_RUNNING 

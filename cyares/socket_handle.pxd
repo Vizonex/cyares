@@ -3,6 +3,9 @@
 # it's called from multiple times...
 from threading import Condition as _Condition
 
+from .ares cimport ares_socket_t
+
+
 cdef Condition = _Condition
 
 cdef enum SocketHandleState:
@@ -15,7 +18,8 @@ cdef class SocketHandle:
         object callback
         SocketHandleState state
         object _cond
-
+    
+    @staticmethod
     cdef SocketHandle new(object callback)
 
     cdef bint check_state(self, SocketHandleState state)
@@ -32,5 +36,3 @@ cdef void __socket_state_callback(
     int writable
 ) noexcept with gil
 
-
-include "channel.pxd"

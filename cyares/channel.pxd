@@ -1,7 +1,7 @@
-from .ares cimport *
-from .exception cimport AresError
 from libc.stdint cimport uint64_t
 
+from .ares cimport *
+from .exception cimport AresError
 from .resulttypes cimport *
 from .socket_handle cimport SocketHandle
 
@@ -19,6 +19,6 @@ cdef class Channel:
 
     cpdef void cancel(self) noexcept
     cdef void* _malloc(self, size_t size) except NULL
-    cdef object _query(self, object qname, object qtype, int qclass)
+    cdef object _query(self, object qname, object qtype, int qclass, object callback)
     cdef object __create_future(self, object callback)
 

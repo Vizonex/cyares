@@ -1,0 +1,20 @@
+
+# Cythonizing / Compilied Sources
+cyares/*.c
+
+# Compiled sources Windows / Linux / Apple Macbooks / Etc...
+cyares/*.pyd
+cyares/*.so
+
+
+
+# pip install -e . or uv pip install -e .
+*.egg-info
+# cyhton build
+build
+# __pycache__
+__pycache__
+
+.venv
+.vscode
+.pytest_cache

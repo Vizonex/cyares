@@ -1,6 +1,8 @@
 from cpython.bytes cimport *
-from .resulttypes cimport *
+
 from .exception cimport AresError
+from .resulttypes cimport *
+
 include "handles.pxi"
 
 
