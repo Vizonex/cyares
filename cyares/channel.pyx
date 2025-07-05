@@ -19,27 +19,32 @@ from .socket_handle cimport SocketHandle, __socket_state_callback
 
 # Secondary Enums if Writing Strings is not your style...
 
-# NOTE: This will need fixing...
-# cpdef enum QueryType:
-#     A = T_A
-#     AAAA = T_AAAA
-#     QT_ANY = T_ANY
-#     CAA = T_CAA
-#     CNAME = T_CNAME
-#     MX = T_MX 
-#     NAPTR = T_NAPTR
-#     NS = T_NS
-#     PTR = T_PTR
-#     SOA = T_SOA
-#     SRV = T_SRV
-#     TXT = T_TXT
 
-# cpdef enum QueryClass:
-#     IN = C_IN
-#     CHAOS = C_CHAOS
-#     HS = C_HS
-#     NONE = C_NONE
-#     QC_ANY = C_ANY 
+
+CYARES_SOCKET_BAD = ARES_SOCKET_BAD
+
+# From pycares
+
+# Query types
+QUERY_TYPE_A = T_A
+QUERY_TYPE_AAAA = T_AAAA
+QUERY_TYPE_ANY = T_ANY
+QUERY_TYPE_CAA = T_CAA
+QUERY_TYPE_CNAME = T_CNAME
+QUERY_TYPE_MX = T_MX
+QUERY_TYPE_NAPTR = T_NAPTR
+QUERY_TYPE_NS = T_NS
+QUERY_TYPE_PTR = T_PTR
+QUERY_TYPE_SOA = T_SOA
+QUERY_TYPE_SRV = T_SRV
+QUERY_TYPE_TXT = T_TXT
+
+# Query classes
+QUERY_CLASS_IN = C_IN
+QUERY_CLASS_CHAOS = C_CHAOS
+QUERY_CLASS_HS = C_HS
+QUERY_CLASS_NONE = C_NONE
+QUERY_CLASS_ANY = C_ANY
 
 
 cdef class Channel:
@@ -215,10 +220,13 @@ cdef class Channel:
         if r != ARES_SUCCESS:
             raise AresError(r)
     
+
+    def close(self):
+        return self.cancel()
+
     cpdef void cancel(self) noexcept:
-        if not self._cancelled:
-            ares_cancel(self.channel)
-            self._cancelled = True
+        ares_cancel(self.channel)
+        self._cancelled = True
 
     def reinit(self):
         cdef int r = ares_reinit(self.channel)
@@ -562,7 +570,15 @@ cdef class Channel:
 
 
 
+def cyares_threadsafety():
+    """
+    pycares documentation says:
+    Check if c-ares was compiled with thread safety support.
 
+    :return: True if thread-safe, False otherwise.
+    :rtype: bool
+    """
+    return ares_threadsafety() == ARES_TRUE
 
 
         

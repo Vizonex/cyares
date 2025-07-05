@@ -1,83 +1,115 @@
-
 import socket
+import sys
 import types
 from concurrent.futures import Future
 from typing import Any, Callable, overload
 
 from resulttypes import *
-from typing_extensions import Self
 
-__pyx_capi__: dict
-__test__: dict
+if sys.version_info < (3, 11):
+    from typing_extensions import Self
+else:
+    from typing import Self
+
+CYARES_SOCKET_BAD: int = ...
+
+# Query types
+QUERY_TYPE_A: int = ...
+QUERY_TYPE_AAAA: int = ...
+QUERY_TYPE_ANY: int = ...
+QUERY_TYPE_CAA : int = ...
+QUERY_TYPE_CNAME: int = ...
+QUERY_TYPE_MX : int = ...
+QUERY_TYPE_NAPTR : int = ...
+QUERY_TYPE_NS : int = ...
+QUERY_TYPE_PTR : int = ...
+QUERY_TYPE_SOA : int = ...
+QUERY_TYPE_SRV : int = ...
+QUERY_TYPE_TXT : int = ...
+
+# Query classes
+QUERY_CLASS_IN : int = ...
+QUERY_CLASS_CHAOS : int = ...
+QUERY_CLASS_HS : int = ...
+QUERY_CLASS_NONE : int = ...
+QUERY_CLASS_ANY : int = ...
 
 class Channel:
     def __init__(
         self,
-        flags = None,
-        timeout = None,
-        tries = None,
-        ndots = None,
-        tcp_port = None,
-        udp_port = None,
-        servers:list[str] | None = None,
-        domains = None,
-        lookups = None,
-        sock_state_cb = None,
-        socket_send_buffer_size = None,
-        socket_receive_buffer_size = None,
-        rotate:bool = False,
-        local_ip = None,
-        local_dev = None,
-        resolvconf_path = None,
-        event_thread:bool = False
+        flags=None,
+        timeout=None,
+        tries=None,
+        ndots=None,
+        tcp_port=None,
+        udp_port=None,
+        servers: list[str] | None = None,
+        domains=None,
+        lookups=None,
+        sock_state_cb: Callable[[int, int, int], None] = None,
+        socket_send_buffer_size=None,
+        socket_receive_buffer_size=None,
+        rotate: bool = False,
+        local_ip=None,
+        local_dev=None,
+        resolvconf_path=None,
+        event_thread: bool = False,
     ) -> None: ...
-    
     @overload
     def query(
-        self, 
-        name:str | bytearray | bytes | memoryview[int], 
-        query_type:str = "A",
-        query_class: str | None = None
-        )-> Future[list[ares_query_a_result]]:...
-
+        self,
+        name: str | bytearray | bytes | memoryview[int],
+        query_type: str = "A",
+        query_class: str | None = None,
+    ) -> Future[list[ares_query_a_result]]: ...
     @overload
     def query(
-        self, 
-        name:str | bytearray | bytes | memoryview[int], 
-        query_type:str = "MX",
-        query_class: str | None = None
-        )-> Future[list[ares_query_mx_result]]:...
-
-
-
+        self,
+        name: str | bytearray | bytes | memoryview[int],
+        query_type: str = "MX",
+        query_class: str | None = None,
+    ) -> Future[list[ares_query_mx_result]]: ...
     def query(
-        self, 
-        name: str | bytearray | bytes | memoryview[int], 
-        query_type: str | int, 
-        callback:  Callable[[Any, int], None] = None , 
-        query_class: str | None = None
+        self,
+        name: str | bytearray | bytes | memoryview[int],
+        query_type: str | int,
+        callback: Callable[[Any, int], None] = None,
+        query_class: str | None = None,
     ) -> Future: ...
-
-    def gethostbyname(
-        self, 
-        name:str | bytearray | bytes | memoryview[int], 
-        family: socket.AddressFamily, 
-        callback:Callable[[Future[ares_host_result]], None] | None = None
-    ) -> Future[ares_host_result]:
-        """Simillar to pycare's version but name
-        can be any string or c array and the callback is a future object
-        """
-
-    
-
-    def reinit(self) -> None: ...
     @property
-    def servers() -> list[str]:
-        pass
+    def servers(self) -> list[str]: ...
     @servers.setter
-    def servers(servers:list[str | bytes | memoryview[int] | bytearray]):
-        pass
-
+    def servers(self, servers: list[str]) -> None: ...
+    def cancel(self) -> None: ...
+    def reinit(self) -> None: ...
     def __enter__(self) -> Self: ...
-    def __exit__(self, type: type[BaseException] | None, value: BaseException | None, traceback: types.TracebackType | None): ...
-    def __reduce__(self): ...
+    def __exit__(self, *args) -> None: ...
+    def process_fd(self, read_fd: int, write_fd: int) -> None: ...
+    def getaddrinfo(
+        self,
+        host: object,
+        port: object = ...,
+        callback: object = ...,
+        family: int = ...,
+        socktype: int = ...,
+        proto: int = ...,
+        flags: int = ...,
+    ) -> object: ...
+    def getnameinfo(
+        self, address: tuple, flags: int, callback: object = ...
+    ) -> None: ...
+    def gethostbyname(
+        self, name: object, family: int, callback: object = ...
+    ) -> Future: ...
+    def set_local_dev(self, dev: object) -> None: ...
+    def set_local_ip(self, ip: object) -> None: ...
+
+
+def cyares_threadsafety() -> bool:
+    """
+    pycares documentation says:
+    Check if c-ares was compiled with thread safety support.
+
+    :return: True if thread-safe, False otherwise.
+    :rtype: bool
+    """

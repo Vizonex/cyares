@@ -1,5 +1,5 @@
 from .ares cimport *
-
+from threading import Condition
 
 cdef class SocketHandle:
     
@@ -9,7 +9,7 @@ cdef class SocketHandle:
         handle.state = STATE_RUNNING 
         handle._cond = Condition()
         handle.callback = callback
-        return callback
+        return handle
 
     cdef bint check_state(self, SocketHandleState state):
         cdef bint ret
@@ -31,7 +31,9 @@ cdef class SocketHandle:
 
     cdef void handle_cb(self, ares_socket_t socket_fd, int readable, int writable) noexcept:
         try:
+            print("running callback")
             self.callback(socket_fd, readable, writable)
+            print("callback done")
         except BaseException as e:
             # TODO: Exception Handler
             print(e)
@@ -44,10 +46,15 @@ cdef void __socket_state_callback(
     int readable,
     int writable
 ) noexcept with gil:
+    print("Null check")
     if data == NULL:
+        print("Data null exiting")
         return
+
     cdef SocketHandle handle = <SocketHandle>data
+    print("Cancel check")
     if not handle.cancelled():
+        print("Did not cancel calling Callback")
         handle.handle_cb(socket_fd, readable, writable)
     
 

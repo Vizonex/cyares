@@ -7,6 +7,7 @@ from .socket_handle cimport SocketHandle
 
 include "handles.pxi"
 
+
 cdef class Channel:
     cdef:
         # ares will get to decide the fate of the channel pointer...
