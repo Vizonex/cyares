@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "A Cython Version of c-ares"
 readme = "README.md"
 authors = [
-    { name = "Vizonex" }
+    { name = "Vizonex", email = "VizonexBusiness@gmail.com" }
 ]
 requires-python = ">=3.9"
 
