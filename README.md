@@ -15,7 +15,7 @@ There was no better canadate than to move to using handles the same way __uvloop
 
 The idea was not to reinvent the wheel rather move parts of the library over in chunks and look at __pycares__ for clues on how certain things should be laid out. At the end of the day, __Pycares__ was the blueprint and using __concurrent.futures__ & __Cython__ was the cure. __Py_buffer__ techniques brought over from __msgspec__ were utilized incase users were planning to use any bytes or string objects of any sort and I made sure the license was on it incase users wanted to know where it came from.
 
-If there was something deprecated or better to use I felt using it would be a better move. For example, servers are now set with the csv functions rather than the original setup and because of that change you could now set dns servers in url formats and I might possibly look at adding in __yarl__ to be the cherry on top for those who might wish to get real creative about dns server urls. 
+If there was a deprecated function with an alternative & safer approch to use I felt using it would be a better move. For example, servers are now set with the csv functions rather than the original setup and because of that change you could now set dns servers in url formats and I might possibly look at adding in __yarl__ to be the cherry on top for those who might wish to get real creative about dns server urls. 
 
 Moving over the __ares_query__ function to use the dns recursion function is planned for the future. I still wanted to retain the original response data it gives so that migrating from __pycares__ to __cyares__ wouldn't be a pain to anyone who planned on moving and I also didn't want to take away from __pycares__ either if you prefer using __cffi__ over __cython__.
 
