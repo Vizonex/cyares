@@ -39,6 +39,7 @@ cdef class SocketHandle:
             print(e)
 
 
+# XXX: Currenlty debugging there appears to be a segfault somewhere...
 
 cdef void __socket_state_callback(
     void *data,

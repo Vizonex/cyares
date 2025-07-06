@@ -16,6 +16,8 @@ cdef class AresResult:
 # DNS query result types
 #
 
+
+
 cdef class ares_query_a_result(AresResult):
 
     @property
@@ -23,8 +25,8 @@ cdef class ares_query_a_result(AresResult):
         return 'A'
     
     @staticmethod
-    cdef ares_query_a_result new(ares_addrttl* result):
-        cdef bytes buf = PyBytes_FromStringAndSize(NULL, INET6_ADDRSTRLEN)
+    cdef ares_query_a_result old_new(ares_addrttl* result):
+        cdef bytes buf = PyBytes_FromStringAndSize(NULL, INET_ADDRSTRLEN)
         cdef ares_query_a_result r = ares_query_a_result.__new__(ares_query_a_result)
 
         ares_inet_ntop(AF_INET, <void*>&result.ipaddr, PyBytes_AS_STRING(buf), INET6_ADDRSTRLEN)
@@ -33,6 +35,18 @@ cdef class ares_query_a_result(AresResult):
         r._attrs = ("host", "ttl")
         return r
 
+    @staticmethod
+    cdef ares_query_a_result new(const ares_dns_rr_t *rr):
+        cdef bytes buf = PyBytes_FromStringAndSize(NULL, INET_ADDRSTRLEN)
+        cdef ares_query_a_result r = ares_query_a_result.__new__(ares_query_a_result)
+        cdef const in_addr* addr = ares_dns_rr_get_addr(rr, ARES_RR_A_ADDR)
+        ares_inet_ntop(AF_INET, <void*>addr, PyBytes_AS_STRING(buf), INET6_ADDRSTRLEN)
+        r.host = buf
+        r.ttl = rr.ttl
+        r._attrs = ("host", "ttl")
+        return r
+
+ 
 
 cdef class ares_query_aaaa_result(AresResult):
     
@@ -42,7 +56,7 @@ cdef class ares_query_aaaa_result(AresResult):
         return 'AAAA'
 
     @staticmethod
-    cdef ares_query_aaaa_result new(ares_addr6ttl* result):
+    cdef ares_query_aaaa_result old_new(ares_addr6ttl* result):
         cdef bytes buf = PyBytes_FromStringAndSize(NULL, INET6_ADDRSTRLEN)
         cdef ares_query_aaaa_result r = ares_query_aaaa_result.__new__(ares_query_a_result)
         ares_inet_ntop(AF_INET6, <void*>&result.ip6addr, PyBytes_AS_STRING(buf), INET6_ADDRSTRLEN)
@@ -51,6 +65,21 @@ cdef class ares_query_aaaa_result(AresResult):
         r._attrs = ("host", "ttl")
         return r
 
+    @staticmethod
+    cdef ares_query_aaaa_result new(const ares_dns_rr_t *rr):
+        cdef bytes buf = PyBytes_FromStringAndSize(NULL, INET6_ADDRSTRLEN)
+        cdef ares_query_aaaa_result r = ares_query_aaaa_result.__new__(ares_query_a_result)
+        cdef const ares_in6_addr* addr = ares_dns_rr_get_addr(rr, ARES_RR_A_ADDR)
+
+        ares_inet_ntop(AF_INET6, <void*>addr, PyBytes_AS_STRING(buf), INET6_ADDRSTRLEN)
+        r.host = buf
+        r.ttl = rr.ttl
+        r._attrs = ("host", "ttl")
+        return r
+
+
+
+
 cdef class ares_query_caa_result(AresResult):
 
     @property
@@ -58,7 +87,7 @@ cdef class ares_query_caa_result(AresResult):
         return 'CAA'
 
     @staticmethod
-    cdef ares_query_caa_result new(ares_caa_reply* result):
+    cdef ares_query_caa_result old_new(ares_caa_reply* result):
         cdef ares_query_caa_result r = ares_query_caa_result.__new__(ares_query_caa_result) 
         r.critical = result.critical
         r.property = PyBytes_FromStringAndSize(<char*>result.property, result.plength)
@@ -67,6 +96,18 @@ cdef class ares_query_caa_result(AresResult):
         r._attrs =  ('critical', 'property', 'value', 'ttl')
         return r
     
+    @staticmethod
+    cdef ares_query_caa_result new(const ares_dns_rr_t *rr):
+        cdef ares_query_caa_result r = ares_query_caa_result.__new__(ares_query_caa_result) 
+        r.critical = ares_dns_rr_get_u8(rr, ARES_RR_CAA_CRITICAL)
+        r.property = cyares_dns_rr_get_bytes(rr, ARES_RR_CAA_TAG)
+        r.value = cyares_dns_rr_get_bytes(rr, ARES_RR_CAA_VALUE)
+        r.ttl = -1
+        r._attrs =  ('critical', 'property', 'value', 'ttl')
+        return r
+
+
+
 
 
 cdef class ares_query_cname_result(AresResult):
@@ -76,10 +117,19 @@ cdef class ares_query_cname_result(AresResult):
         return 'CNAME'
 
     @staticmethod
-    cdef ares_query_cname_result new(hostent* host):
+    cdef ares_query_cname_result old_new(hostent* host):
         cdef ares_query_cname_result r  = ares_query_cname_result.__new__(ares_query_cname_result)
         r.cname = PyBytes_FromString(host.h_name)
         r.ttl = -1
+        r._attrs = ("ttl", "cname")
+        return r
+
+    @staticmethod
+    cdef ares_query_cname_result new(const ares_dns_rr_t *rr):
+        cdef ares_query_cname_result r = ares_query_cname_result.__new__(ares_query_cname_result)
+        r.cname = cyares_dns_rr_get_bytes(rr, ARES_RR_CNAME_CNAME)
+        r.ttl = -1
+        r._attrs = ("ttl", "cname")
         return r
 
 
@@ -92,13 +142,23 @@ cdef class ares_query_mx_result(AresResult):
         return 'MX'
 
     @staticmethod
-    cdef ares_query_mx_result new(ares_mx_reply* mx):
+    cdef ares_query_mx_result old_new(ares_mx_reply* mx):
         cdef ares_query_mx_result r = ares_query_mx_result.__new__(ares_query_mx_result)
         r.host = PyBytes_FromString(mx.host)
         r.priority = mx.priority
         r.ttl = -1
         r._attrs = ('host', 'priority', 'ttl')
         return r
+
+    @staticmethod
+    cdef ares_query_mx_result new(const ares_dns_rr_t *rr):
+        cdef ares_query_mx_result r = ares_query_mx_result.__new__(ares_query_mx_result)
+        r.host = cyares_dns_rr_get_bytes(rr, ARES_RR_MX_EXCHANGE)
+        r.priority = ares_dns_rr_get_u16(rr, ARES_RR_MX_PREFERENCE)
+        r.ttl = -1
+        r._attrs = ('host', 'priority', 'ttl')
+        return r
+
 
 
 
@@ -109,7 +169,7 @@ cdef class ares_query_naptr_result(AresResult):
         return 'NAPTR'
 
     @staticmethod
-    cdef ares_query_naptr_result new(ares_naptr_reply* naptr):
+    cdef ares_query_naptr_result old_new(ares_naptr_reply* naptr):
         cdef ares_query_naptr_result r = ares_query_naptr_result.__new__(ares_query_naptr_result)
 
         r.order = naptr.order
@@ -122,6 +182,25 @@ cdef class ares_query_naptr_result(AresResult):
         r._attrs = ('order', 'preference', 'flags', 'service', 'regex', 'replacement', 'ttl')
         return r
 
+    @staticmethod
+    cdef ares_query_naptr_result new(const ares_dns_rr_t *rr):
+        cdef ares_query_naptr_result r = ares_query_naptr_result.__new__(ares_query_naptr_result)
+        r.order = ares_dns_rr_get_u16(rr, ARES_RR_NAPTR_ORDER)
+        r.preference = ares_dns_rr_get_u16(rr, ARES_RR_NAPTR_PREFERENCE)
+        r.flags = cyares_dns_rr_get_bytes(rr, ARES_RR_NAPTR_FLAGS)
+        r.service = cyares_dns_rr_get_bytes(rr, ARES_RR_NAPTR_SERVICES)
+        r.regex = cyares_dns_rr_get_bytes(rr, ARES_RR_NAPTR_REGEXP)
+        r.replacement = cyares_dns_rr_get_bytes(rr, ARES_RR_NAPTR_REPLACEMENT)
+        r.ttl = -1
+        r._attrs = ('order', 'preference', 'flags', 'service', 'regex', 'replacement', 'ttl')
+        return r
+    
+
+
+
+
+
+
 
 
 cdef class ares_query_ns_result(AresResult):
@@ -131,12 +210,21 @@ cdef class ares_query_ns_result(AresResult):
         return 'NS'
 
     @staticmethod
-    cdef ares_query_ns_result new(char* ns):
+    cdef ares_query_ns_result old_new(char* ns):
         cdef ares_query_ns_result r = ares_query_ns_result.__new__(ares_query_ns_result)
         r.host = PyBytes_FromString(ns)
         r.ttl = -1
         r._attrs = ('host', 'ttl')
         return r
+    
+    @staticmethod
+    cdef ares_query_ns_result new(const ares_dns_rr_t *rr):
+        cdef ares_query_ns_result r = ares_query_ns_result.__new__(ares_query_ns_result)
+        r.host = cyares_dns_rr_get_bytes(rr, ARES_RR_NS_NSDNAME)
+        r.ttl = -1
+        r._attrs = ('host', 'ttl')
+        return r
+
 
 
 cdef class ares_query_ptr_result(AresResult):
@@ -146,13 +234,28 @@ cdef class ares_query_ptr_result(AresResult):
         return 'PTR'
 
     @staticmethod
-    cdef ares_query_ptr_result new(hostent* _hostent, list aliases):
+    cdef ares_query_ptr_result old_new(hostent* _hostent, list aliases):
         cdef ares_query_ptr_result r = ares_query_ptr_result.__new__(ares_query_ptr_result)
         r.name = PyBytes_FromStringAndSize(_hostent.h_name, _hostent.h_length)
         r.aliases = aliases
         r.ttl = -1
         r._attrs = ('name', 'ttl', 'aliases')
         return r
+
+    @staticmethod
+    cdef ares_query_ptr_result new(
+        const ares_dns_rr_t *rr
+    ):
+        cdef ares_query_ptr_result r = ares_query_ptr_result.__new__(ares_query_ptr_result)
+        r.name = cyares_dns_rr_get_bytes(rr, ARES_RR_PTR_DNAME)
+        # XXX: This is likely to change now...
+        r.aliases = []
+        r.ttl = -1
+        r._attrs = ('name', 'ttl', 'aliases')
+        return r
+    
+
+
 
 
 
@@ -165,30 +268,44 @@ cdef class ares_query_soa_result(AresResult):
         return 'SOA'
 
     @staticmethod
-    cdef ares_query_soa_result new(ares_soa_reply* soa):
+    cdef ares_query_soa_result old_new(ares_soa_reply* soa):
         cdef ares_query_soa_result r = ares_query_soa_result.__new__(ares_query_soa_result)
         r.nsname = PyBytes_FromString(soa.nsname)
         r.hostmaster = PyBytes_FromString(soa.hostmaster)
         r.serial = soa.serial
         r.refresh = soa.refresh
         r.retry = soa.retry
-        r.expires = soa.expire
+        r.expire = soa.expire
         r.minttl = soa.minttl
         r.ttl = -1
         r._attrs = ('nsname', 'hostmaster', 'serial', 'refresh', 'retry', 'expires', 'minttl', 'ttl')
         return r 
 
+    @staticmethod
+    cdef ares_query_soa_result new(
+        const ares_dns_rr_t *rr
+    ):
+        cdef ares_query_soa_result r = ares_query_soa_result.__new__(ares_query_soa_result)
+        r.nsname = cyares_dns_rr_get_bytes(rr, ARES_RR_SOA_MNAME)
+        r.hostmaster = cyares_dns_rr_get_bytes(rr, ARES_RR_SOA_RNAME)
+        r.serial = ares_dns_rr_get_u32(rr, ARES_RR_SOA_SERIAL)
+        r.referesh = ares_dns_rr_get_u32(rr, ARES_RR_SOA_REFRESH)
+        r.retry = ares_dns_rr_get_u32(rr, ARES_RR_SOA_RETRY)
+        r.expire = ares_dns_rr_get_u32(rr, ARES_RR_SOA_EXPIRE)
+        r.minttl = ares_dns_rr_get_u32(rr, ARES_RR_SOA_MINIMUM)
+        r.ttl = ares_dns_rr_get_u32(rr, ARES_RR_SIG_ORIGINAL_TTL)
+        r._attrs = ('nsname', 'hostmaster', 'serial', 'refresh', 'retry', 'expires', 'minttl', 'ttl')
+        return r
+
 
 cdef class ares_query_srv_result(AresResult):
-
-    
 
     @property
     def type(self): 
         return 'SRV'
 
     @staticmethod
-    cdef ares_query_srv_result new(ares_srv_reply* srv):
+    cdef ares_query_srv_result old_new(ares_srv_reply* srv):
         cdef ares_query_srv_result r = ares_query_srv_result.__new__(ares_query_srv_result)
         r.host = PyBytes_FromString(srv.host)
         r.port = srv.port
@@ -198,6 +315,20 @@ cdef class ares_query_srv_result(AresResult):
         r._attrs = ('host', 'port', 'priority', 'weight', 'ttl')
         return r
     
+    @staticmethod
+    cdef ares_query_srv_result new(
+        const ares_dns_rr_t *rr
+    ):
+        cdef ares_query_srv_result r = ares_query_srv_result.__new__(ares_query_srv_result)
+        r.host = cyares_dns_rr_get_bytes(rr, ARES_RR_SRV_TARGET)
+        r.port = ares_dns_rr_get_u16(rr, ARES_RR_SRV_PORT)
+        r.priority = ares_dns_rr_get_u16(rr, ARES_RR_SRV_PRIORITY)
+        r.weight = ares_dns_rr_get_u16(rr, ARES_RR_SRV_WEIGHT)
+        r.ttl = -1
+        r._attrs = ('host', 'port', 'priority', 'weight', 'ttl')
+        return r 
+
+
 
 cdef class ares_query_txt_result(AresResult):
 
@@ -206,7 +337,7 @@ cdef class ares_query_txt_result(AresResult):
         return 'TXT'
 
     @staticmethod
-    cdef ares_query_txt_result new(ares_txt_ext* txt_chunk):
+    cdef ares_query_txt_result old_new(ares_txt_ext* txt_chunk):
         cdef ares_query_txt_result r = ares_query_txt_result.__new__(ares_query_txt_result)
         r.text = PyBytes_FromStringAndSize(<char*>txt_chunk.txt, <Py_ssize_t>txt_chunk.length)
         r.ttl = -1
@@ -220,6 +351,17 @@ cdef class ares_query_txt_result(AresResult):
         r.ttl = -1
         r._attrs = ('text', 'ttl')
         return r
+
+    @staticmethod
+    cdef ares_query_txt_result new(const ares_dns_rr_t* rr, size_t idx):
+        cdef size_t len
+        cdef ares_query_txt_result r = ares_query_txt_result.__new__(ares_query_txt_result)
+        cdef char* data = <char*>ares_dns_rr_get_abin(rr, ARES_RR_TXT_DATA, idx, &len)
+        r.text = PyBytes_FromStringAndSize(data, <Py_ssize_t>len)
+        r.ttl = -1
+        r._attrs = ('text', 'ttl')
+
+
 
 
 # class ares_query_txt_result_chunk(AresResult):

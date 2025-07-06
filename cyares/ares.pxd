@@ -1,4 +1,4 @@
-from libc.stdint cimport uint8_t, uint16_t, uint32_t
+from libc.stdint cimport uint8_t, uint16_t, uint32_t, uint64_t
 from libc.time cimport time_t
 
 # NOTE: If needed We can always make a seperate 
@@ -74,33 +74,6 @@ cdef extern from "inc/cares_headers.h" nogil:
     ctypedef int ares_socket_t
     ctypedef int ares_socklen_t
 
-    int ARES_SUCCESS            
-
-    int ARES_ENODATA            
-    int ARES_EFORMERR           
-    int ARES_ESERVFAIL          
-    int ARES_ENOTFOUND          
-    int ARES_ENOTIMP            
-    int ARES_EREFUSED           
-    int ARES_EBADQUERY          
-    int ARES_EBADNAME           
-    int ARES_EBADFAMILY         
-    int ARES_EBADRESP           
-    int ARES_ECONNREFUSED       
-    int ARES_ETIMEOUT           
-    int ARES_EOF                
-    int ARES_EFILE              
-    int ARES_ENOMEM             
-    int ARES_EDESTRUCTION       
-    int ARES_EBADSTR            
-    int ARES_EBADFLAGS          
-    int ARES_ENONAME            
-    int ARES_EBADHINTS          
-    int ARES_ENOTINITIALIZED    
-    int ARES_ELOADIPHLPAPI           
-    int ARES_EADDRGETNETWORKPARAMS   
-    int ARES_ECANCELLED         
-    int ARES_ESERVICE
 
     # To Bypass Problems with flag names allow me to sprinkle some name aliasing
 
@@ -279,7 +252,7 @@ cdef extern from "inc/cares_headers.h" nogil:
         char *hosts_path
         int udp_max_queries
         int maxtimeout # in milliseconds
-        unsigned int qcache_max_ttl # Maximum TTL for query cache, 0=disabled */
+        unsigned int qcache_max_ttl # Maximum TTL for query cache, 0=disabled
         ares_evsys_t evsys
         ares_server_failover_options server_failover_opts
   
@@ -632,3 +605,332 @@ cdef extern from "inc/cares_headers.h" nogil:
     int AF_INET6
     int AF_UNSPEC
 
+    ctypedef enum ares_status_t:
+        ARES_SUCCESS = 0,
+        ARES_ENODATA   = 1,
+        ARES_EFORMERR  = 2,
+        ARES_ESERVFAIL = 3,
+        ARES_ENOTFOUND = 4,
+        ARES_ENOTIMP   = 5,
+        ARES_EREFUSED  = 6,
+        ARES_EBADQUERY    = 7,
+        ARES_EBADNAME     = 8,
+        ARES_EBADFAMILY   = 9,
+        ARES_EBADRESP     = 10,
+        ARES_ECONNREFUSED = 11,
+        ARES_ETIMEOUT     = 12,
+        ARES_EOF          = 13,
+        ARES_EFILE        = 14,
+        ARES_ENOMEM       = 15,
+        ARES_EDESTRUCTION = 16,
+        ARES_EBADSTR      = 17,
+        ARES_EBADFLAGS = 18,
+        ARES_ENONAME   = 19,
+        ARES_EBADHINTS = 20,
+        ARES_ENOTINITIALIZED = 21,
+        ARES_ELOADIPHLPAPI         = 22,
+        ARES_EADDRGETNETWORKPARAMS = 23,
+        ARES_ECANCELLED = 24,
+        ARES_ESERVICE = 25, 
+        ARES_ENOSERVER = 26
+
+    ctypedef enum ares_dns_section_t:
+        ARES_SECTION_ANSWER = 1
+        ARES_SECTION_AUTHORITY = 2
+        ARES_SECTION_ADDITIONAL = 3
+    
+
+    ctypedef struct ares_dns_record_t:
+        # I'm not writing all of that...
+        pass
+
+    ctypedef struct ares_dns_rr_t:
+        # Do want ttl on everyting that we possibly can 
+        unsigned int ttl
+
+    ctypedef void (*ares_callback_dnsrec)(void *arg,
+                                     ares_status_t status,
+                                     size_t timeouts,
+                                     const ares_dns_record_t *dnsrec) noexcept with gil
+
+    void ares_search_dnsrec(ares_channel_t *channel,
+                            const ares_dns_record_t *dnsrec,
+                            ares_callback_dnsrec callback, void *arg)
+    size_t ares_dns_record_rr_cnt(const ares_dns_record_t *dnsrec, ares_dns_section_t sect)
+
+    ares_dns_rr_t *ares_dns_record_rr_get(ares_dns_record_t *dnsrec,
+                                                   ares_dns_section_t sect,
+                                                   size_t             idx);
+
+
+    ctypedef enum ares_dns_rec_type_t:
+        ARES_REC_TYPE_A     = 1,   # Host address.
+        ARES_REC_TYPE_NS    = 2,   # Authoritative server.
+        ARES_REC_TYPE_CNAME = 5,   # Canonical name.
+        ARES_REC_TYPE_SOA   = 6,   # Start of authority zone.
+        ARES_REC_TYPE_PTR   = 12,  # Domain name pointer.
+        ARES_REC_TYPE_HINFO = 13,  # Host information.
+        ARES_REC_TYPE_MX    = 15,  # Mail routing information.
+        ARES_REC_TYPE_TXT   = 16,  # Text strings.
+        ARES_REC_TYPE_SIG   = 24,  # RFC 2535 / RFC 2931. SIG Record
+        ARES_REC_TYPE_AAAA  = 28,  # RFC 3596. Ip6 Address.
+        ARES_REC_TYPE_SRV   = 33,  # RFC 2782. Server Selection.
+        ARES_REC_TYPE_NAPTR = 35,  # RFC 3403. Naming Authority Pointer
+        ARES_REC_TYPE_OPT   = 41,  # RFC 6891. EDNS0 option (meta-RR)
+
+        ARES_REC_TYPE_TLSA = 52, # RFC 6698. DNS-Based Authentication of Named
+                                 # Entities (DANE) Transport Layer Security
+                                 # (TLS) Protocol: TLSA
+        ARES_REC_TYPE_SVCB  = 64,# RFC 9460. General Purpose Service Binding
+        ARES_REC_TYPE_HTTPS = 65,# RFC 9460. Service Binding type for use with
+                                 # HTTPS
+        ARES_REC_TYPE_ANY = 255, # Wildcard match.  Not response RR.
+        ARES_REC_TYPE_URI = 256, # RFC 7553. Uniform Resource Identifier
+        ARES_REC_TYPE_CAA = 257, # RFC 6844. Certification Authority
+                                 # Authorization.
+        ARES_REC_TYPE_RAW_RR = 65536
+
+    ctypedef enum ares_dns_rr_key_t:
+        # A Record. Address. Datatype: INADDR
+        ARES_RR_A_ADDR,
+
+        # NS Record. Name. Datatype: NAME
+        ARES_RR_NS_NSDNAME,
+
+        # CNAME Record. CName. Datatype: NAME
+        ARES_RR_CNAME_CNAME,
+        
+        # SOA Record. MNAME, Primary Source of Data. Datatype: NAME
+        ARES_RR_SOA_MNAME,
+
+        # SOA Record. RNAME, Mailbox of person responsible. Datatype: NAME
+        ARES_RR_SOA_RNAME,
+
+        # SOA Record. Serial, version. Datatype: U32
+        ARES_RR_SOA_SERIAL,
+
+        # SOA Record. Refresh, zone refersh interval. Datatype: U32
+        ARES_RR_SOA_REFRESH,
+
+        # SOA Record. Retry, failed refresh retry interval. Datatype: U32
+
+        ARES_RR_SOA_RETRY,
+        # SOA Record. Expire, upper limit on authority. Datatype: U32
+
+        ARES_RR_SOA_EXPIRE,
+        # SOA Record. Minimum, RR TTL. Datatype: U32
+
+        ARES_RR_SOA_MINIMUM,
+        # PTR Record. DNAME, pointer domain. Datatype: NAME
+
+        ARES_RR_PTR_DNAME,
+        # HINFO Record. CPU. Datatype: STR
+
+        ARES_RR_HINFO_CPU,
+        # HINFO Record. OS. Datatype: STR
+
+        ARES_RR_HINFO_OS,
+        # MX Record. Preference. Datatype: U16
+
+        ARES_RR_MX_PREFERENCE,
+        # MX Record. Exchange, domain. Datatype: NAME
+
+        ARES_RR_MX_EXCHANGE,
+        # TXT Record. Data. Datatype: ABINP
+
+        ARES_RR_TXT_DATA,
+        # SIG Record. Type Covered. Datatype: U16
+
+        ARES_RR_SIG_TYPE_COVERED,
+        # SIG Record. Algorithm. Datatype: U8
+
+        ARES_RR_SIG_ALGORITHM,
+        # SIG Record. Labels. Datatype: U8
+
+        ARES_RR_SIG_LABELS,
+        # SIG Record. Original TTL. Datatype: U32
+
+        ARES_RR_SIG_ORIGINAL_TTL,
+        # SIG Record. Signature Expiration. Datatype: U32
+
+        ARES_RR_SIG_EXPIRATION,
+        # SIG Record. Signature Inception. Datatype: U32
+
+        ARES_RR_SIG_INCEPTION,
+        # SIG Record. Key Tag. Datatype: U16
+
+        ARES_RR_SIG_KEY_TAG,
+        # SIG Record. Signers Name. Datatype: NAME
+
+        ARES_RR_SIG_SIGNERS_NAME,
+        # SIG Record. Signature. Datatype: BIN
+
+        ARES_RR_SIG_SIGNATURE,
+        # AAAA Record. Address. Datatype: INADDR6
+
+        ARES_RR_AAAA_ADDR,
+        # SRV Record. Priority. Datatype: U16
+
+        ARES_RR_SRV_PRIORITY,
+        # SRV Record. Weight. Datatype: U16
+
+        ARES_RR_SRV_WEIGHT,
+        # SRV Record. Port. Datatype: U16
+
+        ARES_RR_SRV_PORT,
+        # SRV Record. Target domain. Datatype: NAME
+
+        ARES_RR_SRV_TARGET,
+        # NAPTR Record. Order. Datatype: U16
+
+        ARES_RR_NAPTR_ORDER,
+        # NAPTR Record. Preference. Datatype: U16
+
+        ARES_RR_NAPTR_PREFERENCE,
+        # NAPTR Record. Flags. Datatype: STR
+
+        ARES_RR_NAPTR_FLAGS,
+        # NAPTR Record. Services. Datatype: STR
+
+        ARES_RR_NAPTR_SERVICES,
+        # NAPTR Record. Regexp. Datatype: STR
+
+        ARES_RR_NAPTR_REGEXP,
+        # NAPTR Record. Replacement. Datatype: NAME
+
+        ARES_RR_NAPTR_REPLACEMENT,
+        # OPT Record. UDP Size. Datatype: U16
+
+        ARES_RR_OPT_UDP_SIZE,
+
+        # OPT Record. Version. Datatype: U8
+        ARES_RR_OPT_VERSION,
+        
+        # OPT Record. Flags. Datatype: U16
+        ARES_RR_OPT_FLAGS,
+        
+        # OPT Record. Options. Datatype: OPT
+        ARES_RR_OPT_OPTIONS,
+        
+        # TLSA Record. Certificate Usage. Datatype: U8
+        ARES_RR_TLSA_CERT_USAGE,
+        
+        # TLSA Record. Selector. Datatype: U8
+        ARES_RR_TLSA_SELECTOR,
+        
+        # TLSA Record. Matching Type. Datatype: U8
+        ARES_RR_TLSA_MATCH,
+        
+        # TLSA Record. Certificate Association Data. Datatype: BIN
+        ARES_RR_TLSA_DATA,
+        
+        # SVCB Record. SvcPriority. Datatype: U16
+        ARES_RR_SVCB_PRIORITY,
+        
+        # SVCB Record. TargetName. Datatype: NAME
+        ARES_RR_SVCB_TARGET,
+        
+        # SVCB Record. SvcParams. Datatype: OPT
+        ARES_RR_SVCB_PARAMS,
+        
+        # HTTPS Record. SvcPriority. Datatype: U16
+        ARES_RR_HTTPS_PRIORITY,
+        
+        # HTTPS Record. TargetName. Datatype: NAME
+        ARES_RR_HTTPS_TARGET,
+        
+        # HTTPS Record. SvcParams. Datatype: OPT
+        ARES_RR_HTTPS_PARAMS,
+        
+        # URI Record. Priority. Datatype: U16
+        ARES_RR_URI_PRIORITY,
+        
+        # URI Record. Weight. Datatype: U16
+        ARES_RR_URI_WEIGHT,
+        
+        # URI Record. Target domain. Datatype: NAME
+        ARES_RR_URI_TARGET,
+        
+        # CAA Record. Critical flag. Datatype: U8
+        ARES_RR_CAA_CRITICAL,
+        
+        # CAA Record. Tag/Property. Datatype: STR
+        ARES_RR_CAA_TAG,
+        
+        # CAA Record. Value. Datatype: BINP
+        ARES_RR_CAA_VALUE,
+        
+        # RAW Record. RR Type. Datatype: U16
+        ARES_RR_RAW_RR_TYPE,
+        
+        # RAW Record. RR Data. Datatype: BIN
+        ARES_RR_RAW_RR_DATA
+    
+    uint8_t ares_dns_rr_get_u8(
+        const ares_dns_rr_t *dns_rr, ares_dns_rr_key_t key
+    )
+    
+    uint16_t ares_dns_rr_get_u16(
+        const ares_dns_rr_t *dns_rr, ares_dns_rr_key_t key
+    )    
+    
+    uint32_t ares_dns_rr_get_u32(
+        const ares_dns_rr_t *dns_rr, ares_dns_rr_key_t key
+    )
+    
+    const unsigned char * ares_dns_rr_get_bin(
+        const ares_dns_rr_t *dns_rr, 
+        ares_dns_rr_key_t key, 
+        size_t *len
+    )
+    
+    size_t ares_dns_rr_get_abin_cnt(
+        const ares_dns_rr_t *dns_rr, ares_dns_rr_key_t key
+    )
+    
+    const unsigned char * ares_dns_rr_get_abin(
+        const ares_dns_rr_t *dns_rr, ares_dns_rr_key_t key,
+                       size_t idx, size_t *len
+    )
+    
+    size_t ares_dns_rr_get_opt_cnt(
+        const ares_dns_rr_t *dns_rr, ares_dns_rr_key_t key
+    )
+    const char *ares_dns_rr_get_str(const ares_dns_rr_t *dns_rr, ares_dns_rr_key_t    key)
+    
+    
+    unsigned short ares_dns_rr_get_opt(
+        const ares_dns_rr_t *dns_rr, 
+        ares_dns_rr_key_t key, 
+        size_t idx, 
+        const unsigned char **val, 
+        size_t *val_len
+    )
+
+    ares_bool_t ares_dns_rr_get_opt_byid(
+        const ares_dns_rr_t  *dns_rr,
+        ares_dns_rr_key_t key,
+        unsigned short opt,
+        const unsigned char **val,
+        size_t *val_len
+    )
+
+
+    ares_status_t ares_dns_parse(
+        const unsigned char *buf,
+        size_t buf_len, unsigned int flags,
+        ares_dns_record_t **dnsrec
+    )
+    
+    const in_addr* ares_dns_rr_get_addr(
+        const ares_dns_rr_t *dns_rr, 
+        ares_dns_rr_key_t key
+    )
+
+    const ares_dns_rr_t *ares_dns_record_rr_get_const(
+        const ares_dns_record_t *dnsrec, 
+        ares_dns_section_t sect, size_t idx
+    )
+    const ares_in6_addr * ares_dns_rr_get_addr6(
+        const ares_dns_rr_t *dns_rr, ares_dns_rr_key_t key
+    )

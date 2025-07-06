@@ -9,8 +9,14 @@ cdef class AresResult:
 
 
 
+
 # DNS query result types
 #
+
+# custom
+cdef inline bytes cyares_dns_rr_get_bytes(const ares_dns_rr_t* dns_rr, ares_dns_rr_key_t key):
+    return PyBytes_FromString(ares_dns_rr_get_str(dns_rr, key))
+
 
 cdef class ares_query_a_result(AresResult):
     cdef:
@@ -18,7 +24,12 @@ cdef class ares_query_a_result(AresResult):
         readonly int ttl
     
     @staticmethod
-    cdef ares_query_a_result new(ares_addrttl* result)
+    cdef ares_query_a_result old_new(ares_addrttl* result)
+
+    @staticmethod
+    cdef ares_query_a_result new(const ares_dns_rr_t *rr)
+
+
 
 
 cdef class ares_query_aaaa_result(AresResult):
@@ -27,7 +38,11 @@ cdef class ares_query_aaaa_result(AresResult):
         readonly int ttl
 
     @staticmethod
-    cdef ares_query_aaaa_result new(ares_addr6ttl* result)
+    cdef ares_query_aaaa_result old_new(ares_addr6ttl* result)
+    
+    @staticmethod
+    cdef ares_query_aaaa_result new(const ares_dns_rr_t *rr)
+
 
 cdef class  ares_query_caa_result(AresResult):
     cdef:
@@ -37,18 +52,22 @@ cdef class  ares_query_caa_result(AresResult):
         readonly int ttl
     
     @staticmethod
-    cdef ares_query_caa_result new(ares_caa_reply* result)
+    cdef ares_query_caa_result old_new(ares_caa_reply* result)
     
-
+    @staticmethod
+    cdef ares_query_caa_result new(const ares_dns_rr_t *rr)
+    
 
 cdef class ares_query_cname_result(AresResult):
     cdef:
         readonly bytes cname
         readonly int ttl
     @staticmethod
-    cdef ares_query_cname_result new(hostent* host)
+    cdef ares_query_cname_result old_new(hostent* host)
 
-
+    @staticmethod
+    cdef ares_query_cname_result new(const ares_dns_rr_t *rr)
+    
 
 cdef class ares_query_mx_result(AresResult):
     cdef:
@@ -57,8 +76,10 @@ cdef class ares_query_mx_result(AresResult):
         readonly int ttl
 
     @staticmethod
-    cdef ares_query_mx_result new(ares_mx_reply* mx)
+    cdef ares_query_mx_result old_new(ares_mx_reply* mx)
 
+    @staticmethod
+    cdef ares_query_mx_result new(const ares_dns_rr_t *rr)
 
 
 cdef class ares_query_naptr_result(AresResult):
@@ -67,14 +88,20 @@ cdef class ares_query_naptr_result(AresResult):
         readonly int ttl
 
     @staticmethod
-    cdef ares_query_naptr_result new(ares_naptr_reply* naptr)
+    cdef ares_query_naptr_result old_new(ares_naptr_reply* naptr)
 
+    @staticmethod
+    cdef ares_query_naptr_result new(const ares_dns_rr_t *rr)
+    
 
 cdef class ares_query_ns_result(AresResult):
     cdef readonly bytes host
     @staticmethod
-    cdef ares_query_ns_result new(char* ns)
+    cdef ares_query_ns_result old_new(char* ns)
 
+    @staticmethod
+    cdef ares_query_ns_result new(const ares_dns_rr_t *rr)
+    
 
 cdef class ares_query_ptr_result(AresResult):
     cdef:
@@ -83,7 +110,14 @@ cdef class ares_query_ptr_result(AresResult):
         readonly int ttl 
 
     @staticmethod
-    cdef ares_query_ptr_result new(hostent* _hostent, list aliases)
+    cdef ares_query_ptr_result old_new(
+        hostent* _hostent, list aliases
+    )
+
+    @staticmethod
+    cdef ares_query_ptr_result new(
+        const ares_dns_rr_t *rr
+    )
 
 
 
@@ -96,10 +130,15 @@ cdef class ares_query_soa_result(AresResult):
         readonly unsigned int retry
         readonly unsigned int expire
         readonly unsigned int minttl
-        readonly int ttl
+        readonly unsigned int ttl
 
     @staticmethod
-    cdef ares_query_soa_result new(ares_soa_reply* soa)
+    cdef ares_query_soa_result old_new(ares_soa_reply* soa)
+
+    @staticmethod
+    cdef ares_query_soa_result new(
+        const ares_dns_rr_t *rr
+    )
 
 
 cdef class ares_query_srv_result(AresResult):
@@ -110,8 +149,12 @@ cdef class ares_query_srv_result(AresResult):
         readonly int weight
         readonly int ttl
     @staticmethod
-    cdef ares_query_srv_result new(ares_srv_reply* srv)
+    cdef ares_query_srv_result old_new(ares_srv_reply* srv)
     
+    @staticmethod
+    cdef ares_query_srv_result new(
+        const ares_dns_rr_t *rr
+    )
 
 cdef class ares_query_txt_result(AresResult):
     cdef:
@@ -119,12 +162,13 @@ cdef class ares_query_txt_result(AresResult):
         readonly int ttl
 
     @staticmethod
-    cdef ares_query_txt_result new(ares_txt_ext* txt_chunk)
+    cdef ares_query_txt_result old_new(ares_txt_ext* txt_chunk)
 
     @staticmethod
     cdef ares_query_txt_result from_object(ares_query_txt_result obj)
 
-    
+    @staticmethod
+    cdef ares_query_txt_result new(const ares_dns_rr_t* rr, size_t idx)
   
     
 
