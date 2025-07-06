@@ -4,6 +4,7 @@ from cpython.bytes cimport (PyBytes_AS_STRING, PyBytes_FromString,
 from .ares cimport *
 
 
+
 cdef class AresResult:
     def __repr__(self):
         attrs = ['%s=%s' % (a, getattr(self, a)) for a in self._attrs]
@@ -57,22 +58,23 @@ cdef class ares_query_aaaa_result(AresResult):
 
     @staticmethod
     cdef ares_query_aaaa_result old_new(ares_addr6ttl* result):
-        cdef bytes buf = PyBytes_FromStringAndSize(NULL, INET6_ADDRSTRLEN)
-        cdef ares_query_aaaa_result r = ares_query_aaaa_result.__new__(ares_query_a_result)
-        ares_inet_ntop(AF_INET6, <void*>&result.ip6addr, PyBytes_AS_STRING(buf), INET6_ADDRSTRLEN)
-        r.host = buf
+        cdef char[46] buf 
+       
+        cdef ares_query_aaaa_result r = ares_query_aaaa_result.__new__(ares_query_aaaa_result)
+        ares_inet_ntop(AF_INET6, <void*>&result.ip6addr, buf, INET6_ADDRSTRLEN)
+        r.host = PyBytes_FromString(buf)
         r.ttl = result.ttl
         r._attrs = ("host", "ttl")
         return r
 
     @staticmethod
     cdef ares_query_aaaa_result new(const ares_dns_rr_t *rr):
-        cdef bytes buf = PyBytes_FromStringAndSize(NULL, INET6_ADDRSTRLEN)
-        cdef ares_query_aaaa_result r = ares_query_aaaa_result.__new__(ares_query_a_result)
+        cdef char[46] buf 
+        cdef ares_query_aaaa_result r = ares_query_aaaa_result.__new__(ares_query_aaaa_result)
         cdef const ares_in6_addr* addr = ares_dns_rr_get_addr6(rr, ARES_RR_A_ADDR)
 
-        ares_inet_ntop(AF_INET6, <void*>addr, PyBytes_AS_STRING(buf), INET6_ADDRSTRLEN)
-        r.host = buf
+        ares_inet_ntop(AF_INET6, <void*>addr, buf, INET6_ADDRSTRLEN)
+        r.host = PyBytes_FromString(buf)
         r.ttl = rr.ttl
         r._attrs = ("host", "ttl")
         return r

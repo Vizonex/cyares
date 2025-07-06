@@ -16,8 +16,8 @@ from cyares import Channel
 # The Future object comes from the python concurrent.futures standard library
 
 def main():
-    with Channel(["8.8.8.8", "8.8.4.4"]) as dns:
-        data = dns.query("google.com", "A").result()
+    with Channel(servers=["8.8.8.8", "8.8.4.4"], event_thread=True) as channel:
+        data = channel.query("google.com", "A").result()
     print(data)
 
 if __name__ == "__main__":

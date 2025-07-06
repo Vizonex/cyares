@@ -77,7 +77,7 @@ cdef class Channel:
         self.handles = set()
         self._query_lookups = {
             "A":T_A,
-            "AAA":T_AAAA, 
+            "AAAA":T_AAAA, 
             "ANY":T_ANY, 
             "CAA":T_CAA, 
             "CNAME":T_CNAME, 
@@ -526,9 +526,7 @@ cdef class Channel:
     ):
         
         cdef Py_buffer view
-        cdef object fut = Future()
-        fut.add_done_callback(self.__on_done)
-        self.handles.add(fut)
+        cdef object fut = self.__create_future(callback)
 
         if callback:
             if not callable(callback):

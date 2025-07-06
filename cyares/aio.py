@@ -3,14 +3,14 @@ aio
 ---
 
 A Version of Aiodns if Aiodns theoretically supported cyares by default.
-This module is experimental and could be removed in the future if merged 
+This module is experimental and could be removed in the future if merged
 with aiodns.
 
 """
 
-# Inspired by aiodns, joint library/modue was made incase 
+# Inspired by aiodns, joint library/modue was made incase
 # aiodns devs decided not to adopt this library optionally.
-# This was also made to test socket callbacks to see if they 
+# This was also made to test socket callbacks to see if they
 # were working properly...
 
 import asyncio
@@ -26,11 +26,12 @@ from concurrent.futures import Future as cc_Future
 
 _T = TypeVar("_T")
 
-# winloop / uvloop check 
+# winloop / uvloop check
 
 if sys.platform == "win32":
     try:
         from winloop import Loop as WinLoopType
+
         HAS_WINLOOP = True
     except ModuleNotFoundError:
         HAS_WINLOOP = False
@@ -38,36 +39,35 @@ else:
     HAS_WINLOOP = False
 
 WINDOWS_SELECTOR_ERR_MSG = (
-    'aiodns needs a SelectorEventLoop or Winloop on Windows. See more: '
-    'https://github.com/aio-libs/aiodns#note-for-windows-users'
+    "aiodns needs a SelectorEventLoop or Winloop on Windows. See more: "
+    "https://github.com/aio-libs/aiodns#note-for-windows-users"
 )
 
 _LOGGER = getLogger(__name__)
 
 
 query_type_map = {
-    'A': QUERY_TYPE_A,
-    'AAAA': QUERY_TYPE_AAAA,
-    'ANY': QUERY_TYPE_ANY,
-    'CAA': QUERY_TYPE_CAA,
-    'CNAME': QUERY_TYPE_CNAME,
-    'MX': QUERY_TYPE_MX,
-    'NAPTR': QUERY_TYPE_NAPTR,
-    'NS': QUERY_TYPE_NS,
-    'PTR': QUERY_TYPE_PTR,
-    'SOA': QUERY_TYPE_SOA,
-    'SRV': QUERY_TYPE_SRV,
-    'TXT': QUERY_TYPE_TXT,
+    "A": QUERY_TYPE_A,
+    "AAAA": QUERY_TYPE_AAAA,
+    "ANY": QUERY_TYPE_ANY,
+    "CAA": QUERY_TYPE_CAA,
+    "CNAME": QUERY_TYPE_CNAME,
+    "MX": QUERY_TYPE_MX,
+    "NAPTR": QUERY_TYPE_NAPTR,
+    "NS": QUERY_TYPE_NS,
+    "PTR": QUERY_TYPE_PTR,
+    "SOA": QUERY_TYPE_SOA,
+    "SRV": QUERY_TYPE_SRV,
+    "TXT": QUERY_TYPE_TXT,
 }
 
 query_class_map = {
-    'IN': QUERY_CLASS_IN,
-    'CHAOS': QUERY_CLASS_CHAOS,
-    'HS': QUERY_CLASS_HS,
-    'NONE': QUERY_CLASS_NONE,
-    'ANY': QUERY_CLASS_ANY,
+    "IN": QUERY_CLASS_IN,
+    "CHAOS": QUERY_CLASS_CHAOS,
+    "HS": QUERY_CLASS_HS,
+    "NONE": QUERY_CLASS_NONE,
+    "ANY": QUERY_CLASS_ANY,
 }
-
 
 
 # Simillar to aiodns's version but more compact
@@ -76,13 +76,12 @@ class DNSResolver:
         self,
         nameservers: list[str] | None = None,
         loop: asyncio.AbstractEventLoop | None = None,
-        **kwargs
+        **kwargs,
     ) -> None:
-        
         self._closed = True
         self.loop = loop or asyncio.get_event_loop()
 
-        timeout = kwargs.pop('timeout', None)
+        timeout = kwargs.pop("timeout", None)
         self._timeout = timeout
         self._event_thread, self._channel = self._make_channel(**kwargs)
         if nameservers:
@@ -92,47 +91,45 @@ class DNSResolver:
         self._timer: asyncio.TimerHandle | None = None
         self._closed = False
 
-    def _wrap_future(self, fut:cc_Future[_T]) -> asyncio.Future[_T]:
+    def _wrap_future(self, fut: cc_Future[_T]) -> asyncio.Future[_T]:
         return asyncio.wrap_future(fut, loop=self.loop)
 
     def _make_channel(self, **kwargs: Any) -> tuple[bool, Channel]:
         if cyares_threadsafety():
             # CyAres is Threadsafe
             try:
-                return True, Channel(
-                    event_thread=True, timeout=self._timeout, **kwargs
-                )
+                return True, Channel(event_thread=True, timeout=self._timeout, **kwargs)
             except AresError as e:
-                if sys.platform == 'linux':
+                if sys.platform == "linux":
                     _LOGGER.warning(
-                        'Failed to create DNS resolver channel with automatic '
-                        'monitoring of resolver configuration changes. This '
-                        'usually means the system ran out of inotify watches. '
-                        'Falling back to socket state callback. Consider '
-                        'increasing the system inotify watch limit: %s',
+                        "Failed to create DNS resolver channel with automatic "
+                        "monitoring of resolver configuration changes. This "
+                        "usually means the system ran out of inotify watches. "
+                        "Falling back to socket state callback. Consider "
+                        "increasing the system inotify watch limit: %s",
                         e,
                     )
                 else:
                     _LOGGER.warning(
-                        'Failed to create DNS resolver channel with automatic '
-                        'monitoring of resolver configuration changes. '
-                        'Falling back to socket state callback: %s',
+                        "Failed to create DNS resolver channel with automatic "
+                        "monitoring of resolver configuration changes. "
+                        "Falling back to socket state callback: %s",
                         e,
                     )
-        if sys.platform == 'win32' and not isinstance(
-            self.loop, asyncio.SelectorEventLoop
-        ) or (HAS_WINLOOP and not isinstance(self.loop, WinLoopType)):
+        if (
+            sys.platform == "win32"
+            and not isinstance(self.loop, asyncio.SelectorEventLoop)
+            or (HAS_WINLOOP and not isinstance(self.loop, WinLoopType))
+        ):
             raise RuntimeError(WINDOWS_SELECTOR_ERR_MSG)
-            
+
         return False, Channel(
             sock_state_cb=self._sock_state_cb, timeout=self._timeout, **kwargs
         )
 
     def _timer_cb(self) -> None:
         if self._read_fds or self._write_fds:
-            self._channel.process_fd(
-                CYARES_SOCKET_BAD, CYARES_SOCKET_BAD
-            )
+            self._channel.process_fd(CYARES_SOCKET_BAD, CYARES_SOCKET_BAD)
             self._start_timer()
         else:
             self._timer = None
@@ -167,14 +164,17 @@ class DNSResolver:
         self._write_fds.clear()
         self._channel.close()
 
-
     def _sock_state_cb(self, fd: int, readable: bool, writable: bool) -> None:
         if readable or writable:
             if readable:
-                self.loop.add_reader(fd, self._channel.process_fd, fd, CYARES_SOCKET_BAD)
+                self.loop.add_reader(
+                    fd, self._channel.process_fd, fd, CYARES_SOCKET_BAD
+                )
                 self._read_fds.add(fd)
             if writable:
-                self.loop.add_writer(fd, self._channel.process_fd, CYARES_SOCKET_BAD, fd)
+                self.loop.add_writer(
+                    fd, self._channel.process_fd, CYARES_SOCKET_BAD, fd
+                )
                 self._write_fds.add(fd)
             if self._timer is None:
                 self._start_timer()
@@ -188,14 +188,10 @@ class DNSResolver:
                 self._write_fds.discard(fd)
                 self.loop.remove_writer(fd)
 
-            if (
-                not self._read_fds
-                and not self._write_fds
-                and self._timer is not None
-            ):
+            if not self._read_fds and not self._write_fds and self._timer is not None:
                 self._timer.cancel()
                 self._timer = None
-    
+
     @property
     def nameservers(self) -> Sequence[str]:
         return self._channel.servers
@@ -203,50 +199,50 @@ class DNSResolver:
     @nameservers.setter
     def nameservers(self, value: Iterable[str | bytes]) -> None:
         self._channel.servers = value
-    
+
     @overload
     def query(
-        self, host: str, qtype: Literal['A'], qclass: str | None = ...
+        self, host: str, qtype: Literal["A"], qclass: str | None = ...
     ) -> asyncio.Future[list[ares_query_a_result]]: ...
     @overload
     def query(
-        self, host: str, qtype: Literal['AAAA'], qclass: str | None = ...
+        self, host: str, qtype: Literal["AAAA"], qclass: str | None = ...
     ) -> asyncio.Future[list[ares_query_aaaa_result]]: ...
     @overload
     def query(
-        self, host: str, qtype: Literal['CAA'], qclass: str | None = ...
+        self, host: str, qtype: Literal["CAA"], qclass: str | None = ...
     ) -> asyncio.Future[list[ares_query_caa_result]]: ...
     @overload
     def query(
-        self, host: str, qtype: Literal['CNAME'], qclass: str | None = ...
+        self, host: str, qtype: Literal["CNAME"], qclass: str | None = ...
     ) -> asyncio.Future[ares_query_cname_result]: ...
     @overload
     def query(
-        self, host: str, qtype: Literal['MX'], qclass: str | None = ...
+        self, host: str, qtype: Literal["MX"], qclass: str | None = ...
     ) -> asyncio.Future[list[ares_query_mx_result]]: ...
     @overload
     def query(
-        self, host: str, qtype: Literal['NAPTR'], qclass: str | None = ...
+        self, host: str, qtype: Literal["NAPTR"], qclass: str | None = ...
     ) -> asyncio.Future[list[ares_query_naptr_result]]: ...
     @overload
     def query(
-        self, host: str, qtype: Literal['NS'], qclass: str | None = ...
+        self, host: str, qtype: Literal["NS"], qclass: str | None = ...
     ) -> asyncio.Future[list[ares_query_ns_result]]: ...
     @overload
     def query(
-        self, host: str, qtype: Literal['PTR'], qclass: str | None = ...
+        self, host: str, qtype: Literal["PTR"], qclass: str | None = ...
     ) -> asyncio.Future[list[ares_query_ptr_result]]: ...
     @overload
     def query(
-        self, host: str, qtype: Literal['SOA'], qclass: str | None = ...
+        self, host: str, qtype: Literal["SOA"], qclass: str | None = ...
     ) -> asyncio.Future[ares_query_soa_result]: ...
     @overload
     def query(
-        self, host: str, qtype: Literal['SRV'], qclass: str | None = ...
+        self, host: str, qtype: Literal["SRV"], qclass: str | None = ...
     ) -> asyncio.Future[list[ares_query_srv_result]]: ...
     @overload
     def query(
-        self, host: str, qtype: Literal['TXT'], qclass: str | None = ...
+        self, host: str, qtype: Literal["TXT"], qclass: str | None = ...
     ) -> asyncio.Future[list[ares_query_txt_result]]: ...
 
     def query(
@@ -255,26 +251,23 @@ class DNSResolver:
         try:
             qtype = query_type_map[qtype]
         except KeyError as e:
-            raise ValueError(f'invalid query type: {qtype}') from e
+            raise ValueError(f"invalid query type: {qtype}") from e
         if qclass is not None:
             try:
                 qclass = query_class_map[qclass]
             except KeyError as e:
-                raise ValueError(f'invalid query class: {qclass}') from e
-        
+                raise ValueError(f"invalid query class: {qclass}") from e
+
         # we use a different technique than pycares to try and
         # aggressively prevent vulnerabilities
 
-        return self._wrap_future(
-            self._channel.query(host, qtype, qclass)
-        )
+        return self._wrap_future(self._channel.query(host, qtype, qclass))
 
     async def __aenter__(self):
         return self
-    
+
     async def __aexit__(self, *args):
         self._cleanup()
         self._channel.close()
 
     # TODO: I will do the rest of the functionality a bit later...
-    
