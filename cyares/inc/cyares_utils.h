@@ -5,7 +5,11 @@ buffer extraction of unicode characters into a python buffer...
 
 - Some functions and macros were re-named for the sake of being convienient.
 
-- cyares_copy_memory is not apart of msgspec but is written by us...
+- (
+cyares_copy_memory, 
+cyares_unicode_from_uchar, 
+cyares_unicode_from_uchar_and_size
+) is not apart of msgspec but is written by us...
 
 */
 
@@ -117,6 +121,30 @@ cyares_release_buffer(Py_buffer *view) {
         Py_CLEAR(view->obj);
     }
 }
+
+
+
+static inline PyObject* 
+cyares_unicode_from_uchar_and_size(
+    const uint8_t* chars, Py_ssize_t size
+){
+    return PyUnicode_FromKindAndData(
+        PyUnicode_1BYTE_KIND, (void*)chars, size
+    );
+}
+
+static inline PyObject* 
+cyares_unicode_from_uchar(
+    const uint8_t* chars
+){
+    return PyUnicode_FromKindAndData(
+        PyUnicode_1BYTE_KIND,
+        (void*)chars,
+        strlen((char*)chars)
+    );
+}
+
+
 
 
 static int cyares_copy_memory(char** ptr_to, PyObject* ptr_from){

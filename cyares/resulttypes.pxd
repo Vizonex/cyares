@@ -3,6 +3,10 @@ from cpython.bytes cimport (PyBytes_AS_STRING, PyBytes_FromString,
 
 from .ares cimport *
 
+from .inc cimport (
+    cyares_unicode_from_uchar_and_size,
+    cyares_unicode_from_uchar
+)
 
 cdef class AresResult:
     cdef tuple _attrs
@@ -16,6 +20,35 @@ cdef class AresResult:
 # custom
 cdef inline bytes cyares_dns_rr_get_bytes(const ares_dns_rr_t* dns_rr, ares_dns_rr_key_t key):
     return PyBytes_FromString(ares_dns_rr_get_str(dns_rr, key))
+
+# cdef inline str cyares_dns_rr_get_abin(
+#     const ares_dns_rr_t* dns_rr, ares_dns_rr_key_t key
+# ):
+#     return ares_dns_rr_get_abin()
+
+
+# TODO: Reversed for future supported result types...
+
+cdef class ares_opt_result(AresResult):
+    cdef:
+        readonly str val
+        readonly uint16_t id
+
+    @staticmethod 
+    cdef inline ares_opt_result new(
+        const ares_dns_rr_t* dns_rr, 
+        ares_dns_rr_key_t key,
+        size_t idx
+    ):
+        cdef size_t len
+        cdef const uint8_t* cstr
+        cdef ares_opt_result r = ares_opt_result.__new__(ares_opt_result)
+        r.id = ares_dns_rr_get_opt(dns_rr, key, idx, &cstr, &len)
+        r.val = cyares_unicode_from_uchar_and_size(cstr, <Py_ssize_t>len)
+        r._attrs = ("id", "val")
+        return r
+
+
 
 
 cdef class ares_query_a_result(AresResult):

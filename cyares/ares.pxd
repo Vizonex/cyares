@@ -713,16 +713,15 @@ cdef extern from "inc/cares_headers.h" nogil:
         ARES_RR_SOA_REFRESH,
 
         # SOA Record. Retry, failed refresh retry interval. Datatype: U32
-
         ARES_RR_SOA_RETRY,
+
         # SOA Record. Expire, upper limit on authority. Datatype: U32
-
         ARES_RR_SOA_EXPIRE,
+
         # SOA Record. Minimum, RR TTL. Datatype: U32
-
         ARES_RR_SOA_MINIMUM,
-        # PTR Record. DNAME, pointer domain. Datatype: NAME
 
+        # PTR Record. DNAME, pointer domain. Datatype: NAME
         ARES_RR_PTR_DNAME,
         # HINFO Record. CPU. Datatype: STR
 
@@ -934,3 +933,25 @@ cdef extern from "inc/cares_headers.h" nogil:
     const ares_in6_addr * ares_dns_rr_get_addr6(
         const ares_dns_rr_t *dns_rr, ares_dns_rr_key_t key
     )
+
+    ctypedef enum ares_dns_class_t:
+        ARES_CLASS_IN     = 1,   # Internet
+        ARES_CLASS_CHAOS  = 3,   # CHAOS
+        ARES_CLASS_HESOID = 4,   # Hesoid [Dyer 87]
+        ARES_CLASS_NONE   = 254, # RFC 2136
+        ARES_CLASS_ANY    = 255  # Any class (requests only)
+
+    ctypedef void (*ares_callback_dnsrec)(void *arg, ares_status_t status,
+                                     size_t timeouts,
+                                     const ares_dns_record_t *dnsrec);
+ 
+    ares_status_t ares_query_dnsrec(
+        ares_channel_t *channel,
+        const char *name,
+        ares_dns_class_t dnsclass,
+        ares_dns_rec_type_t type,
+        ares_callback_dnsrec callback,
+        void *arg,
+        unsigned short *qid
+    )
+    

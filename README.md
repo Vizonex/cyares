@@ -2,6 +2,47 @@
 
 An Upgraded version of __pycares__ with faster and safer features.
 
+
+
+# Small Examples of How to Use
+
+```python
+from cyares import Channel
+
+# NOTE: Dns Queries contain a Future object
+# This is a little bit different from pycares 
+# Handles were used to prevent new or unwanted vulnerabilities along
+# with easier control given to the user...
+# The Future object comes from the python concurrent.futures standard library
+
+def main():
+    with Channel(["8.8.8.8", "8.8.4.4"]) as dns:
+        data = dns.query("google.com", "A").result()
+    print(data)
+
+if __name__ == "__main__":
+    main()
+```
+
+## In Asyncio
+There's a module for an aiodns version if aiodns were using cyares.
+
+```python
+import winloop # or uvloop (asyncio will also work) 
+# I'll add trio support in a future update as well...
+from cyares.aio import DNSResolver
+
+async def test():
+    async with DNSResolver(["8.8.8.8", "8.8.4.4"]) as dns:
+        data = await dns.query("google.com", "A")
+    print(data)
+
+if __name__ == "__main__":
+    winloop.run(test())
+```
+
+
+
 ## Story
 As Someone who as recently started to contribute to projects such as __aiohttp__ and a few of it's smaller libraries. The asynchronous dns resolver __aiodns__ that __aiohttp__ can optionally use, felt like the oddest one in the group. With __aiodns__ using __pycares__ under the hood I wanted to learn how it worked to see if I could use my skills to optimize it like I had previously done with __propcache__ and __multidict__ as well but I soon came to learn of it's many problems and when __pycares__ started to hang on me with lingering threads when it ran, something didn't feel right to me and it lead me down a very large rabbit-hole waiting to be re-explored.
 

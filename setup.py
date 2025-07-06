@@ -1,3 +1,4 @@
+# NOTE: many parts were borrowed from pycares so that we wouldn't need to reinvent the wheel.
 
 import os
 import sys
@@ -190,6 +191,8 @@ class cares_build_ext(build_ext):
             if hasattr(os, 'pipe') and sys.platform != 'win32':
                 sources += ['deps/c-ares/src/lib/event/ares_event_select.c']
                 self.compiler.define_macro('HAVE_PIPE', 1)
+            
+            # Currently all extensions need these sources...
             for e in self.extensions:
                 e.sources += sources
 

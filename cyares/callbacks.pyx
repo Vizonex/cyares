@@ -38,13 +38,14 @@ cdef void __callback_query_on_a(
     if arg == NULL:
         return
     cdef ares_addrttl[256] ttl
-    cdef int ttl_size
+    cdef int ttl_size = 256
+    cdef hostent* host
     cdef object handle = <object>arg
     if __cancel_check(status, handle):
         return
 
     try:
-        status = ares_parse_a_reply(abuf, alen, NULL, ttl, &ttl_size)
+        status = ares_parse_a_reply(abuf, alen, &host, ttl, &ttl_size)
         if status != ARES_SUCCESS:
             handle.set_exception(AresError(status))
         else:
@@ -66,7 +67,7 @@ cdef void __callback_query_on_aaaa(
         return
 
     cdef ares_addr6ttl[256] ttl
-    cdef int ttl_size
+    cdef int ttl_size = 256
     
     
     cdef object handle = <object>arg
@@ -184,7 +185,7 @@ cdef void __callback_query_on_mx(
             handle.set_exception(AresError(status))
         else:
             while reply != NULL:
-                result.append(ares_query_mx_result.new(reply))
+                result.append(ares_query_mx_result.old_new(reply))
                 reply = reply.next
             handle.set_result(result)
     except BaseException as e:
