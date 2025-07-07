@@ -129,6 +129,7 @@ cdef class ares_query_naptr_result(AresResult):
 
 cdef class ares_query_ns_result(AresResult):
     cdef readonly bytes host
+    cdef readonly int ttl
     @staticmethod
     cdef ares_query_ns_result old_new(char* ns)
 
@@ -159,7 +160,7 @@ cdef class ares_query_soa_result(AresResult):
         readonly bytes nsname
         readonly bytes hostmaster
         readonly unsigned int serial
-        readonly unsigned int referesh
+        readonly unsigned int refresh
         readonly unsigned int retry
         readonly unsigned int expire
         readonly unsigned int minttl

@@ -39,7 +39,7 @@ else:
     HAS_WINLOOP = False
 
 WINDOWS_SELECTOR_ERR_MSG = (
-    "aiodns needs a SelectorEventLoop or Winloop on Windows. See more: "
+    "aiodns needs a SelectorEventLoop or Winloop on Windows when using socket callbacks. See more: "
     "https://github.com/aio-libs/aiodns#note-for-windows-users"
 )
 
@@ -113,6 +113,15 @@ class DNSResolver:
             self._event_thread, self._channel = self._make_channel(**kwargs)
 
         else:
+            print(WinLoopType)
+            print(self.loop, HAS_WINLOOP)
+            if HAS_WINLOOP is False or not isinstance(self.loop, WinLoopType):
+                if (
+                    sys.platform == "win32"
+                    and not isinstance(self.loop, asyncio.SelectorEventLoop)
+                ):
+                    raise RuntimeError(WINDOWS_SELECTOR_ERR_MSG)
+
             self._event_thread, self._channel = False, Channel(
                 sock_state_cb=self._sock_state_cb, timeout=self._timeout, **kwargs
             )
@@ -199,7 +208,6 @@ class DNSResolver:
 
     def _sock_state_cb(self, fd: int, readable: bool, writable: bool) -> None:
         if readable or writable:
-            # NOTE: Made a few modifications since we can use callbacks a bit differently.
             if readable:
                 self.loop.add_reader(
                     fd, self._channel.process_read_fd, fd
@@ -301,6 +309,10 @@ class DNSResolver:
         return self
 
     async def __aexit__(self, *args):
+        self._cleanup()
+        self._channel.close()
+
+    def close(self):
         self._cleanup()
         self._channel.close()
 

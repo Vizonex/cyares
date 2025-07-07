@@ -1,0 +1,3 @@
+pytest
+# testing our version of aiodns
+pytest-asyncio

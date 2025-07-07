@@ -43,7 +43,7 @@ PyObject* cyares_err_name(int status){
     PyObject* name;
     switch ((ares_status_t)status){
         #define __cyares_ERROR_NAME(ERR, MSG) \
-            case ERR: return PyBytes_FromStringAndSize(#ERR, sizeof(#ERR));
+            case ERR: return PyBytes_FromStringAndSize(#ERR, sizeof(#ERR) - 1);
 
         CYARES_ERROR_CODES(__cyares_ERROR_NAME)
         #undef __cyares_ERROR_NAME
@@ -57,7 +57,7 @@ PyObject* cyares_err_name(int status){
 PyObject* cyares_strerror(int code){
     switch ((ares_status_t)code){
         #define __cyares_ERROR_DESC(ERR, MSG) \
-            case ERR: return PyBytes_FromStringAndSize(MSG, sizeof(MSG));
+            case ERR: return PyBytes_FromStringAndSize(MSG, sizeof(MSG) - 1);
         CYARES_ERROR_CODES(__cyares_ERROR_DESC)
         #undef __cyares_ERROR_DESC
         default: {
