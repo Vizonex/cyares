@@ -113,8 +113,6 @@ class DNSResolver:
             self._event_thread, self._channel = self._make_channel(**kwargs)
 
         else:
-            print(WinLoopType)
-            print(self.loop, HAS_WINLOOP)
             if HAS_WINLOOP is False or not isinstance(self.loop, WinLoopType):
                 if (
                     sys.platform == "win32"
