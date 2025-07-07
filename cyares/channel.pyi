@@ -165,7 +165,7 @@ class Channel:
     def process_fd(self, read_fd: int, write_fd: int) -> None: ...
     def getaddrinfo(
         self,
-        host: object,
+        host: str | bytes | bytearray | memoryview[int],
         port: object = ...,
         callback: object = ...,
         family: int = ...,
