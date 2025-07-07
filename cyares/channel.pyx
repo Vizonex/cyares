@@ -235,9 +235,6 @@ cdef class Channel:
             
 
     def __dealloc__(self):
-        if self.socket_handle:
-            self.socket_handle.cancel()
-
         if (not self._cancelled) and self.handles:
             self.cancel()
         ares_destroy(self.channel)
@@ -417,6 +414,37 @@ cdef class Channel:
  
     def process_fd(self, int read_fd, int write_fd):
         ares_process_fd(self.channel, <ares_socket_t>read_fd, <ares_socket_t>write_fd)
+
+    # === Custom === 
+    # NOTE: I'll make a pull-request to pycares to maybe implement this as well...
+
+    def process_read_fd(self, int read_fd):
+        """
+        processes readable file-descriptor instead of needing to remember 
+        to set write-fd to CYARES_SOCKET_BAD
+
+        Parameters
+        ----------
+
+        :param read_fd: the readable file descriptor
+        """
+
+        ares_process_fd(self.channel, <ares_socket_t>read_fd, ARES_SOCKET_BAD)
+    
+    def process_write_fd(self, int write_fd):
+        """
+        processes writable file-descriptor instead of needing to remember 
+        to set write-fd to CYARES_SOCKET_BAD
+
+        Parameters
+        ----------
+
+        :param write_fd: the readable file descriptor
+        """
+
+        ares_process_fd(self.channel, ARES_SOCKET_BAD, <ares_socket_t>write_fd)
+
+
 
     def getaddrinfo(
         self,

@@ -76,14 +76,47 @@ class DNSResolver:
         self,
         nameservers: list[str] | None = None,
         loop: asyncio.AbstractEventLoop | None = None,
+        event_thread:bool = True,
         **kwargs,
     ) -> None:
+        """
+        Params
+        ------
+
+        :param nameservers: a list of dns servers to connect to
+        :param loop: the asyncio event loop to utilize, supported
+            eventloops include, winloop, uvloop and the asyncio standard library
+            NOTE for windows users: `SelectorEventLoop` & `winloop.Loop` are the only
+            eventloops you can use when the event_thread is disabled or when event_thread 
+            is not supported SEE: https://github.com/aio-libs/aiodns#note-for-windows-users
+            for more information
+ 
+        :param event_thread: if enabled try to see if cyares can utilize \
+            event threads otherwise fallback to using a socket callback handle \
+            if `false` socket callback will be used no matter what,
+            setting to `false` is good for testing purposes or 
+            when trying to act threadsafe until closure.
+            A quick word of caution , deletion is **Not Thread-Safe**
+            SEE: https://c-ares.org/docs/ares_destroy.html
+
+        """
         self._closed = True
         self.loop = loop or asyncio.get_event_loop()
 
+        # XXX: Do not use, we override this argument by default
+        kwargs.pop("sock_state_cb", None)
+
         timeout = kwargs.pop("timeout", None)
         self._timeout = timeout
-        self._event_thread, self._channel = self._make_channel(**kwargs)
+        # Internal (Using with pytest to help debug socket_cb handles)
+        if event_thread:
+            self._event_thread, self._channel = self._make_channel(**kwargs)
+
+        else:
+            self._event_thread, self._channel = False, Channel(
+                sock_state_cb=self._sock_state_cb, timeout=self._timeout, **kwargs
+            )
+
         if nameservers:
             self.nameservers = nameservers
         self._read_fds: set[int] = set()
@@ -166,14 +199,15 @@ class DNSResolver:
 
     def _sock_state_cb(self, fd: int, readable: bool, writable: bool) -> None:
         if readable or writable:
+            # NOTE: Made a few modifications since we can use callbacks a bit differently.
             if readable:
                 self.loop.add_reader(
-                    fd, self._channel.process_fd, fd, CYARES_SOCKET_BAD
+                    fd, self._channel.process_read_fd, fd
                 )
                 self._read_fds.add(fd)
             if writable:
                 self.loop.add_writer(
-                    fd, self._channel.process_fd, CYARES_SOCKET_BAD, fd
+                    fd, self._channel.process_write_fd, fd
                 )
                 self._write_fds.add(fd)
             if self._timer is None:
@@ -183,7 +217,7 @@ class DNSResolver:
             if fd in self._read_fds:
                 self._read_fds.discard(fd)
                 self.loop.remove_reader(fd)
-
+            
             if fd in self._write_fds:
                 self._write_fds.discard(fd)
                 self.loop.remove_writer(fd)

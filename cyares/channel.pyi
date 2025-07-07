@@ -46,7 +46,7 @@ class Channel:
         servers: list[str] | None = None,
         domains=None,
         lookups=None,
-        sock_state_cb: Callable[[int, int, int], None] = None,
+        sock_state_cb: Callable[[int, bool, bool], None] = None,
         socket_send_buffer_size=None,
         socket_receive_buffer_size=None,
         rotate: bool = False,
@@ -163,6 +163,30 @@ class Channel:
     def __enter__(self) -> Self: ...
     def __exit__(self, *args) -> None: ...
     def process_fd(self, read_fd: int, write_fd: int) -> None: ...
+
+    # TODO (Vizonex) Pull request to pycares with the same new functions I made
+    def process_read_fd(self, read_fd:int) -> None:
+        """
+        processes readable file-descriptor instead of needing to remember 
+        to set write-fd to CYARES_SOCKET_BAD
+
+        Parameters
+        ----------
+
+        :param read_fd: the readable file descriptor
+        """
+    
+    def process_write_fd(self, write_fd:int):
+        """
+        processes writable file-descriptor instead of needing to remember 
+        to set read-fd to CYARES_SOCKET_BAD
+
+        Parameters
+        ----------
+
+        :param write_fd: the writeable file descriptor
+        """
+
     def getaddrinfo(
         self,
         host: str | bytes | bytearray | memoryview[int],
@@ -181,6 +205,9 @@ class Channel:
     ) -> Future[ares_host_result]: ...
     def set_local_dev(self, dev: object) -> None: ...
     def set_local_ip(self, ip: object) -> None: ...
+
+
+
 
 def cyares_threadsafety() -> bool:
     """
