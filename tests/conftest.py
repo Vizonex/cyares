@@ -6,13 +6,9 @@ import asyncio
 from cyares.aio import DNSResolver
 
 
+STD_ASYNCIO = pytest.mark.standard
+WINLOOP_UVLOOP = pytest.mark.uvloop
 
-@pytest_asyncio.fixture(
-    loop_scope="module",
-    params=(True, False)
-)
-async def dns(request:pytest.FixtureRequest):
-    d = DNSResolver(["8.8.8.8", "8.8.4.4"], event_thread=request.param)
-    yield d
-    d.close()
+
+
 

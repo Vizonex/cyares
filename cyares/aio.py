@@ -113,13 +113,7 @@ class DNSResolver:
             self._event_thread, self._channel = self._make_channel(**kwargs)
 
         else:
-            if HAS_WINLOOP is False or not isinstance(self.loop, WinLoopType):
-                if (
-                    sys.platform == "win32"
-                    and not isinstance(self.loop, asyncio.SelectorEventLoop)
-                ):
-                    raise RuntimeError(WINDOWS_SELECTOR_ERR_MSG)
-
+            self._raise_if_windows_proctor()
             self._event_thread, self._channel = False, Channel(
                 sock_state_cb=self._sock_state_cb, timeout=self._timeout, **kwargs
             )
@@ -130,6 +124,11 @@ class DNSResolver:
         self._write_fds: set[int] = set()
         self._timer: asyncio.TimerHandle | None = None
         self._closed = False
+
+    def _raise_if_windows_proctor(self):
+        if sys.platform == "win32":
+            if isinstance(self.loop , asyncio.ProactorEventLoop):
+                raise RuntimeError(WINDOWS_SELECTOR_ERR_MSG)
 
     def _wrap_future(self, fut: cc_Future[_T]) -> asyncio.Future[_T]:
         return asyncio.wrap_future(fut, loop=self.loop)
@@ -156,12 +155,8 @@ class DNSResolver:
                         "Falling back to socket state callback: %s",
                         e,
                     )
-        if (
-            sys.platform == "win32"
-            and not isinstance(self.loop, asyncio.SelectorEventLoop)
-            or (HAS_WINLOOP and not isinstance(self.loop, WinLoopType))
-        ):
-            raise RuntimeError(WINDOWS_SELECTOR_ERR_MSG)
+        
+        self._raise_if_windows_proctor()
 
         return False, Channel(
             sock_state_cb=self._sock_state_cb, timeout=self._timeout, **kwargs
