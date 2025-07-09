@@ -22,6 +22,8 @@ def test_open_and_closure() -> None:
         pass
 
 
+
+
 def test_nameservers(c: Channel) -> None:
     # we set 8.8.8.8 , 8.8.4.4 already...
     assert c.servers == ["8.8.8.8:53", "8.8.4.4:53"]
@@ -88,3 +90,60 @@ def test_query_bad_type(c: Channel) -> None:
 def test_query_bad_class(c: Channel) -> None:
     with pytest.raises(TypeError):
         c.query('google.com', 'A', query_class='INVALIDCLASS')
+
+def test_mx_dns_search(c: Channel) -> None:
+    fut = c.search("gmail.com", query_type="MX").result()
+    assert any([mx.host == b"gmail-smtp-in.l.google.com" for mx in fut])
+
+
+def test_a_dns_search(c: Channel) -> None:
+    for f in [c.search("google.com", 'A'), c.search('llhttp.org', 'A'), c.search('llparse.org', 'A')]:
+        assert f.result()
+
+
+def test_search_aaaa(c: Channel) -> None:
+    assert c.search('ipv6.google.com', 'AAAA').result()
+
+
+def test_search_cname(c: Channel) -> None:
+    assert c.search('www.amazon.com', 'CNAME').result()
+
+
+def test_search_mx(c: Channel) -> None:
+    assert c.search('google.com', 'MX').result()
+
+
+def test_search_ns(c: Channel) -> None:
+    assert c.search('google.com', 'NS').result()
+
+
+def test_search_txt(c: Channel) -> None:
+    assert c.search('google.com', 'TXT').result()
+
+
+def test_search_soa(c: Channel) -> None:
+    assert c.search('google.com', 'SOA').result()
+
+
+def test_search_srv(c: Channel) -> None:
+    assert c.search('_xmpp-server._tcp.jabber.org', 'SRV').result()
+
+
+def test_search_naptr(c: Channel) -> None:
+    assert c.search('sip2sip.info', 'NAPTR').result()
+
+
+def test_search_ptr(c: Channel) -> None:
+    assert c.search(
+        ipaddress.ip_address('172.253.122.26').reverse_pointer, 'PTR'
+    ).result()
+
+
+def test_search_bad_type(c: Channel) -> None:
+    with pytest.raises(ValueError):
+        c.search('google.com', 'XXX')
+
+
+def test_search_bad_class(c: Channel) -> None:
+    with pytest.raises(TypeError):
+        c.search('google.com', 'A', query_class='INVALIDCLASS')

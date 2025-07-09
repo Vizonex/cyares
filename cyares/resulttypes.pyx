@@ -4,7 +4,6 @@ from cpython.bytes cimport (PyBytes_AS_STRING, PyBytes_FromString,
 from .ares cimport *
 
 
-
 cdef class AresResult:
     def __repr__(self):
         attrs = ['%s=%s' % (a, getattr(self, a)) for a in self._attrs]

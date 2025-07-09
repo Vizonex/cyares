@@ -1,6 +1,9 @@
-from .ares cimport *
 from cpython.bool cimport PyBool_FromLong
+
+from .ares cimport *
+
 from threading import Condition
+
 
 cdef class SocketHandle:
     

@@ -21,5 +21,6 @@ cdef class Channel:
     cpdef void cancel(self) noexcept
     cdef void* _malloc(self, size_t size) except NULL
     cdef object _query(self, object qname, object qtype, int qclass, object callback)
+    cdef object _search(self, object qname, object qtype, int qclass, object callback)
     cdef object __create_future(self, object callback)
 

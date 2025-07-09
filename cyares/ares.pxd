@@ -11,7 +11,7 @@ cdef extern from  "ares_private.h" nogil:
 
 cdef extern from "inc/cares_headers.h" nogil:
     
-    ctypedef long suseconds_t
+    # ctypedef long suseconds_t
     ctypedef int h_addrtype_t
     ctypedef int h_length_t
     ctypedef short sa_family_t
@@ -25,7 +25,7 @@ cdef extern from "inc/cares_headers.h" nogil:
 
     struct timeval:
         time_t      tv_sec
-        suseconds_t tv_usec
+        long tv_usec
 
     struct hostent:
        char* h_name
@@ -416,7 +416,7 @@ cdef extern from "inc/cares_headers.h" nogil:
                                  ares_callback callback,
                                  void *arg)
 
-    void ares_search(ares_channel_t channel,
+    void ares_search(ares_channel_t* channel,
                                   const char *name,
                                   int dnsclass,
                                   int type,

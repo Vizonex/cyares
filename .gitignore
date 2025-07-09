@@ -6,6 +6,8 @@ cyares/*.c
 cyares/*.pyd
 cyares/*.so
 
+# Html Sources
+cyares/*.html
 
 
 # pip install -e . or uv pip install -e .

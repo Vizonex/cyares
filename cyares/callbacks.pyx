@@ -1,10 +1,18 @@
 from cpython.bytes cimport *
 from cpython.list cimport PyList_New, PyList_SET_ITEM
-
+from cpython.object cimport PyObject
 from .exception cimport AresError
 from .resulttypes cimport *
 
 include "handles.pxi"
+
+
+cdef extern from "Python.h":
+    # Only Required in a few places currently using to see if theres a performance increase.
+    int PyObject_IsTrue(PyObject *o) except -1
+    PyObject *PyObject_CallMethodOneArg(object obj, object name, object arg) except NULL
+    PyObject *PyObject_CallMethodNoArgs(object obj, object name) except NULL
+
 
 
 # TODO: In a future update we should move to ares_query_dnsrec from the old ares_query
@@ -22,7 +30,7 @@ cdef bint __cancel_check(int status, object fut) noexcept:
         try:
             fut.cancel()
         except BaseException as e:
-            fut.set_exception(e)
+            PyObject_CallMethodOneArg(fut, "set_exception", e)
         return 1
     else:
         return 0
@@ -76,7 +84,7 @@ cdef void __callback_query_on_aaaa(
         return
     
     try:
-        status = ares_parse_aaaa_reply(abuf,alen, NULL, ttl, &ttl_size)
+        status = ares_parse_aaaa_reply(abuf, alen, NULL, ttl, &ttl_size)
         if status != ARES_SUCCESS:
             handle.set_exception(AresError(status))
         else:

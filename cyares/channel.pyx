@@ -1,6 +1,8 @@
 # cython: embed_signature=Trie
+cimport cython
 from cpython.exc cimport PyErr_NoMemory
 from cpython.mem cimport PyMem_Free, PyMem_Malloc
+from libc.math cimport floor, fmod
 
 from .ares cimport *
 from .callbacks cimport *
@@ -257,7 +259,7 @@ cdef class Channel:
         return memory
     
     
-
+    @cython.nonecheck(False)
     cdef object __create_future(self, object callback):
         cdef object fut = Future()
         self.handles.add(fut)
@@ -411,6 +413,144 @@ cdef class Channel:
 
     def query(self, object name, object query_type, object callback = None , object query_class = None):
         return self._query(name, query_type, C_IN if query_class is None else <int>query_class, callback)
+    
+    cdef object _search(self, object qname, object qtype, int qclass, object callback):
+        cdef int _qtype
+        cdef object fut = self.__create_future(callback)
+        cdef Py_buffer view
+
+        if isinstance(qtype, str):
+            try:
+                _qtype = <int>self._query_lookups[qtype]
+            except KeyError:
+                raise ValueError("invalid query type specified")
+        else:
+            _qtype = <int>qtype
+   
+        if cyares_check_qclasses(qclass) < 0:
+            raise 
+
+        if cyares_get_buffer(qname, &view) < 0:
+            raise 
+
+
+        if _qtype == T_A:
+            ares_search(
+                self.channel,
+                <char*>view.buf,
+                qclass,
+                T_A,
+                __callback_query_on_a, # type: ignore
+                <void*>fut
+            )
+            
+        elif _qtype == T_AAAA:
+            ares_search(
+                self.channel,
+                <char*>view.buf,
+                qclass,
+                T_AAAA,               
+                __callback_query_on_aaaa, # type: ignore
+                <void*>fut
+            )
+        
+        elif _qtype == T_CAA:
+            ares_search(
+                self.channel,
+                <char*>view.buf,
+                qclass,
+                T_CAA,                
+                __callback_query_on_caa, # type: ignore
+                <void*>fut
+            )
+        
+        elif _qtype == T_CNAME:
+            ares_search(
+                self.channel,
+                <char*>view.buf,
+                qclass,
+                T_CNAME,
+                __callback_query_on_cname, # type: ignore
+                <void*>fut
+            )
+        
+        elif _qtype == T_MX:
+            ares_search(
+                self.channel,
+                <char*>view.buf,
+                qclass,
+                T_MX,
+                __callback_query_on_mx, # type: ignore
+                <void*>fut
+            )
+
+        elif _qtype == T_NAPTR:
+            ares_search(
+                self.channel,
+                <char*>view.buf,
+                qclass,
+                T_NAPTR, 
+                __callback_query_on_naptr, # type: ignore
+                <void*>fut
+            )
+
+        elif _qtype == T_NS:
+            ares_search(
+                self.channel,
+                <char*>view.buf,
+                qclass,
+                T_NS,
+                __callback_query_on_ns, # type: ignore
+                <void*>fut
+            )
+
+        elif _qtype == T_PTR:
+            ares_search(
+                self.channel,
+                <char*>view.buf,
+                qclass,
+                T_PTR,
+                __callback_query_on_ptr, # type: ignore
+                <void*>fut
+            )
+
+        elif _qtype == T_SOA:
+            ares_search(
+                self.channel,
+                <char*>view.buf,
+                qclass,
+                T_SOA,
+                __callback_query_on_soa, # type: ignore
+                <void*>fut
+            )
+
+        elif _qtype == T_SRV:
+            ares_search(
+                self.channel,
+                <char*>view.buf,
+                qclass,
+                T_SRV,
+                __callback_query_on_srv, # type: ignore
+                <void*>fut
+            )
+        
+        elif _qtype == T_TXT:
+            ares_search(
+                self.channel,
+                <char*>view.buf,
+                qclass,
+                T_TXT,
+                __callback_query_on_txt, # type: ignore
+                <void*>fut
+            )
+
+        else:
+            raise ValueError("invalid query type specified")
+
+        return fut
+
+    def search(self, object name, object query_type, object callback = None , object query_class = None):
+        return self._search(name, query_type, C_IN if query_class is None else <int>query_class, callback)
  
     def process_fd(self, int read_fd, int write_fd):
         ares_process_fd(self.channel, <ares_socket_t>read_fd, <ares_socket_t>write_fd)
@@ -445,6 +585,27 @@ cdef class Channel:
         ares_process_fd(self.channel, ARES_SOCKET_BAD, <ares_socket_t>write_fd)
 
 
+    def timeout(self, double t = 0):
+        cdef timeval maxtv
+        cdef timeval tv
+
+        if t:
+            if t >= 0.0:
+                maxtv.tv_sec = <time_t>floor(t)
+                maxtv.tv_usec = <long>(fmod(t, 1.0) * 1000000)
+            else:
+                raise ValueError("timeout needs to be a positive number or 0.0")
+        else:
+            # no segfaulting!
+            maxtv.tv_sec = 0
+            maxtv.tv_usec = 0
+
+        ares_timeout(self.channel, &maxtv, &tv)
+
+        if not (tv.tv_sec and tv.tv_usec):
+            return 0.0
+
+        return (tv.tv_sec + tv.tv_usec / 1000000.0)
 
     def getaddrinfo(
         self,

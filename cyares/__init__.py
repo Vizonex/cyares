@@ -1,1 +1,1 @@
-from .channel import *  # type: ignore
+from .channel import *

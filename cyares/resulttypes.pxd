@@ -2,11 +2,8 @@ from cpython.bytes cimport (PyBytes_AS_STRING, PyBytes_FromString,
                             PyBytes_FromStringAndSize)
 
 from .ares cimport *
+from .inc cimport cyares_unicode_from_uchar, cyares_unicode_from_uchar_and_size
 
-from .inc cimport (
-    cyares_unicode_from_uchar_and_size,
-    cyares_unicode_from_uchar
-)
 
 cdef class AresResult:
     cdef tuple _attrs
@@ -117,9 +114,14 @@ cdef class ares_query_mx_result(AresResult):
 
 cdef class ares_query_naptr_result(AresResult):
     cdef:
-        readonly bytes host
+        readonly bytes flags
+        readonly bytes service
+        readonly bytes regex
+        readonly bytes replacement
+        readonly unsigned short order
+        readonly unsigned short preference
         readonly int ttl
-
+        
     @staticmethod
     cdef ares_query_naptr_result old_new(ares_naptr_reply* naptr)
 

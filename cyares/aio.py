@@ -15,14 +15,13 @@ with aiodns.
 
 import asyncio
 import sys
+from concurrent.futures import Future as cc_Future
+from logging import getLogger
+from typing import Any, Iterable, Literal, Sequence, TypeVar, overload
+
 from .channel import *
 from .exception import AresError
 from .resulttypes import *
-
-from typing import Any, TypeVar, Iterable, Sequence, Literal, overload
-from logging import getLogger
-
-from concurrent.futures import Future as cc_Future
 
 _T = TypeVar("_T")
 
@@ -126,9 +125,8 @@ class DNSResolver:
         self._closed = False
 
     def _raise_if_windows_proctor(self):
-        if sys.platform == "win32":
-            if isinstance(self.loop , asyncio.ProactorEventLoop):
-                raise RuntimeError(WINDOWS_SELECTOR_ERR_MSG)
+        if sys.platform == "win32" and isinstance(self.loop , asyncio.ProactorEventLoop):
+            raise RuntimeError(WINDOWS_SELECTOR_ERR_MSG)
 
     def _wrap_future(self, fut: cc_Future[_T]) -> asyncio.Future[_T]:
         return asyncio.wrap_future(fut, loop=self.loop)
@@ -281,6 +279,69 @@ class DNSResolver:
     ) -> asyncio.Future[list[ares_query_txt_result]]: ...
 
     def query(
+        self, host: str, qtype: str, qclass: str | None = None
+    ) -> asyncio.Future[list[Any]] | asyncio.Future[Any]:
+        try:
+            qtype = query_type_map[qtype]
+        except KeyError as e:
+            raise ValueError(f"invalid query type: {qtype}") from e
+        if qclass is not None:
+            try:
+                qclass = query_class_map[qclass]
+            except KeyError as e:
+                raise ValueError(f"invalid query class: {qclass}") from e
+
+        # we use a different technique than pycares to try and
+        # aggressively prevent vulnerabilities
+
+        return self._wrap_future(self._channel.query(host, qtype, qclass))
+    
+    @overload
+    def search(
+        self, host: str, qtype: Literal["A"], qclass: str | None = ...
+    ) -> asyncio.Future[list[ares_query_a_result]]: ...
+    @overload
+    def search(
+        self, host: str, qtype: Literal["AAAA"], qclass: str | None = ...
+    ) -> asyncio.Future[list[ares_query_aaaa_result]]: ...
+    @overload
+    def search(
+        self, host: str, qtype: Literal["CAA"], qclass: str | None = ...
+    ) -> asyncio.Future[list[ares_query_caa_result]]: ...
+    @overload
+    def search(
+        self, host: str, qtype: Literal["CNAME"], qclass: str | None = ...
+    ) -> asyncio.Future[ares_query_cname_result]: ...
+    @overload
+    def search(
+        self, host: str, qtype: Literal["MX"], qclass: str | None = ...
+    ) -> asyncio.Future[list[ares_query_mx_result]]: ...
+    @overload
+    def search(
+        self, host: str, qtype: Literal["NAPTR"], qclass: str | None = ...
+    ) -> asyncio.Future[list[ares_query_naptr_result]]: ...
+    @overload
+    def search(
+        self, host: str, qtype: Literal["NS"], qclass: str | None = ...
+    ) -> asyncio.Future[list[ares_query_ns_result]]: ...
+    @overload
+    def search(
+        self, host: str, qtype: Literal["PTR"], qclass: str | None = ...
+    ) -> asyncio.Future[list[ares_query_ptr_result]]: ...
+    @overload
+    def search(
+        self, host: str, qtype: Literal["SOA"], qclass: str | None = ...
+    ) -> asyncio.Future[ares_query_soa_result]: ...
+    @overload
+    def search(
+        self, host: str, qtype: Literal["SRV"], qclass: str | None = ...
+    ) -> asyncio.Future[list[ares_query_srv_result]]: ...
+    @overload
+    def search(
+        self, host: str, qtype: Literal["TXT"], qclass: str | None = ...
+    ) -> asyncio.Future[list[ares_query_txt_result]]: ...
+
+    def search(
         self, host: str, qtype: str, qclass: str | None = None
     ) -> asyncio.Future[list[Any]] | asyncio.Future[Any]:
         try:

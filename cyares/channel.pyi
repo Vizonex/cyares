@@ -2,8 +2,7 @@ import socket
 import sys
 import types
 from concurrent.futures import Future
-from typing import Any, Callable, overload, Literal
-
+from typing import Any, Callable, Literal, overload
 from resulttypes import *
 
 if sys.version_info < (3, 11):
@@ -149,11 +148,107 @@ class Channel:
         self,
         name: str | bytes | bytearray | memoryview[int],
         query_type: str | int,
-        callback: Callable[[Future[Any]], None] | None = ...,
+        callback: Callable[[Future[AresResult]], None] | None = ...,
         query_class: str | int | None = ...,
-    ) -> Future[Any]: ...
-    
+    ) -> Future[AresResult]: ...
 
+    @overload
+    def search(
+        self,
+        name: str | bytes | bytearray | memoryview[int],
+        query_type: Literal["A"],
+        callback: Callable[[Future[ares_query_a_result]], None] | None = ...,
+        query_class: str | int | None = ...,
+    ) -> Future[list[ares_query_a_result]]: ...
+    @overload
+    def search(
+        self,
+        name: str | bytes | bytearray | memoryview[int],
+        query_type: Literal["AAAA"],
+        callback: Callable[[Future[ares_query_aaaa_result]], None] | None = ...,
+        query_class: str | int | None = ...,
+    ) -> Future[list[ares_query_aaaa_result]]: ...
+    @overload
+    def search(
+        self,
+        name: str | bytes | bytearray | memoryview[int],
+        query_type: Literal["CAA"],
+        callback: Callable[[Future[ares_query_caa_result]], None] | None = ...,
+        query_class: str | int | None = ...,
+    ) -> Future[list[ares_query_caa_result]]: ...
+    @overload
+    def search(
+        self,
+        name: str | bytes | bytearray | memoryview[int],
+        query_type: Literal["CNAME"],
+        callback: Callable[[Future[ares_query_cname_result]], None] | None = ...,
+        query_class: str | int | None = ...,
+    ) -> Future[ares_query_cname_result]: ...
+    @overload
+    def search(
+        self,
+        name: str | bytes | bytearray | memoryview[int],
+        query_type: Literal["MX"],
+        callback: Callable[[Future[ares_query_mx_result]], None] | None = ...,
+        query_class: str | int | None = ...,
+    ) -> Future[list[ares_query_mx_result]]: ...
+    @overload
+    def search(
+        self,
+        name: str | bytes | bytearray | memoryview[int],
+        query_type: Literal["NAPTR"],
+        callback: Callable[[Future[ares_query_naptr_result]], None] | None = ...,
+        query_class: str | int | None = ...,
+    ) -> Future[list[ares_query_naptr_result]]: ...
+    @overload
+    def search(
+        self,
+        name: str | bytes | bytearray | memoryview[int],
+        query_type: Literal["NS"],
+        callback: Callable[[Future[ares_query_ns_result]], None] | None = ...,
+        query_class: str | int | None = ...,
+    ) -> Future[list[ares_query_ns_result]]: ...
+    @overload
+    def search(
+        self,
+        name: str | bytes | bytearray | memoryview[int],
+        query_type: Literal["PTR"],
+        callback: Callable[[Future[ares_query_ptr_result]], None] | None = ...,
+        query_class: str | int | None = ...,
+    ) -> Future[list[ares_query_ptr_result]]: ...
+    @overload
+    def search(
+        self,
+        name: str | bytes | bytearray | memoryview[int],
+        query_type: Literal["SOA"],
+        callback: Callable[[Future[ares_query_soa_result]], None] | None = ...,
+        query_class: str | int | None = ...,
+    ) -> Future[ares_query_soa_result]: ...
+    @overload
+    def search(
+        self,
+        name: str | bytes | bytearray | memoryview[int],
+        query_type: Literal["SRV"],
+        callback: Callable[[Future[ares_query_srv_result]], None] | None = ...,
+        query_class: str | int | None = ...,
+    ) -> Future[list[ares_query_srv_result]]: ...
+    @overload
+    def search(
+        self,
+        name: str | bytes | bytearray | memoryview[int],
+        query_type: Literal["TXT"],
+        callback: Callable[[Future[ares_query_txt_result]], None] | None = ...,
+        query_class: str | int | None = ...,
+    ) -> Future[list[ares_query_txt_result]]: ...
+
+    def search(
+        self,
+        name: str | bytes | bytearray | memoryview[int],
+        query_type: str | int,
+        callback: Callable[[Future[AresResult]], None] | None = ...,
+        query_class: str | int | None = ...,
+    ) -> Future[AresResult]: ...
+    
     @property
     def servers(self) -> list[str]: ...
     @servers.setter

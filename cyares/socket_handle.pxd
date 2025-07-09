@@ -5,7 +5,6 @@
 
 from .ares cimport ares_socket_t
 
-
 # cdef Condition = _Condition
 
 # cdef enum SocketHandleState:

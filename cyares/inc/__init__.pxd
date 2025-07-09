@@ -1,5 +1,6 @@
 from libc.stdint cimport uint8_t
 
+
 cdef extern from "cares_flag_check.h":
     int cyares_check_qtypes(int qtype) except -1
     int cyares_check_qclasses(int qclass) except -1
