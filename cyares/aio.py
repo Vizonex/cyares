@@ -351,7 +351,7 @@ class DNSResolver:
         This should be called to ensure all resources are properly released.
         After calling close(), the resolver should not be used again.
         """
-        self._cleanup()
+        await self._cleanup()
 
     # Still needs a little bit more work on...
     # @overload
