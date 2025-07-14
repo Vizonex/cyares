@@ -34,15 +34,6 @@ if platform.python_implementation() != "PyPy":
             return request.param
 
 
-@pytest.fixture(
-    scope="session",
-    params=[asyncio.DefaultEventLoopPolicy(), uvloop.EventLoopPolicy()],
-    ids=str,
-)
-def event_loop_policy(
-    request: pytest.FixtureRequest,
-) -> asyncio.AbstractEventLoopPolicy:
-    return request.param
 
 # TODO: Parametize turning certain event_threads on and off in a future cyares update.
 @pytest_asyncio.fixture(loop_scope="function")
