@@ -117,4 +117,10 @@ cdef void __callback_nameinfo(
     char *node,
     char *service
 ) noexcept with gil
- 
+
+cdef void __callback_gethostbyaddr(
+    void *arg, 
+    int status, 
+    int timeouts, 
+    hostent* _hostent
+) noexcept with gil

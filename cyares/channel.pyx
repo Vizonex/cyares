@@ -178,12 +178,20 @@ cdef class Channel:
             self.options.resolvconf_path = <char*>view.buf
             cyares_release_buffer(&view)
 
+        if local_ip:
+            self.set_local_ip(local_ip)
+
+        if local_dev:
+            self.set_local_dev(local_dev)
+        
         r = ares_init_options(&self.channel, &self.options, optmask)
         if r != ARES_SUCCESS:
             raise AresError(r)
 
         if servers:
             self.servers = servers
+
+        
     
     # TODO (Vizonex): Separate Server into a Seperate class and incorperate support for yarl
     # if you want to learn more about ares_get_servers_csv This should explain why
@@ -730,20 +738,58 @@ cdef class Channel:
         cdef Py_buffer view
         cdef object fut = self.__create_future(callback)
 
-        if callback:
-            if not callable(callback):
-                raise TypeError("Provided callback must be callable")
-            fut.add_done_callback(callback)
-
         cyares_get_buffer(name, &view)
-        ares_gethostbyname(self.channel, <char*>view.buf, family, 
-        __callback_gethostbyname, # type: ignore
-        <void*>fut
+        ares_gethostbyname(
+            self.channel, 
+            <char*>view.buf, 
+            family, 
+            __callback_gethostbyname, # type: ignore
+            <void*>fut
         )
         cyares_release_buffer(&view)
         return fut
         
 
+    def gethostbyaddr(self, object addr, object callback = None) -> None:
+        cdef in_addr addr4
+        cdef ares_in6_addr addr6
+        cdef Py_buffer view
+        cdef object fut
+
+        cyares_get_buffer(addr, &view)
+
+        if ares_inet_pton(AF_INET, view.buf, &addr4):
+            fut = self.__create_future(callback)
+            ares_gethostbyaddr(
+                self._channel, 
+                addr4, 
+                sizeof(addr4), 
+                AF_INET, 
+                __callback_gethostbyaddr, # type: ignore  
+                <void*>fut
+            )
+
+
+        elif ares_inet_pton(AF_INET6, view.buf, &addr6):
+            fut = self.__create_future(callback)
+            ares_gethostbyaddr(
+                self._channel, 
+                addr6, 
+                sizeof(addr6), 
+                AF_INET6, 
+                __callback_gethostbyaddr, # type: ignore  
+                <void*>fut
+            )
+
+        else:
+            cyares_release_buffer(&view)
+            raise ValueError("invalid IP address")
+
+        cyares_release_buffer(&view)
+        return fut
+
+    
+        
 
     def set_local_dev(self, object dev):
         cdef Py_buffer view
@@ -766,7 +812,22 @@ cdef class Channel:
         finally:
             cyares_release_buffer(&view)
     
-    
+    def getsock(self):
+        cdef list rfds = []
+        cdef list wfds = []
+        cdef ares_socket_t[16] socks
+        # NOTE: ARES_GETSOCK_MAXNUM SHOULD BE 16 reason for predefining
+        # above was so that cython wouldn't screw with me.
+        cdef int bitmask = ares_getsock(self.channel, socks, ARES_GETSOCK_MAXNUM)
+        cdef int i
+        
+        for i in range(ARES_GETSOCK_MAXNUM):
+            if ARES_GETSOCK_READABLE(bitmask, i):
+                rfds.append(<object>socks[i])
+            if ARES_GETSOCK_WRITABLE(bitmask, i):
+                wfds.append(socks[i])
+        
+        return rfds, wfds
 
 
 

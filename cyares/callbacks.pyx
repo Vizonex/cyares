@@ -523,6 +523,27 @@ cdef void __callback_nameinfo(
 
     Py_DECREF(handle)
 
+cdef void __callback_gethostbyaddr(
+    void *arg, int status, int timeouts, hostent* _hostent
+) noexcept with gil:
+    if arg == NULL:
+        return
+    
+    cdef object handle = <object>arg
+    
+    if __cancel_check(status, handle):
+        return 
+
+    try:
+        if status != ARES_SUCCESS:
+            handle.set_exception(AresError(status))
+        else:
+            handle.set_result(ares_host_result.new(_hostent))
+    except BaseException as e:
+        handle.set_exception(e)
+
+    Py_DECREF(handle)
+
 
 # This is for the new DNS REC Which we plan to replace query with 
 # for now this will be primarly for searching...

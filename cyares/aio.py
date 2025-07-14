@@ -12,9 +12,8 @@ with aiodns.
 # aiodns devs decided not to adopt this library optionally.
 # This was also made to test socket callbacks to see if they
 # were working properly...
-
 from __future__ import annotations
-
+import socket
 import asyncio
 import sys
 from concurrent.futures import Future as cc_Future
@@ -187,16 +186,10 @@ class DNSResolver:
 
         self._timer = self.loop.call_later(timeout, self._timer_cb)
 
-    async def cancel(self) -> None:
+    def cancel(self) -> None:
         """Cancels all running futures queued by this dns resolver"""
-        if self._handles:
-            self._channel.cancel()
-            
-            # wait for all handles to empty out otherwise assume it completed
-            try:
-                await asyncio.wait_for(self._empty.wait(), 0.1)
-            except asyncio.TimeoutError:
-                pass
+        self._channel.cancel()
+
 
     async def _cleanup(self) -> None:
         """Cleanup timers and file descriptors when closing resolver."""
@@ -217,7 +210,19 @@ class DNSResolver:
 
         self._read_fds.clear()
         self._write_fds.clear()
-        await self.cancel()
+        self.cancel()
+
+        # Something a little different is that unline aiodns
+        # we're carrying handles to prevent crashing.
+        # This could be removed in the future if provent that 
+        # it doesn't crash anymore.
+        
+        if self._handles:
+            # wait for all handles to empty out otherwise assume it completed
+            try:
+                await asyncio.wait_for(self._empty.wait(), 0.1)
+            except asyncio.TimeoutError:
+                pass
 
     def _sock_state_cb(self, fd: int, readable: bool, writable: bool) -> None:
         if readable or writable:
@@ -314,6 +319,42 @@ class DNSResolver:
 
         return self._wrap_future(self._channel.query(host, qtype, qclass))
 
+    def gethostbyname(
+        self, host: str, family: socket.AddressFamily
+    ) -> asyncio.Future[ares_host_result]:
+        return self._wrap_future(self._channel.gethostbyname(host, family))
+
+    
+    
+    def getaddrinfo(
+        self,
+        host: str,
+        family: socket.AddressFamily = socket.AF_UNSPEC,
+        port: int | None = None,
+        proto: int = 0,
+        type: int = 0,
+        flags: int = 0,
+    ) -> asyncio.Future[ares_addrinfo_result]:
+        return self._wrap_future(self._channel.getaddrinfo(
+            host, port, family=family, type=type, proto=proto, flags=flags
+        ))
+        
+    def gethostbyaddr(
+        self, name: str
+    ) -> asyncio.Future[ares_host_result]:
+        return self._wrap_future(self._channel.gethostbyaddr(name))
+    
+
+
+    async def close(self) -> None:
+        """
+        Cleanly close the DNS resolver.
+
+        This should be called to ensure all resources are properly released.
+        After calling close(), the resolver should not be used again.
+        """
+        self._cleanup()
+    
     # Still needs a little bit more work on...
     # @overload
     # def search(
@@ -382,9 +423,7 @@ class DNSResolver:
         return self
 
     async def __aexit__(self, *args):
-        await self._cleanup()
+        await self.close()
 
-    async def close(self):
-        await self._cleanup()
-
+   
     # TODO: I will do the rest of the functionality a bit later...
