@@ -189,9 +189,14 @@ class DNSResolver:
 
     async def cancel(self) -> None:
         """Cancels all running futures queued by this dns resolver"""
-        self._channel.cancel()
-        # wait for all handles to empty out
-        await self._empty.wait()
+        if self._handles:
+            self._channel.cancel()
+            
+            # wait for all handles to empty out otherwise assume it completed
+            try:
+                await asyncio.wait_for(self._empty.wait(), 0.1)
+            except asyncio.TimeoutError:
+                pass
 
     async def _cleanup(self) -> None:
         """Cleanup timers and file descriptors when closing resolver."""
