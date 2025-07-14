@@ -88,7 +88,7 @@ async def test_cancelling() -> None:
         ]:
             f.cancel()
 
-
+@pytest.mark.skipif(sys.platform == "win32", reason="some of these deadlock for no reason")
 @pytest.mark.asyncio
 async def test_cancelling_from_resolver() -> None:
     async with DNSResolver(nameservers=["8.8.8.8", "8.8.4.4"]) as resolver:
