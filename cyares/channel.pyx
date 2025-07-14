@@ -762,10 +762,10 @@ cdef class Channel:
 
         cyares_get_buffer(addr, &view)
 
-        if ares_inet_pton(AF_INET, view.buf, &addr4):
+        if ares_inet_pton(AF_INET, <char*>view.buf, &addr4):
             fut = self.__create_future(callback)
             ares_gethostbyaddr(
-                self._channel, 
+                self.channel, 
                 &addr4, 
                 sizeof(addr4), 
                 AF_INET, 
@@ -774,10 +774,10 @@ cdef class Channel:
             )
 
 
-        elif ares_inet_pton(AF_INET6, view.buf, &addr6):
+        elif ares_inet_pton(AF_INET6, <char*>view.buf, &addr6):
             fut = self.__create_future(callback)
             ares_gethostbyaddr(
-                self._channel, 
+                self.channel, 
                 &addr6, 
                 sizeof(addr6), 
                 AF_INET6, 
