@@ -118,7 +118,7 @@ class DNSResolver:
         self._write_fds: set[int] = set()
 
         # As an extra safety concern lets ensure
-        # that the asyncio futures being carried
+        # that the asyncio futures being carried &
         # can't trigger segfaults at cleanup...
         self._handles: set[asyncio.Future[Any]] = set()
         self._empty = asyncio.Event()

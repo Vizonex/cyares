@@ -8,7 +8,6 @@ authors = [
 ]
 requires-python = ">=3.9"
 
-
 dependencies = [
     # Self argument
     'typing-extensions; python_version<"3.11"'    
@@ -16,8 +15,15 @@ dependencies = [
     # "yarl>=1.20.1"
 ]
 
+[tool.cibuildwheel]
+build-frontend = "build"
+
 [build-system]
-requires = ["setuptools", "cython"]
+requires = ["setuptools", "cython", "wheel"]
 
 [tool.setuptools]
-py-modules = []
+zip-safe = false
+packages = ['cyares']
+
+[project.urls]
+    repository = "https://github.com/Vizonex/cyares.git"

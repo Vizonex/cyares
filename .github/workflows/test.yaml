@@ -1,0 +1,47 @@
+# NOTE I'm borrowing from pycares so that we don't have to reinvent the wheel.
+name: Test
+# Added push so we can test locally temporarly, I will remove that in the future of cyares - Vizonex
+on: [pull_request, push]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Test on ${{ matrix.os }} / Python ${{ matrix.python-version }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, windows-11-arm, macos-13, macos-latest]
+        python-version: ['3.9', '3.10', '3.11', '3.12', '3.13.3']
+        exclude:
+          - os: windows-11-arm  # setup-python action only supports 3.11+
+            python-version: '3.9'
+          - os: windows-11-arm  # setup-python action only supports 3.11+
+            python-version: '3.10'
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: true
+    - name: Setup Python
+      uses: actions/setup-python@v5
+      with:
+        check-latest: true
+        python-version: ${{ matrix.python-version }}
+    - name: Install dependencies
+    # I did however need to change how tests works since I am writing a better verison of pycares's tests
+    # since I wanted to move to pytest - Vizonex
+      run: python -m pip install -r requirements/dev.txt
+    - name: Build package
+      run: python -m pip install .
+    
+    - name: Run PyTests
+      env:
+        COLOR: yes
+        PIP_USER: 1
+      # Run at higher verbosity (This is a newer library after all...)
+      run: pytest tests -vv
+      shell: bash
+    
