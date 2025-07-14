@@ -13,6 +13,8 @@ with aiodns.
 # This was also made to test socket callbacks to see if they
 # were working properly...
 
+from __future__ import annotations
+
 import asyncio
 import sys
 from concurrent.futures import Future as cc_Future
