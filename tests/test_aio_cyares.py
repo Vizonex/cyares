@@ -98,7 +98,7 @@ async def test_cancelling_from_resolver() -> None:
             resolver.query("llparse.org", "A"),
         ]
         resolver.cancel()
-        await resolver._empty.wait()
+        await asyncio.sleep(0.1)
         assert not resolver._handles
 
 
