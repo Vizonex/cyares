@@ -1,6 +1,8 @@
 from cpython.bytes cimport *
 from cpython.list cimport PyList_New, PyList_SET_ITEM
 from cpython.object cimport PyObject
+from cpython.ref cimport Py_DECREF
+
 from .exception cimport AresError
 from .resulttypes cimport *
 
@@ -24,13 +26,18 @@ cdef extern from "Python.h":
 
 # Checks to see if we issued a cancel from the channel itself...
 cdef bint __cancel_check(int status, object fut) noexcept:
-    if fut.cancelled():
-        return 1
     if status == ARES_ECANCELLED:
         try:
             fut.cancel()
         except BaseException as e:
             PyObject_CallMethodOneArg(fut, "set_exception", e)
+        # we can safely deref after the future is 
+        # finished since we added a reference in Channel to keep
+        # the future alive long enough.
+        Py_DECREF(fut)
+        return 1
+    elif fut.cancelled():
+        Py_DECREF(fut)
         return 1
     else:
         return 0
@@ -92,7 +99,7 @@ cdef void __callback_query_on_aaaa(
 
     except BaseException as e:
         handle.set_exception(e)
-    
+    Py_DECREF(handle)
     
 
 
@@ -131,7 +138,8 @@ cdef void __callback_query_on_caa(
 
     if reply != NULL:
         ares_free_data(reply)
-
+    Py_DECREF(handle)
+    
   
 
 
@@ -167,6 +175,7 @@ cdef void __callback_query_on_cname(
     if host != NULL:
         ares_free_hostent(host)
 
+    Py_DECREF(handle)
 
 
 
@@ -201,6 +210,8 @@ cdef void __callback_query_on_mx(
 
     if reply != NULL:
         ares_free_data(reply)
+
+    Py_DECREF(handle)
 
 
 
@@ -237,6 +248,7 @@ cdef void __callback_query_on_naptr(
     if reply != NULL:
         ares_free_data(reply)
 
+    Py_DECREF(handle)
 
 
 cdef void __callback_query_on_ns(
@@ -275,6 +287,8 @@ cdef void __callback_query_on_ns(
     if host != NULL:
         ares_free_hostent(host)
     
+    Py_DECREF(handle)
+
 
 cdef void __callback_query_on_ptr(
     void *arg,
@@ -309,9 +323,11 @@ cdef void __callback_query_on_ptr(
     except BaseException as e:
         handle.set_exception(e)
         
-
+    
     if host != NULL:
         ares_free_hostent(host)
+    
+    Py_DECREF(handle)
     
 
 cdef void __callback_query_on_soa(
@@ -347,6 +363,8 @@ cdef void __callback_query_on_soa(
     if reply != NULL:
         ares_free_data(reply)
     
+    Py_DECREF(handle)
+
 
 cdef void __callback_query_on_srv(
     void *arg,
@@ -383,6 +401,8 @@ cdef void __callback_query_on_srv(
     if reply != NULL:
         ares_free_data(reply)
     
+    Py_DECREF(handle)
+
 
 cdef void __callback_query_on_txt(
     void *arg,
@@ -431,6 +451,8 @@ cdef void __callback_query_on_txt(
 
     if reply != NULL:
         ares_free_data(reply)
+
+    Py_DECREF(handle)
 
 
 # GET_ADDER_INFO 
@@ -499,6 +521,8 @@ cdef void __callback_nameinfo(
     except BaseException as e:
         handle.set_exception(e)
 
+    Py_DECREF(handle)
+
 
 # This is for the new DNS REC Which we plan to replace query with 
 # for now this will be primarly for searching...
@@ -540,6 +564,4 @@ cdef void __callback_nameinfo(
 #                     dnsrec,
 #                     ARES_SECTION_ANSWER,
 #                 )
-                
 
-                

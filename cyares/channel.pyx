@@ -2,6 +2,7 @@
 cimport cython
 from cpython.exc cimport PyErr_NoMemory
 from cpython.mem cimport PyMem_Free, PyMem_Malloc
+from cpython.ref cimport Py_DECREF, Py_INCREF
 from libc.math cimport floor, fmod
 
 from .ares cimport *
@@ -91,7 +92,8 @@ cdef class Channel:
             "SRV":T_SRV, 
             "TXT":T_TXT
         } 
-
+        self._closed = 0
+        self._running = 0
 
         if flags is not None:
             self.options.flags = flags
@@ -223,9 +225,6 @@ cdef class Channel:
             raise AresError(r)
     
 
-    def close(self):
-        return self.cancel()
-
     cpdef void cancel(self) noexcept:
         ares_cancel(self.channel)
         self._cancelled = True
@@ -257,20 +256,33 @@ cdef class Channel:
         if memory == NULL:
             PyErr_NoMemory()
         return memory
+
+    # Not public to .pyi, please do not use... - Vizonex 
+    def __remove_future(self, object fut):
+        self.handles.remove(fut)
+        self._closed += 1
     
-    
+    def debug(self):
+        print('Running Handles: {}'.format(self._running))
+        print('Closed Handles: {}'.format(self._closed))
+        
     @cython.nonecheck(False)
     cdef object __create_future(self, object callback):
         cdef object fut = Future()
+        self._running += 1
         self.handles.add(fut)
+
         # handle removal of finished futures...
-        fut.add_done_callback(self.handles.remove)
+        fut.add_done_callback(self.__remove_future)
 
         if callback:
             if not callable(callback):
                 raise TypeError("Provided callbacks must be callable")
             fut.add_done_callback(callback)    
 
+        # Up the objects refcount by 1 because were sending through a void object
+        # in a bit 
+        Py_INCREF(fut)
         return fut
 
     # _query is a lower-level C Function
@@ -278,7 +290,7 @@ cdef class Channel:
     # being a theoretical drop in replacement for pycares in aiodns
     cdef object _query(self, object qname, object qtype, int qclass, object callback):
         cdef int _qtype
-        cdef object fut = self.__create_future(callback)
+        cdef object fut 
         cdef Py_buffer view
 
         if isinstance(qtype, str):
@@ -295,7 +307,7 @@ cdef class Channel:
         if cyares_get_buffer(qname, &view) < 0:
             raise 
 
-
+        fut = self.__create_future(callback)
         if _qtype == T_A:
             ares_query(
                 self.channel,
@@ -407,6 +419,7 @@ cdef class Channel:
             )
 
         else:
+            Py_DECREF(fut)
             raise ValueError("invalid query type specified")
 
         return fut

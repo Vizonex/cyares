@@ -1,8 +1,7 @@
-import socket
 import sys
-import types
 from concurrent.futures import Future
-from typing import Any, Callable, Literal, overload
+from typing import Callable, Literal, overload
+
 from resulttypes import *
 
 if sys.version_info < (3, 11):
@@ -142,8 +141,6 @@ class Channel:
         callback: Callable[[Future[ares_query_txt_result]], None] | None = ...,
         query_class: str | int | None = ...,
     ) -> Future[list[ares_query_txt_result]]: ...
-
-    
     def query(
         self,
         name: str | bytes | bytearray | memoryview[int],
@@ -151,7 +148,6 @@ class Channel:
         callback: Callable[[Future[AresResult]], None] | None = ...,
         query_class: str | int | None = ...,
     ) -> Future[AresResult]: ...
-
     @overload
     def search(
         self,
@@ -240,7 +236,6 @@ class Channel:
         callback: Callable[[Future[ares_query_txt_result]], None] | None = ...,
         query_class: str | int | None = ...,
     ) -> Future[list[ares_query_txt_result]]: ...
-
     def search(
         self,
         name: str | bytes | bytearray | memoryview[int],
@@ -248,7 +243,6 @@ class Channel:
         callback: Callable[[Future[AresResult]], None] | None = ...,
         query_class: str | int | None = ...,
     ) -> Future[AresResult]: ...
-    
     @property
     def servers(self) -> list[str]: ...
     @servers.setter
@@ -260,9 +254,9 @@ class Channel:
     def process_fd(self, read_fd: int, write_fd: int) -> None: ...
 
     # TODO (Vizonex) Pull request to pycares with the same new functions I made
-    def process_read_fd(self, read_fd:int) -> None:
+    def process_read_fd(self, read_fd: int) -> None:
         """
-        processes readable file-descriptor instead of needing to remember 
+        processes readable file-descriptor instead of needing to remember
         to set write-fd to CYARES_SOCKET_BAD
 
         Parameters
@@ -270,10 +264,10 @@ class Channel:
 
         :param read_fd: the readable file descriptor
         """
-    
-    def process_write_fd(self, write_fd:int):
+
+    def process_write_fd(self, write_fd: int):
         """
-        processes writable file-descriptor instead of needing to remember 
+        processes writable file-descriptor instead of needing to remember
         to set read-fd to CYARES_SOCKET_BAD
 
         Parameters
@@ -293,16 +287,17 @@ class Channel:
         flags: int = ...,
     ) -> object: ...
     def getnameinfo(
-        self, address: tuple[str, int] | tuple[int, int, int, int], flags: int, callback: object = ...
+        self,
+        address: tuple[str, int] | tuple[int, int, int, int],
+        flags: int,
+        callback: object = ...,
     ) -> None: ...
     def gethostbyname(
         self, name: object, family: int, callback: object = ...
     ) -> Future[ares_host_result]: ...
     def set_local_dev(self, dev: object) -> None: ...
     def set_local_ip(self, ip: object) -> None: ...
-    def close(self) -> None:...
-    
-
+    def close(self) -> None: ...
 
 def cyares_threadsafety() -> bool:
     """

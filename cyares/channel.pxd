@@ -13,6 +13,12 @@ cdef class Channel:
         # ares will get to decide the fate of the channel pointer...
         ares_channel_t* channel
         ares_options options
+        # these have a very low chance of overflowing The reason 
+        # for adding them is to debug segfaults or ensure everyting 
+        # is exiting correctly...
+        uint64_t _running
+        uint64_t _closed
+
         set handles
         dict _query_lookups
         bint _cancelled

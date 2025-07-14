@@ -19,27 +19,17 @@ from concurrent.futures import Future as cc_Future
 from logging import getLogger
 from typing import Any, Iterable, Literal, Sequence, TypeVar, overload
 
-from .channel import *
+from .channel import *  # type: ignore
 from .exception import AresError
 from .resulttypes import *
 
 _T = TypeVar("_T")
 
-# winloop / uvloop check
-
-if sys.platform == "win32":
-    try:
-        from winloop import Loop as WinLoopType
-
-        HAS_WINLOOP = True
-    except ModuleNotFoundError:
-        HAS_WINLOOP = False
-else:
-    HAS_WINLOOP = False
 
 WINDOWS_SELECTOR_ERR_MSG = (
-    "aiodns needs a SelectorEventLoop or Winloop on Windows when using socket callbacks. See more: "
-    "https://github.com/aio-libs/aiodns#note-for-windows-users"
+    "cyares.aio cannot use ProactorEventLoop on Windows"
+    " if cyares has no threadsafety. See more: "
+    "https://github.com/aio-libs/aiodns#note-for-windows-users",
 )
 
 _LOGGER = getLogger(__name__)
@@ -75,7 +65,7 @@ class DNSResolver:
         self,
         nameservers: list[str] | None = None,
         loop: asyncio.AbstractEventLoop | None = None,
-        event_thread:bool = True,
+        event_thread: bool = True,
         **kwargs,
     ) -> None:
         """
@@ -113,23 +103,42 @@ class DNSResolver:
 
         else:
             self._raise_if_windows_proctor()
-            self._event_thread, self._channel = False, Channel(
-                sock_state_cb=self._sock_state_cb, timeout=self._timeout, **kwargs
+            self._event_thread, self._channel = (
+                False,
+                Channel(
+                    sock_state_cb=self._sock_state_cb, timeout=self._timeout, **kwargs
+                ),
             )
 
         if nameservers:
             self.nameservers = nameservers
         self._read_fds: set[int] = set()
         self._write_fds: set[int] = set()
+
+        # As an extra safety concern lets ensure
+        # that the asyncio futures being carried
+        # can't trigger segfaults at cleanup...
+        self._handles: set[asyncio.Future[Any]] = set()
+        self._empty = asyncio.Event()
+
         self._timer: asyncio.TimerHandle | None = None
         self._closed = False
 
     def _raise_if_windows_proctor(self):
-        if sys.platform == "win32" and isinstance(self.loop , asyncio.ProactorEventLoop):
+        if sys.platform == "win32" and type(self.loop) is asyncio.ProactorEventLoop:
             raise RuntimeError(WINDOWS_SELECTOR_ERR_MSG)
 
+    def _on_fut_done(self, fut: asyncio.Future[Any]):
+        self._handles.remove(fut)
+        if not self._handles:
+            self._empty.set()
+
     def _wrap_future(self, fut: cc_Future[_T]) -> asyncio.Future[_T]:
-        return asyncio.wrap_future(fut, loop=self.loop)
+        out_fut = asyncio.wrap_future(fut)
+        self._handles.add(out_fut)
+        out_fut.add_done_callback(self._on_fut_done)
+        self._empty.clear()
+        return out_fut
 
     def _make_channel(self, **kwargs: Any) -> tuple[bool, Channel]:
         if cyares_threadsafety():
@@ -153,7 +162,7 @@ class DNSResolver:
                         "Falling back to socket state callback: %s",
                         e,
                     )
-        
+
         self._raise_if_windows_proctor()
 
         return False, Channel(
@@ -176,7 +185,13 @@ class DNSResolver:
 
         self._timer = self.loop.call_later(timeout, self._timer_cb)
 
-    def _cleanup(self) -> None:
+    async def cancel(self) -> None:
+        """Cancels all running futures queued by this dns resolver"""
+        self._channel.cancel()
+        # wait for all handles to empty out
+        await self._empty.wait()
+
+    async def _cleanup(self) -> None:
         """Cleanup timers and file descriptors when closing resolver."""
         if self._closed:
             return
@@ -195,19 +210,15 @@ class DNSResolver:
 
         self._read_fds.clear()
         self._write_fds.clear()
-        self._channel.close()
+        await self.cancel()
 
     def _sock_state_cb(self, fd: int, readable: bool, writable: bool) -> None:
         if readable or writable:
             if readable:
-                self.loop.add_reader(
-                    fd, self._channel.process_read_fd, fd
-                )
+                self.loop.add_reader(fd, self._channel.process_read_fd, fd)
                 self._read_fds.add(fd)
             if writable:
-                self.loop.add_writer(
-                    fd, self._channel.process_write_fd, fd
-                )
+                self.loop.add_writer(fd, self._channel.process_write_fd, fd)
                 self._write_fds.add(fd)
             if self._timer is None:
                 self._start_timer()
@@ -216,7 +227,7 @@ class DNSResolver:
             if fd in self._read_fds:
                 self._read_fds.discard(fd)
                 self.loop.remove_reader(fd)
-            
+
             if fd in self._write_fds:
                 self._write_fds.discard(fd)
                 self.loop.remove_writer(fd)
@@ -295,79 +306,78 @@ class DNSResolver:
         # aggressively prevent vulnerabilities
 
         return self._wrap_future(self._channel.query(host, qtype, qclass))
-    
-    @overload
-    def search(
-        self, host: str, qtype: Literal["A"], qclass: str | None = ...
-    ) -> asyncio.Future[list[ares_query_a_result]]: ...
-    @overload
-    def search(
-        self, host: str, qtype: Literal["AAAA"], qclass: str | None = ...
-    ) -> asyncio.Future[list[ares_query_aaaa_result]]: ...
-    @overload
-    def search(
-        self, host: str, qtype: Literal["CAA"], qclass: str | None = ...
-    ) -> asyncio.Future[list[ares_query_caa_result]]: ...
-    @overload
-    def search(
-        self, host: str, qtype: Literal["CNAME"], qclass: str | None = ...
-    ) -> asyncio.Future[ares_query_cname_result]: ...
-    @overload
-    def search(
-        self, host: str, qtype: Literal["MX"], qclass: str | None = ...
-    ) -> asyncio.Future[list[ares_query_mx_result]]: ...
-    @overload
-    def search(
-        self, host: str, qtype: Literal["NAPTR"], qclass: str | None = ...
-    ) -> asyncio.Future[list[ares_query_naptr_result]]: ...
-    @overload
-    def search(
-        self, host: str, qtype: Literal["NS"], qclass: str | None = ...
-    ) -> asyncio.Future[list[ares_query_ns_result]]: ...
-    @overload
-    def search(
-        self, host: str, qtype: Literal["PTR"], qclass: str | None = ...
-    ) -> asyncio.Future[list[ares_query_ptr_result]]: ...
-    @overload
-    def search(
-        self, host: str, qtype: Literal["SOA"], qclass: str | None = ...
-    ) -> asyncio.Future[ares_query_soa_result]: ...
-    @overload
-    def search(
-        self, host: str, qtype: Literal["SRV"], qclass: str | None = ...
-    ) -> asyncio.Future[list[ares_query_srv_result]]: ...
-    @overload
-    def search(
-        self, host: str, qtype: Literal["TXT"], qclass: str | None = ...
-    ) -> asyncio.Future[list[ares_query_txt_result]]: ...
 
-    def search(
-        self, host: str, qtype: str, qclass: str | None = None
-    ) -> asyncio.Future[list[Any]] | asyncio.Future[Any]:
-        try:
-            qtype = query_type_map[qtype]
-        except KeyError as e:
-            raise ValueError(f"invalid query type: {qtype}") from e
-        if qclass is not None:
-            try:
-                qclass = query_class_map[qclass]
-            except KeyError as e:
-                raise ValueError(f"invalid query class: {qclass}") from e
+    # Still needs a little bit more work on...
+    # @overload
+    # def search(
+    #     self, host: str, qtype: Literal["A"], qclass: str | None = ...
+    # ) -> asyncio.Future[list[ares_query_a_result]]: ...
+    # @overload
+    # def search(
+    #     self, host: str, qtype: Literal["AAAA"], qclass: str | None = ...
+    # ) -> asyncio.Future[list[ares_query_aaaa_result]]: ...
+    # @overload
+    # def search(
+    #     self, host: str, qtype: Literal["CAA"], qclass: str | None = ...
+    # ) -> asyncio.Future[list[ares_query_caa_result]]: ...
+    # @overload
+    # def search(
+    #     self, host: str, qtype: Literal["CNAME"], qclass: str | None = ...
+    # ) -> asyncio.Future[ares_query_cname_result]: ...
+    # @overload
+    # def search(
+    #     self, host: str, qtype: Literal["MX"], qclass: str | None = ...
+    # ) -> asyncio.Future[list[ares_query_mx_result]]: ...
+    # @overload
+    # def search(
+    #     self, host: str, qtype: Literal["NAPTR"], qclass: str | None = ...
+    # ) -> asyncio.Future[list[ares_query_naptr_result]]: ...
+    # @overload
+    # def search(
+    #     self, host: str, qtype: Literal["NS"], qclass: str | None = ...
+    # ) -> asyncio.Future[list[ares_query_ns_result]]: ...
+    # @overload
+    # def search(
+    #     self, host: str, qtype: Literal["PTR"], qclass: str | None = ...
+    # ) -> asyncio.Future[list[ares_query_ptr_result]]: ...
+    # @overload
+    # def search(
+    #     self, host: str, qtype: Literal["SOA"], qclass: str | None = ...
+    # ) -> asyncio.Future[ares_query_soa_result]: ...
+    # @overload
+    # def search(
+    #     self, host: str, qtype: Literal["SRV"], qclass: str | None = ...
+    # ) -> asyncio.Future[list[ares_query_srv_result]]: ...
+    # @overload
+    # def search(
+    #     self, host: str, qtype: Literal["TXT"], qclass: str | None = ...
+    # ) -> asyncio.Future[list[ares_query_txt_result]]: ...
 
-        # we use a different technique than pycares to try and
-        # aggressively prevent vulnerabilities
+    # def search(
+    #     self, host: str, qtype: str, qclass: str | None = None
+    # ) -> asyncio.Future[list[Any]] | asyncio.Future[Any]:
+    #     try:
+    #         qtype = query_type_map[qtype]
+    #     except KeyError as e:
+    #         raise ValueError(f"invalid query type: {qtype}") from e
+    #     if qclass is not None:
+    #         try:
+    #             qclass = query_class_map[qclass]
+    #         except KeyError as e:
+    #             raise ValueError(f"invalid query class: {qclass}") from e
 
-        return self._wrap_future(self._channel.query(host, qtype, qclass))
+    #     # we use a different technique than pycares to try and
+    #     # aggressively prevent vulnerabilities
+
+    #     return self._wrap_future(self._channel.query(host, qtype, qclass))
 
     async def __aenter__(self):
         return self
 
     async def __aexit__(self, *args):
-        self._cleanup()
-        self._channel.close()
+        await self._cleanup()
 
-    def close(self):
-        self._cleanup()
-        self._channel.close()
+    async def close(self):
+        await self._cleanup()
 
     # TODO: I will do the rest of the functionality a bit later...
