@@ -97,7 +97,7 @@ async def test_cancelling_from_resolver() -> None:
             resolver.query("llhttp.org", "A"),
             resolver.query("llparse.org", "A"),
         ]
-        await resolver.cancel()
+        resolver.cancel()
         assert not resolver._handles
 
 
