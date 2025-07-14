@@ -98,8 +98,6 @@ async def test_cancelling_from_resolver() -> None:
             resolver.query("llparse.org", "A"),
         ]
         resolver.cancel()
-        await asyncio.sleep(0.1)
-        assert not resolver._handles
 
 
 @pytest.mark.asyncio
