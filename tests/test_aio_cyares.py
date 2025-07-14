@@ -23,8 +23,8 @@ if platform.python_implementation() != "PyPy":
         @pytest.fixture(
             scope="session",
             params=(
-                DefaultEventLoopPolicy(),
                 uvloop.EventLoopPolicy(),
+                DefaultEventLoopPolicy(),
             ),
             ids=str,
         )
