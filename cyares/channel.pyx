@@ -73,7 +73,7 @@ cdef class Channel:
     ):
         cdef Py_buffer view
         cdef int optmask = 0
-        cdef char** strs
+        cdef char** strs = NULL 
         cdef object i
 
         self._cancelled = False
@@ -168,6 +168,7 @@ cdef class Channel:
             self.options.domains = strs
             self.options.ndomains = len(domains)
             optmask |= ARES_OPT_DOMAINS
+            
 
         if rotate:
             optmask |= ARES_OPT_ROTATE
@@ -191,6 +192,9 @@ cdef class Channel:
         if servers:
             self.servers = servers
 
+        if strs != NULL:
+            # be sure to throw an issue on github if this becomes a future problem
+            PyMem_Free(strs)
         
     
     # TODO (Vizonex): Separate Server into a Seperate class and incorperate support for yarl
@@ -673,9 +677,7 @@ cdef class Channel:
             cyares_release_buffer(&service_data)
         if callback:
             fut.add_done_callback(callback)
-        return fut 
-
-    # TODO: search, getnameinfo...
+        return fut
 
     def getnameinfo(
         self,
@@ -727,6 +729,8 @@ cdef class Channel:
             )
         else:
             raise ValueError("Invalid address argument")
+
+        return fut
 
     def gethostbyname(
         self, 

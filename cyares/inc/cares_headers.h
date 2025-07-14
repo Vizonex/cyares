@@ -10,7 +10,7 @@ extern "C" {
 #define WIN32_LEAN_AND_MEAN
 # include <WinSock2.h>
 
-// Incae we didn't have it previously...
+// Incase we didn't have it previously...
 typedef uint16_t in_port_t;
 
 

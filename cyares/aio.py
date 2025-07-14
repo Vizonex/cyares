@@ -13,8 +13,9 @@ with aiodns.
 # This was also made to test socket callbacks to see if they
 # were working properly...
 from __future__ import annotations
-import socket
+
 import asyncio
+import socket
 import sys
 from concurrent.futures import Future as cc_Future
 from logging import getLogger
@@ -190,7 +191,6 @@ class DNSResolver:
         """Cancels all running futures queued by this dns resolver"""
         self._channel.cancel()
 
-
     async def _cleanup(self) -> None:
         """Cleanup timers and file descriptors when closing resolver."""
         if self._closed:
@@ -214,9 +214,9 @@ class DNSResolver:
 
         # Something a little different is that unline aiodns
         # we're carrying handles to prevent crashing.
-        # This could be removed in the future if provent that 
+        # This could be removed in the future if provent that
         # it doesn't crash anymore.
-        
+
         if self._handles:
             # wait for all handles to empty out otherwise assume it completed
             try:
@@ -324,8 +324,6 @@ class DNSResolver:
     ) -> asyncio.Future[ares_host_result]:
         return self._wrap_future(self._channel.gethostbyname(host, family))
 
-    
-    
     def getaddrinfo(
         self,
         host: str,
@@ -335,16 +333,16 @@ class DNSResolver:
         type: int = 0,
         flags: int = 0,
     ) -> asyncio.Future[ares_addrinfo_result]:
-        return self._wrap_future(self._channel.getaddrinfo(
-            host, port, family=family, type=type, proto=proto, flags=flags
-        ))
-        
+        return self._wrap_future(
+            self._channel.getaddrinfo(
+                host, port, family=family, type=type, proto=proto, flags=flags
+            )
+        )
+
     def gethostbyaddr(
-        self, name: str
+        self, name: str | bytes | bytearray | memoryview[int]
     ) -> asyncio.Future[ares_host_result]:
         return self._wrap_future(self._channel.gethostbyaddr(name))
-    
-
 
     async def close(self) -> None:
         """
@@ -354,7 +352,7 @@ class DNSResolver:
         After calling close(), the resolver should not be used again.
         """
         self._cleanup()
-    
+
     # Still needs a little bit more work on...
     # @overload
     # def search(
@@ -425,5 +423,4 @@ class DNSResolver:
     async def __aexit__(self, *args):
         await self.close()
 
-   
     # TODO: I will do the rest of the functionality a bit later...

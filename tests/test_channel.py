@@ -5,9 +5,14 @@ from typing import Callable
 import pytest
 import re
 import ipaddress
+import socket
 
 ChannelType = Callable[..., Channel]
 
+
+# TODO: To test getsock() in a future update I'll bring in 
+# the pycares workflow and see what kinds of tweaks can be 
+# made to it.
 
 @pytest.fixture(scope="session")
 def c(request):
@@ -185,3 +190,9 @@ def test_search_ptr(c: Channel) -> None:
     assert c.search(
         ipaddress.ip_address("172.253.122.26").reverse_pointer, "PTR"
     ).result()
+
+# TODO: Test getsock and a few other missing functions in a future update.
+
+def test_gethostbyname(c: Channel) -> None:
+    # Lets change hosts up a notch...
+    assert c.gethostbyname('python.org', socket.AF_INET).result()
