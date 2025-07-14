@@ -766,7 +766,7 @@ cdef class Channel:
             fut = self.__create_future(callback)
             ares_gethostbyaddr(
                 self._channel, 
-                addr4, 
+                &addr4, 
                 sizeof(addr4), 
                 AF_INET, 
                 __callback_gethostbyaddr, # type: ignore  
@@ -778,7 +778,7 @@ cdef class Channel:
             fut = self.__create_future(callback)
             ares_gethostbyaddr(
                 self._channel, 
-                addr6, 
+                &addr6, 
                 sizeof(addr6), 
                 AF_INET6, 
                 __callback_gethostbyaddr, # type: ignore  
