@@ -121,6 +121,7 @@ class cares_build_ext(build_ext):
         ),
         ("cython-directives=", None, "Cythion compiler directives"),
     ]
+
     def initialize_options(self):
         super().initialize_options()
         self.cython_always = False
@@ -215,8 +216,8 @@ class cares_build_ext(build_ext):
                 self.compiler.define_macro("HAVE_PIPE", 1)
 
             # Currently all extensions need these sources...
-            # In the future we may decide to compile the c-ares library 
-            # first then add it in after due to how long it can take to 
+            # In the future we may decide to compile the c-ares library
+            # first then add it in after due to how long it can take to
             # compile everything
             for e in self.extensions:
                 e.sources += sources
@@ -281,29 +282,27 @@ class cares_build_ext(build_ext):
 
 
 if __name__ == "__main__":
-
     setup(
         ext_modules=[
             Extension(
-                "cyares.callbacks",
-                ["cyares/callbacks.pyx"]
+                "cyares.callbacks", ["cyares/callbacks.pyx"], extra_compile_args=["-O2"]
             ),
             Extension(
-                "cyares.channel",
-                ["cyares/channel.pyx"],
+                "cyares.channel", ["cyares/channel.pyx"], extra_compile_args=["-O2"]
             ),
             Extension(
-                "cyares.exception",
-                ["cyares/exception.pyx"]
+                "cyares.exception", ["cyares/exception.pyx"], extra_compile_args=["-O2"]
             ),
             Extension(
                 "cyares.resulttypes",
-                ["cyares/resulttypes.pyx"]
+                ["cyares/resulttypes.pyx"],
+                extra_compile_args=["-O2"],
             ),
             Extension(
                 "cyares.socket_handle",
                 ["cyares/socket_handle.pyx"],
-            )
+                extra_compile_args=["-O2"],
+            ),
         ],
         cmdclass={"build_ext": cares_build_ext},
     )
