@@ -1,4 +1,4 @@
-![cy-ares logo](Cy-Ares-Logo.png)
+<img src="https://raw.githubusercontent.com/Vizonex/cyares/main/Cy-Ares-Logo.png"/>
 
 An Upgraded version of __pycares__ with faster and safer features.
 
