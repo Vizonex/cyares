@@ -165,7 +165,7 @@ def test_search_cname(c: Channel) -> None:
 
 
 def test_search_mx(c: Channel) -> None:
-    assert c.search("google.com", "MX").result()
+    assert c.search("gmail.com", "MX").result()
 
 
 def test_search_ns(c: Channel) -> None:
