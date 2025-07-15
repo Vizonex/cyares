@@ -3,7 +3,7 @@ from __future__ import annotations
 import ipaddress
 import re
 import socket
-from typing import Callable
+from typing import Callable, Generator, Any
 
 import pytest
 
@@ -17,9 +17,11 @@ ChannelType = Callable[..., Channel]
 # the pycares workflow and see what kinds of tweaks can be
 # made to it.
 
+# TODO: add pycares workflow in 0.1.2 for more aggressive stress testing
+
 
 @pytest.fixture(scope="session")
-def c(request):
+def c(request) -> Generator[Any, Any, Channel]:
     # should be supported on all operating systems...
     with Channel(
         servers=[

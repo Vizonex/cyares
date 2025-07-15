@@ -1,8 +1,9 @@
 # cython: embed_signature=Trie
 cimport cython
-from cpython.exc cimport PyErr_NoMemory
+from cpython.exc cimport PyErr_NoMemory, PyErr_SetObject
 from cpython.mem cimport PyMem_Free, PyMem_Malloc
 from cpython.ref cimport Py_DECREF, Py_INCREF
+from cpython.unicode cimport PyUnicode_Check, PyUnicode_GetLength
 from libc.math cimport floor, fmod
 
 from .ares cimport *
@@ -19,6 +20,50 @@ include "handles.pxi"
 from socket import htonl, htons
 
 from .socket_handle cimport SocketHandle, __socket_state_callback
+
+cdef bint HAS_IDNA2008 = False
+
+cdef extern from "Python.h":
+    cdef bint PyUnicode_IS_COMPACT_ASCII(object obj)
+
+
+try:
+    # if someone would like to optimize or write a cython / c module that does this,
+    # be my guest because I'll happily take it because otherwise we need to find a 
+    # C / Cython Library that is MIT License Compatable.
+    #  - Vizonex
+
+    from idna import decode as idna_decode
+    HAS_IDNA2008 = True
+except ModuleNotFoundError:
+    HAS_IDNA2008 = False
+
+
+cdef int cyares_get_domain_name_buffer(object obj, Py_buffer* view) except -1:
+    if HAS_IDNA2008 and PyUnicode_Check(obj):
+        if not PyUnicode_IS_COMPACT_ASCII(obj):
+
+            # Not going to risk users using earlier versions of idna even if idna is newer
+            # if you needed larger domain names Find or write a cython / C library that can out-perform
+            # the python idna pakage and I'll take it. 
+            # I'm going to be generous and allow 255 since it's a softer number
+    
+            # SEE: https://github.com/kjd/idna/security/advisories/GHSA-jjg7-2v4v-x38h
+
+            if PyUnicode_GetLength(obj) > 255:
+                PyErr_SetObject(ValueError, "Domain names being idna decoded should not exceed a size of 255")
+                return -1
+
+            try:
+                obj = idna_decode(obj)
+
+            except Exception as e:
+                PyErr_SetObject(e, str(e))
+                return -1
+
+    return cyares_get_buffer(obj, view)
+    
+
 
 # Secondary Enums if Writing Strings is not your style...
 
@@ -114,7 +159,6 @@ cdef class Channel:
         if tcp_port is not None:
             self.options.tcp_port = tcp_port
             optmask |= ARES_OPT_TCP_PORT
-
 
         if udp_port is not None:
             self.options.udp_port = udp_port
@@ -221,6 +265,7 @@ cdef class Channel:
         cdef str servers = s.decode('utf-8')
         return servers.split(",")
     
+    # TODO: in a later update allow yarl and deocde using idna if imported.
     @servers.setter
     def servers(self, list servers):
         cdef int r
@@ -316,7 +361,7 @@ cdef class Channel:
         if cyares_check_qclasses(qclass) < 0:
             raise 
 
-        if cyares_get_buffer(qname, &view) < 0:
+        if cyares_get_domain_name_buffer(qname, &view) < 0:
             raise 
 
         fut = self.__create_future(callback)
@@ -455,8 +500,8 @@ cdef class Channel:
         if cyares_check_qclasses(qclass) < 0:
             raise 
 
-        if cyares_get_buffer(qname, &view) < 0:
-            raise 
+        if cyares_get_domain_name_buffer(qname, &view) < 0:
+            raise
 
 
         if _qtype == T_A:
@@ -656,7 +701,7 @@ cdef class Channel:
             service = <char*>service_data.buf
             buffer_carried = 1
 
-        cyares_get_buffer(host, &view)
+        cyares_get_domain_name_buffer(host, &view)
 
         hints.ai_flags = flags
         hints.ai_family = family
@@ -742,7 +787,7 @@ cdef class Channel:
         cdef Py_buffer view
         cdef object fut = self.__create_future(callback)
 
-        cyares_get_buffer(name, &view)
+        cyares_get_domain_name_buffer(name, &view)
         ares_gethostbyname(
             self.channel, 
             <char*>view.buf, 

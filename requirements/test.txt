@@ -4,3 +4,5 @@ pytest-asyncio
 # Stress-test winloop & uvloop as well since I maintain one of them.
 winloop; platform_system == "Windows"
 uvloop; platform_system != "Windows"
+# Utilize idna (although optional)
+idna
