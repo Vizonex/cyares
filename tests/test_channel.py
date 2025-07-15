@@ -1,18 +1,22 @@
 from __future__ import annotations
+
+import ipaddress
+import re
+import socket
+from typing import Callable
+
+import pytest
+
 from cyares import Channel
 from cyares.exception import AresError
-from typing import Callable
-import pytest
-import re
-import ipaddress
-import socket
 
 ChannelType = Callable[..., Channel]
 
 
-# TODO: To test getsock() in a future update I'll bring in 
-# the pycares workflow and see what kinds of tweaks can be 
+# TODO: To test getsock() in a future update I'll bring in
+# the pycares workflow and see what kinds of tweaks can be
 # made to it.
+
 
 @pytest.fixture(scope="session")
 def c(request):
@@ -20,11 +24,9 @@ def c(request):
     with Channel(
         servers=[
             # Added more dns servers incase we lag behind or one kicks us off.
-            # unfortunately there's no way for me to contact and say hi, I'm writing 
+            # unfortunately there's no way for me to contact and say hi, I'm writing
             # a new dns resolver can I use your server for stress-testing?
-
             # Maybe in the future we can make a local dns server to stress test our things.
-            
             "1.0.0.1",
             "1.1.1.1",
             "141.1.27.249",
@@ -46,8 +48,8 @@ def c(request):
             "5.144.17.119",
             "8.8.8.8",
             "8.8.4.4",
-        ], 
-        event_thread=True
+        ],
+        event_thread=True,
     ) as channel:
         yield channel
 
@@ -191,8 +193,10 @@ def test_search_ptr(c: Channel) -> None:
         ipaddress.ip_address("172.253.122.26").reverse_pointer, "PTR"
     ).result()
 
+
 # TODO: Test getsock and a few other missing functions in a future update.
+
 
 def test_gethostbyname(c: Channel) -> None:
     # Lets change hosts up a notch...
-    assert c.gethostbyname('python.org', socket.AF_INET).result()
+    assert c.gethostbyname("python.org", socket.AF_INET).result()

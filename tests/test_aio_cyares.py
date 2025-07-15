@@ -1,12 +1,13 @@
-from cyares.aio import DNSResolver
-from cyares.exception import AresError
+import asyncio
+import ipaddress
+import platform
+import sys
+
 import pytest
 import pytest_asyncio
-import ipaddress
-import re
-import asyncio
-import sys
-import platform
+
+from cyares.aio import DNSResolver
+from cyares.exception import AresError
 
 uvloop = pytest.importorskip("winloop" if sys.platform == "win32" else "uvloop")
 
@@ -32,7 +33,6 @@ if platform.python_implementation() != "PyPy":
             request: pytest.FixtureRequest,
         ) -> asyncio.AbstractEventLoopPolicy:
             return request.param
-
 
 
 # TODO: Parametize turning certain event_threads on and off in a future cyares update.
@@ -63,7 +63,10 @@ async def resolver():
             "5.144.17.119",
             "8.8.8.8",
             "8.8.4.4",
-        ], event_thread=True
+        ],
+        event_thread=True,
+        tries=3,
+        timeout=10,
     ) as channel:
         yield channel
 
@@ -72,10 +75,10 @@ async def resolver():
 async def test_mx_dns_query(resolver: DNSResolver) -> None:
     assert await resolver.query("gmail.com", "MX")
 
+
 @pytest.mark.asyncio
-async def test_a_dns_query() -> None:
-    async with DNSResolver(["8.8.8.8", "8.8.4.4"]) as channel:
-        assert await channel.query("google.com", "A")
+async def test_a_dns_query(resolver: DNSResolver) -> None:
+    assert await resolver.query("python.org", "A")
 
 
 @pytest.mark.asyncio
@@ -102,7 +105,6 @@ async def test_cancelling_from_resolver() -> None:
 
 @pytest.mark.asyncio
 async def test_a_dns_query_fail(resolver: DNSResolver) -> None:
-
     with pytest.raises(
         AresError,
         match=r"\[ARES_ENODATA : 1\] DNS server returned answer with no data",
@@ -156,17 +158,17 @@ async def test_query_ptr(resolver: DNSResolver) -> None:
         ipaddress.ip_address("172.253.122.26").reverse_pointer, "PTR"
     )
 
-# Freezes
-# @pytest.mark.asyncio
-# async def test_query_bad_type(resolver: DNSResolver) -> None:
-#     with pytest.raises(ValueError):
-#         await resolver.query("google.com", "XXX")
 
-# Freezes
-# @pytest.mark.asyncio
-# async def test_query_bad_class(resolver: DNSResolver) -> None:
-#     with pytest.raises(TypeError):
-#         await resolver.query("google.com", "A", qclass="INVALIDCLASS")
+@pytest.mark.asyncio
+async def test_query_bad_type(resolver: DNSResolver) -> None:
+    with pytest.raises(ValueError):
+        await resolver.query("google.com", "XXX")
+
+
+@pytest.mark.asyncio
+async def test_query_bad_class(resolver: DNSResolver) -> None:
+    with pytest.raises(ValueError):
+        await resolver.query("google.com", "A", qclass="INVALIDCLASS")
 
 
 # @pytest.mark.asyncio
