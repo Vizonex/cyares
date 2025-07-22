@@ -146,7 +146,7 @@ def test_query_bad_class(c: Channel) -> None:
 
 
 @pytest.mark.skipif(
-    sys.platform == "darwin", sys.version_info == (3, 12), reason="hangs"
+    sys.platform == "darwin", reason="hangs"
 )
 def test_mx_dns_search(c: Channel) -> None:
     fut = c.search("gmail.com", query_type="MX").result()
