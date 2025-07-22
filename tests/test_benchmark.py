@@ -8,6 +8,9 @@ import cyares
 from cyares.exception import AresError
 from concurrent.futures import Future
 
+import os
+IN_GITHUB_ACTIONS = os.getenv("GITHUB_ACTIONS") == "true"
+
 if sys.version_info < (3, 11):
     from typing_extensions import Self
 else:
@@ -80,7 +83,7 @@ def pycares_query(channel: pycares.Channel, query: str) -> Future:
     channel.query(query, pycares.QUERY_TYPE_A, on_result)
     return fut
 
-
+@pytest.mark.skipif(IN_GITHUB_ACTIONS, reason="Github Doesn't like running a DNS Dummy Server")
 def test_pycares_100_queries_benchmark(
     one_hundred_queries: list[str],
     dns_server_udp_only,
@@ -103,7 +106,7 @@ def test_pycares_100_queries_benchmark(
         target, setup=setup, teardown=teardown, rounds=100, warmup_rounds=10
     )
 
-
+@pytest.mark.skipif(IN_GITHUB_ACTIONS, reason="Github Doesn't like running a DNS Dummy Server")
 def test_cyares_100_queries_benchmark(
     one_hundred_queries: list[str],
     dns_server_udp_only,
@@ -125,7 +128,7 @@ def test_cyares_100_queries_benchmark(
         target, setup=setup, teardown=teardown, rounds=100, warmup_rounds=10
     )
 
-
+@pytest.mark.skipif(IN_GITHUB_ACTIONS, reason="Github Doesn't like running a DNS Dummy Server")
 def test_pycares_100_queries_benchmark_concurrently(
     one_hundred_queries: list[str],
     dns_server_udp_only,
@@ -148,7 +151,7 @@ def test_pycares_100_queries_benchmark_concurrently(
         target, setup=setup, teardown=teardown, rounds=100, warmup_rounds=10
     )
 
-
+@pytest.mark.skipif(IN_GITHUB_ACTIONS, reason="Github Doesn't like running a DNS Dummy Server")
 def test_cyares_100_queries_benchmark_concurrently(
     one_hundred_queries: list[str],
     dns_server_udp_only,
