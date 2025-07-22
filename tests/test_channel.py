@@ -3,6 +3,7 @@ from __future__ import annotations
 import ipaddress
 import re
 import socket
+import sys
 from typing import Any, Callable, Generator
 
 import pytest
@@ -144,6 +145,9 @@ def test_query_bad_class(c: Channel) -> None:
         c.query("google.com", "A", query_class="INVALIDCLASS").result()
 
 
+@pytest.mark.skipif(
+    sys.platform == "darwin", sys.version_info == (3, 12), reason="hangs"
+)
 def test_mx_dns_search(c: Channel) -> None:
     fut = c.search("gmail.com", query_type="MX").result()
     assert any([mx.host == b"gmail-smtp-in.l.google.com" for mx in fut])
