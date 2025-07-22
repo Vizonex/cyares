@@ -1,5 +1,9 @@
 <img src="https://raw.githubusercontent.com/Vizonex/cyares/main/Cy-Ares-Logo.png"/>
 
+[![PyPI version](https://badge.fury.io/py/cyares.svg)](https://badge.fury.io/py/cyares)
+[![PyPI - Downloads](https://img.shields.io/pypi/dm/cyares)](https://badge.fury.io/py/cyares)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 An Upgraded version of __pycares__ with faster and safer features.
 
 
