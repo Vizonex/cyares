@@ -6,3 +6,9 @@ winloop==0.1.91; platform_system == "Windows"
 uvloop; platform_system != "Windows"
 # Utilize idna (although optional)
 idna
+# Dummy server so that we don't end up ddosing 
+# a real dns-server
+dnslib==0.9.26
+# Benchmarking CyAres & Pycares
+pytest-codspeed==4.0.0
+pycares==4.9.0
