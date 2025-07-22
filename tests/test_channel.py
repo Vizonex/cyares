@@ -3,7 +3,7 @@ from __future__ import annotations
 import ipaddress
 import re
 import socket
-from typing import Callable, Generator, Any
+from typing import Any, Callable, Generator
 
 import pytest
 
@@ -165,6 +165,7 @@ def test_search_aaaa(c: Channel) -> None:
 def test_search_cname(c: Channel) -> None:
     assert c.search("www.amazon.com", "CNAME").result()
 
+
 @pytest.mark.skip(reason="Rare chance it Hangs")
 def test_search_mx(c: Channel) -> None:
     assert c.search("gmail.com", "MX").result()
@@ -180,6 +181,7 @@ def test_search_txt(c: Channel) -> None:
 
 def test_search_soa(c: Channel) -> None:
     assert c.search("google.com", "SOA").result()
+
 
 # I'll mix in bytes to speedup the remaining tests incase of hanging
 def test_search_srv(c: Channel) -> None:

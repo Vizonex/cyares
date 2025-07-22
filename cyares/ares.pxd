@@ -660,7 +660,7 @@ cdef extern from "inc/cares_headers.h" nogil:
 
     ares_dns_rr_t *ares_dns_record_rr_get(ares_dns_record_t *dnsrec,
                                                    ares_dns_section_t sect,
-                                                   size_t             idx);
+                                                   size_t             idx)
 
 
     ctypedef enum ares_dns_rec_type_t:
@@ -943,7 +943,7 @@ cdef extern from "inc/cares_headers.h" nogil:
 
     ctypedef void (*ares_callback_dnsrec)(void *arg, ares_status_t status,
                                      size_t timeouts,
-                                     const ares_dns_record_t *dnsrec);
+                                     const ares_dns_record_t *dnsrec)
  
     ares_status_t ares_query_dnsrec(
         ares_channel_t *channel,
@@ -954,4 +954,3 @@ cdef extern from "inc/cares_headers.h" nogil:
         void *arg,
         unsigned short *qid
     )
-    

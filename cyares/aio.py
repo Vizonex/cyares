@@ -354,6 +354,13 @@ class DNSResolver:
         """
         await self._cleanup()
 
+    def getnameinfo(
+        self,
+        sockaddr: tuple[str, int] | tuple[str, int, int, int],
+        flags: int = 0,
+    ) -> asyncio.Future[ares_nameinfo_result]:
+        return self._wrap_future(self._channel.getnameinfo(sockaddr, flags))
+
     # Still needs a little bit more work on...
     # @overload
     # def search(

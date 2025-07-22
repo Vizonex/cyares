@@ -23,6 +23,11 @@ build-frontend = "build"
 [build-system]
 requires = ["setuptools", "cython", "wheel"]
 
+[dependency-groups]
+dev = [
+    "pytest-codspeed>=4.0.0",
+]
+
 [tool.setuptools]
 zip-safe = false
 packages = ['cyares']
