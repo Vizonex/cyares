@@ -2,7 +2,7 @@ pytest
 # testing our version of aiodns
 pytest-asyncio
 # Stress-test winloop & uvloop as well since I maintain one of them.
-winloop==0.1.91; platform_system == "Windows"
+winloop==0.2.0; platform_system == "Windows"
 uvloop; platform_system != "Windows"
 # Utilize idna (although optional)
 idna
