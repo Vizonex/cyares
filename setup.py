@@ -125,7 +125,7 @@ class cares_build_ext(build_ext):
     def initialize_options(self):
         super().initialize_options()
         self.cython_always = False
-        self.cython_annotate = True
+        self.cython_annotate = False
         self.cython_directives = None
 
     def add_include_dir(self, dir, force=False):

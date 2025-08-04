@@ -954,3 +954,7 @@ cdef extern from "inc/cares_headers.h" nogil:
         void *arg,
         unsigned short *qid
     )
+    size_t ares_queue_active_queries(const ares_channel_t *channel)
+
+    ares_status_t ares_queue_wait_empty(ares_channel_t *channel, int timeout_ms)
+    

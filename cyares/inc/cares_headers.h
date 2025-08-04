@@ -1,6 +1,8 @@
 #ifndef __CARES_HEADERS_H__
 #define __CARES_HEADERS_H__
 
+#include <stdint.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif /* __cplusplus */
@@ -9,6 +11,8 @@ extern "C" {
 #define CYARES_USE_WINDOWS 1
 #define WIN32_LEAN_AND_MEAN
 # include <WinSock2.h>
+
+
 
 // Incase we didn't have it previously...
 typedef uint16_t in_port_t;
@@ -35,6 +39,10 @@ typedef uint16_t in_port_t;
 #include "ares_build.h"
 
 #include "ares.h"
+
+// Ares should have these built-in but incase it doesn't we will add a small wrapper for it incase
+
+
 
 
 

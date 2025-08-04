@@ -22,11 +22,18 @@ cdef class Channel:
         set handles
         dict _query_lookups
         bint _cancelled
+        
+        # allow programmers to access this event_thread flag 
+        # if checking before wait(...) is required...
+        readonly bint event_thread
         SocketHandle socket_handle # if we have one
+
 
     cpdef void cancel(self) noexcept
     cdef void* _malloc(self, size_t size) except NULL
     cdef object _query(self, object qname, object qtype, int qclass, object callback)
     cdef object _search(self, object qname, object qtype, int qclass, object callback)
     cdef object __create_future(self, object callback)
+    cdef ares_status_t __wait(self, int milliseconds)
+
 
