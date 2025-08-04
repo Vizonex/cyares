@@ -1,7 +1,12 @@
 # NOTE I'm borrowing from pycares so that we don't have to reinvent the wheel.
 name: Test
-# Added push so we can test locally temporarly, I will remove that in the future of cyares - Vizonex
-on: [pull_request, push]
+on:
+  push:
+    branches:
+    - main
+  pull_request:
+    branches:
+    - main
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}

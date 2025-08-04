@@ -21,4 +21,13 @@ cdef extern from "cyares_utils.h":
     str cyares_unicode_from_uchar(
         const uint8_t* chars
     )
+
+    # used to replace socket.htons & socket.htonl for speed
+    unsigned short cyares_htons(
+        unsigned short s
+    ) noexcept nogil
     
+    unsigned long cyares_htonl(
+        unsigned long l
+    ) noexcept nogil
+

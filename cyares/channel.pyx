@@ -10,16 +10,15 @@ from .ares cimport *
 from .callbacks cimport *
 from .exception cimport AresError
 from .inc cimport (cyares_check_qclasses, cyares_check_qtypes,
-                   cyares_get_buffer, cyares_release_buffer)
+                   cyares_get_buffer, cyares_htonl, cyares_htons,
+                   cyares_release_buffer)
 from .resulttypes cimport *
 
 include "handles.pxi"
 
-# TODO: Transform use a htonl, htons function from cython or C for better speed...
-
-from socket import htonl, htons
 
 from .socket_handle cimport SocketHandle, __socket_state_callback
+
 
 cdef bint HAS_IDNA2008 = False
 
@@ -33,34 +32,74 @@ try:
     # C / Cython Library that is MIT License Compatable.
     #  - Vizonex
 
-    from idna import decode as idna_decode
+    from idna import decode as idna_decode  # type: ignore (Silly cyright)
     HAS_IDNA2008 = True
 except ModuleNotFoundError:
     HAS_IDNA2008 = False
 
+# PYTEST PURPOSES ONLY, USING THESE IS DISCOURAGED!!!
+def __htons(unsigned short s):
+    return cyares_htons(s)
+
+def __htonl(unsigned long l):
+    return cyares_htonl(l)
+
+
+cdef inline void raise_negative_timeout_err(object obj):
+    PyErr_SetObject(ValueError, f"timeout should not be below 0 got {obj}" )
+
+cdef int cyares_seconds_to_milliseconds(object obj) except -1:
+    cdef double _d
+    if isinstance(obj, float):
+        if obj < 0:
+            raise_negative_timeout_err(obj)
+            return -1
+
+        _d = <double>obj
+        return <int>floor(_d) + <int>(fmod(_d, 1.0) * 1000) 
+        
+    
+    elif isinstance(obj, int):
+        if obj < 0:
+            raise_negative_timeout_err(obj)
+            return -1
+        return <int>(obj * 1000)
+    else:
+        PyErr_SetObject(TypeError, "timeout must be an integer or float not %s" % type(obj).__name__)
+        return -1
+
+
+
 
 cdef int cyares_get_domain_name_buffer(object obj, Py_buffer* view) except -1:
-    if HAS_IDNA2008 and PyUnicode_Check(obj):
-        if not PyUnicode_IS_COMPACT_ASCII(obj):
-
-            # Not going to risk users using earlier versions of idna even if idna is newer
-            # if you needed larger domain names Find or write a cython / C library that can out-perform
-            # the python idna pakage and I'll take it. 
-            # I'm going to be generous and allow 255 since it's a softer number
+    if PyUnicode_Check(obj):
+        if HAS_IDNA2008:
+            if not PyUnicode_IS_COMPACT_ASCII(obj):
+        
+             # Not going to risk users using earlier versions of idna even if idna is newer
+             # if you needed larger domain names Find or write a cython / C library that can out-perform
+             # the python idna pakage and I'll take it. 
+             # I'm going to be generous and allow 255 since it's a softer number
+        
+             # SEE: https://github.com/kjd/idna/security/advisories/GHSA-jjg7-2v4v-x38h
     
-            # SEE: https://github.com/kjd/idna/security/advisories/GHSA-jjg7-2v4v-x38h
+                if PyUnicode_GetLength(obj) > 253:
+                    PyErr_SetObject(ValueError, "Domain names being idna decoded should not exceed a size of 255")
+                    return -1
+    
+                try:
+                    obj = idna_decode(obj)
 
-            if PyUnicode_GetLength(obj) > 255:
-                PyErr_SetObject(ValueError, "Domain names being idna decoded should not exceed a size of 255")
-                return -1
-
-            try:
-                obj = idna_decode(obj)
-
-            except Exception as e:
-                PyErr_SetObject(e, str(e))
-                return -1
-
+                except Exception as e:
+                    PyErr_SetObject(e, str(e))
+                    return -1
+            else:
+                # Python should have it's own backup
+                try:
+                    obj = obj.encode("idna")
+                except Exception as e:
+                    PyErr_SetObject(e, str(e))
+                    return -1
     return cyares_get_buffer(obj, view)
     
 
@@ -120,6 +159,7 @@ cdef class Channel:
         cdef int optmask = 0
         cdef char** strs = NULL 
         cdef object i
+        self.event_thread = event_thread
 
         self._cancelled = False
         self.handles = set()
@@ -265,7 +305,7 @@ cdef class Channel:
         cdef str servers = s.decode('utf-8')
         return servers.split(",")
     
-    # TODO: in a later update allow yarl and deocde using idna if imported.
+
     @servers.setter
     def servers(self, list servers):
         cdef int r
@@ -291,7 +331,7 @@ cdef class Channel:
         if r != ARES_SUCCESS:
             raise AresError(r)
             
-
+    
     def __dealloc__(self):
         if (not self._cancelled) and self.handles:
             self.cancel()
@@ -319,8 +359,14 @@ cdef class Channel:
         self.handles.remove(fut)
         self._closed += 1
     
+
+    # there's a secret function
+    # called debug() if you need to debug the handles however 
+    # using such functions for non-development purposes is discouraged.
+
     def debug(self):
         print('Running Handles: {}'.format(self._running))
+        print('Running Queries: {}'.format(self.running_queries))
         print('Closed Handles: {}'.format(self._closed))
         
     @cython.nonecheck(False)
@@ -741,7 +787,7 @@ cdef class Channel:
                 cyares_release_buffer(&view)
                 raise ValueError("Invalid IPv4 address %r" % ip)
             sa4.sin_family = AF_INET
-            sa4.sin_port = htons(port)
+            sa4.sin_port = cyares_htons(port)
             cyares_release_buffer(&view)
             fut = self.__create_future(callback)
             ares_getnameinfo(
@@ -759,8 +805,8 @@ cdef class Channel:
                 cyares_release_buffer(&view)
                 raise ValueError("Invalid IPv6 address %r" % ip)
             sa6.sin6_family = AF_INET6
-            sa6.sin6_port = htons(port)
-            sa6.sin6_flowinfo = htonl(flowinfo) # Pycares Comment: I'm unsure about byteorder here.
+            sa6.sin6_port = cyares_htons(port)
+            sa6.sin6_flowinfo = cyares_htonl(flowinfo) # Pycares Comment: I'm unsure about byteorder here.
             sa6.sin6_scope_id = scope_id # Pycares Comment: Yes, without htonl.
             cyares_release_buffer(&view)
             fut = self.__create_future(callback)
@@ -853,7 +899,7 @@ cdef class Channel:
         cyares_get_buffer(ip, &view)
         try:
             if ares_inet_pton(AF_INET, <char*>view.buf, &addr4):
-                ares_set_local_ip4(self.channel, <unsigned int>htonl(addr4.s_addr))
+                ares_set_local_ip4(self.channel, <unsigned int>cyares_htonl(addr4.s_addr))
             elif ares_inet_pton(AF_INET, <char*>view.buf, &addr6):
                 ares_set_local_ip6(self.channel, <unsigned char*>view.buf)
             else:
@@ -879,6 +925,41 @@ cdef class Channel:
         return rfds, wfds
 
 
+    cdef ares_status_t __wait(self, int timeout_ms):
+        return ares_queue_wait_empty(self.channel, timeout_ms)
+
+    def wait(self, object timeout = None):
+        cdef ares_status_t status
+        cdef int ms
+
+        if timeout is None:
+            status = self.__wait(-1)
+        else:
+            ms = cyares_seconds_to_milliseconds(timeout)
+            if ms < 0:
+                raise
+
+            status = self.__wait(ms)
+    
+        if status == ARES_SUCCESS:
+            return True
+        elif status == ARES_ETIMEOUT:
+            return False
+        else:
+            raise AresError(status)
+    
+    @property
+    def running_queries(self):
+        """obtains a number of actively running queries 
+        NOTE: this property is immutable by the end user"""
+        return ares_queue_active_queries(self.channel)
+
+    @running_queries.setter
+    def running_queries(self, object ignore):
+        raise ValueError("running_queries is an immutable property")
+
+
+
 
 def cyares_threadsafety():
     """
@@ -889,10 +970,6 @@ def cyares_threadsafety():
     :rtype: bool
     """
     return ares_threadsafety() == ARES_TRUE
-
-
-        
-
 
 
 
