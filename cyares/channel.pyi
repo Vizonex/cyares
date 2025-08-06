@@ -33,7 +33,7 @@ QUERY_CLASS_NONE: int = ...
 QUERY_CLASS_ANY: int = ...
 
 class Channel:
-    event_thread:bool
+    event_thread: bool
     """Used for checking if event-thread is in use before using wait(...)
     This is good for when you plan to make event-thread optional in a user 
     program
@@ -319,15 +319,15 @@ class Channel:
     def timeout(self, t: float = ...) -> float: ...
     def wait(self, timeout: float | int | None = None) -> bool:
         """Waits for all queries to close using `ares_queue_wait_emtpy`
-        This function blocks until notified that the timeout expired or 
-        that all pending queries have been cancelled or completed. 
+        This function blocks until notified that the timeout expired or
+        that all pending queries have been cancelled or completed.
 
         Parameters
         ----------
 
         :param timeout: A timeout in seconds as a float or integer object
-            this object will be rounded to milliseconds, throws `TypeError` 
-            if object is not None or an `int` or `float` other wise it throws 
+            this object will be rounded to milliseconds, throws `TypeError`
+            if object is not None or an `int` or `float` other wise it throws
             `ValueError` if the timeout is less than 0, default runs until
             all cancelled or closed
 

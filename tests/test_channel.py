@@ -22,7 +22,7 @@ ChannelType = Callable[..., Channel]
 
 
 @pytest.fixture(scope="session")
-def c(request) -> Generator[Any, Any, Channel]:
+def c() -> Generator[Any, Any, Channel]:
     # should be supported on all operating systems...
     with Channel(
         servers=[
@@ -52,6 +52,8 @@ def c(request) -> Generator[Any, Any, Channel]:
             "8.8.8.8",
             "8.8.4.4",
         ],
+        tries=3,
+        timeout=10,
         event_thread=True,
     ) as channel:
         yield channel

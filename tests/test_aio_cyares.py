@@ -11,7 +11,8 @@ from cyares.exception import AresError
 
 uvloop = pytest.importorskip("winloop" if sys.platform == "win32" else "uvloop")
 
-# XXX: We will wait for pytest-asyncio to make a workaround in the future for now we're stuck with it.
+
+# TODO: Migrate this section over to anyio in 0.1.6 or sooner...
 
 if platform.python_implementation() != "PyPy":
     # NOTE: I am working to pytest-asyncio in the future to workaround needing event-loop-policies
@@ -27,7 +28,7 @@ if platform.python_implementation() != "PyPy":
                 uvloop.EventLoopPolicy(),
                 DefaultEventLoopPolicy(),
             ),
-            ids=str,
+            ids=('uvloop' if sys.platform == "win32" else 'uvloop', 'asyncio'),
         )
         def event_loop_policy(
             request: pytest.FixtureRequest,
@@ -36,9 +37,13 @@ if platform.python_implementation() != "PyPy":
 
 
 # TODO: Parametize turning certain event_threads on and off in a future cyares update.
-@pytest_asyncio.fixture(loop_scope="function")
-async def resolver():
+@pytest_asyncio.fixture(loop_scope="function", params=(True, False), ids=("event-thread", "socket-cb"))
+async def resolver(request: pytest.FixtureRequest):
     # should be supported on all operating systems...
+    if request.param == False:
+        if sys.platform == "win32" and type(asyncio.get_event_loop()) is asyncio.ProactorEventLoop:
+            pytest.skip(reason="ProactorEventLoop with socket-cb is impossible")
+
 
     async with DNSResolver(
         servers=[
@@ -64,7 +69,7 @@ async def resolver():
             "8.8.8.8",
             "8.8.4.4",
         ],
-        event_thread=True,
+        event_thread=request.param,
         tries=3,
         timeout=10,
     ) as channel:
