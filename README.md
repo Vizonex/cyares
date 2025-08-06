@@ -6,6 +6,27 @@
 
 An Upgraded version of __pycares__ with faster and safer features.
 
+# Installation
+
+## How to install
+```
+pip install cyares
+```
+
+## How to install with Trio bundle
+```
+pip install cyares[trio]
+```
+
+## How to install with optional IDNA Plugin
+```
+pip install cyares[idna]
+```
+
+## Installing all bundles
+```
+pip install cyares[all]
+```
 
 
 # Small Examples of How to Use
@@ -81,5 +102,6 @@ The idea was not to reinvent the wheel rather move parts of the library over in 
 If there was a deprecated function with an alternative & safer approch to use I felt using it would be a better move. For example, servers are now set with the csv functions rather than the original setup and because of that change you could now set dns servers in url formats and I might possibly look at adding in __yarl__ to be the cherry on top for those who might wish to get real creative about dns server urls. 
 
 Moving over the __ares_query__ function to use the dns recursion function is planned for the future (maybe after I do the first release of cyares). I still wanted to retain the original response data it gives so that migrating from __pycares__ to __cyares__ wouldn't be a pain to anyone who planned on moving and I also didn't want to take away from __pycares__ either if you prefer using __cffi__ over __cython__ the same way __curl-cffi__ and __cycurl__ were both done. I have my fingers crossed that __aiodns__ will adopt this library in the future or allow users to choose between __pycares__ and __cyares__.
+
 
 
