@@ -16,6 +16,8 @@ dependencies = [
 ]
 [project.optional-dependencies]
 idna = ["idna>=2.1"]
+trio = ["trio>=0.30.0"]
+all = ["idna>=2.1", "trio>=0.30.0"]
 
 [tool.cibuildwheel]
 build-frontend = "build"

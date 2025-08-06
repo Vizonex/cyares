@@ -1,3 +1,5 @@
+# Testing with trio although anyio is going to replace pytest-asyncio in a later update
+anyio==4.10.0
 pytest
 # testing our version of aiodns
 pytest-asyncio
@@ -5,10 +7,11 @@ pytest-asyncio
 winloop==0.2.1; platform_system == "Windows"
 uvloop; platform_system != "Windows"
 # Utilize idna (although optional)
-idna
+idna>=2.1
 # Dummy server so that we don't end up ddosing 
 # a real dns-server
 dnslib==0.9.26
 # Benchmarking CyAres & Pycares
 pytest-codspeed==4.0.0
 pycares==4.10.0
+trio>=0.30.0

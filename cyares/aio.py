@@ -116,13 +116,6 @@ class DNSResolver:
             self.nameservers = nameservers
         self._read_fds: set[int] = set()
         self._write_fds: set[int] = set()
-
-        # # As an extra safety concern lets ensure
-        # # that the asyncio futures being carried &
-        # # can't trigger segfaults at cleanup...
-        # self._handles: set[asyncio.Future[Any]] = set()
-        # self._empty = asyncio.Event()
-
         self._timer: asyncio.TimerHandle | None = None
         self._closed = False
 
@@ -130,17 +123,8 @@ class DNSResolver:
         if sys.platform == "win32" and type(self.loop) is asyncio.ProactorEventLoop:
             raise RuntimeError(WINDOWS_SELECTOR_ERR_MSG)
 
-    # def _on_fut_done(self, fut: asyncio.Future[Any]):
-    #     self._handles.remove(fut)
-    #     if not self._handles:
-    #         self._empty.set()
-
     def _wrap_future(self, fut: cc_Future[_T]) -> asyncio.Future[_T]:
-        out_fut = asyncio.wrap_future(fut)
-        # self._handles.add(out_fut)
-        # out_fut.add_done_callback(self._on_fut_done)
-        # self._empty.clear()
-        return out_fut
+        return asyncio.wrap_future(fut)
 
     def _make_channel(self, **kwargs: Any) -> tuple[bool, Channel]:
         if cyares_threadsafety():
@@ -211,20 +195,6 @@ class DNSResolver:
         self._read_fds.clear()
         self._write_fds.clear()
         self.cancel()
-
-        # NOTE: I'm Removing these training wheels to see if theres no segfault
-
-        # Something a little different is that unline aiodns
-        # we're carrying handles to prevent crashing.
-        # This could be removed in the future if provent that
-        # it doesn't crash anymore.
-
-        # if self._handles:
-        #     # wait for all handles to empty out otherwise assume it completed
-        #     try:
-        #         await asyncio.wait_for(self._empty.wait(), 0.1)
-        #     except asyncio.TimeoutError:
-        #         pass
 
     def _sock_state_cb(self, fd: int, readable: bool, writable: bool) -> None:
         if readable or writable:
