@@ -11,7 +11,8 @@ def anyio_backend() -> str:
 
 @pytest.fixture(
     params=(True, False),
-    ids=("trio-event-thread", "trio-socket-cb")
+    ids=("trio-event-thread", "trio-socket-cb"),
+    scope='function'
 )
 async def resolver(anyio_backend: str, request:pytest.FixtureRequest):
     # should be supported on all operating systems...

@@ -19,13 +19,19 @@ from trio import Event
 from trio.lowlevel import (
     checkpoint,
     current_clock,
-    current_trio_token,
-    wait_readable,
-    wait_writable,
+    current_trio_token
 )
 
 from .channel import *
 from .resulttypes import *
+
+try:
+    _wait_readable = trio.lowlevel.wait_readable
+    _wait_writable = trio.lowlevel.wait_writable
+except AttributeError:
+    _wait_readable = trio.lowlevel.wait_socket_readable
+    _wait_writable = trio.lowlevel.wait_socket_writable
+
 
 
 class CancelledError(Exception):
@@ -65,9 +71,7 @@ class Timer:
     async def close(self) -> None:
         """Waits for the timer to come to a callback where it can shut down"""
         if not self._running:
-            # no need for an event just a heartbeat will be effective enough
-            return await checkpoint()
-
+            return
         return await self._close_event.wait()
 
 
@@ -180,6 +184,7 @@ class DNSResolver:
         self._write_fds: set[int] = set()
         self._timeout = kw.get("timeout", None)
         self._timer = None
+        self._token = current_trio_token()
 
     async def __aenter__(self):
         self._nursery = await self._manager.__aenter__()
@@ -191,8 +196,8 @@ class DNSResolver:
     async def _handle_read(self, fd: int):
         while fd in self._read_fds:
             try:
-                await wait_readable(fd)
-                current_trio_token().run_sync_soon(self._channel.process_read_fd, fd)
+                await _wait_readable(fd)
+                self._channel.process_read_fd(fd)
             except OSError:
                 if fd not in self._read_fds:
                     break
@@ -201,8 +206,8 @@ class DNSResolver:
     async def _handle_write(self, fd: int):
         while fd in self._write_fds:
             try:
-                await wait_writable(fd)
-                current_trio_token().run_sync_soon(self._channel.process_write_fd, fd)
+                await _wait_writable(fd)
+                self._channel.process_write_fd(fd)
             except OSError:
                 if fd not in self._write_fds:
                     break
