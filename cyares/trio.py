@@ -1,3 +1,4 @@
+from __future__ import annotations
 from concurrent.futures import Future as ccFuture
 from types import GenericAlias
 from typing import (
