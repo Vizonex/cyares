@@ -21,6 +21,8 @@ from concurrent.futures import Future as cc_Future
 from logging import getLogger
 from typing import Any, Iterable, Literal, Sequence, TypeVar, overload
 
+from deprecated_params import deprecated_params
+
 from .channel import *  # type: ignore
 from .exception import AresError
 from .resulttypes import *
@@ -61,10 +63,21 @@ query_class_map = {
 }
 
 
-# Simillar to aiodns's version but more compact
+@deprecated_params(
+    ["sock_state_cb"],
+    {
+        "socket_state_cb": "providing socket_state_cb will throw an Exception instead "
+        "of being ignored in a future version of cyares"
+    },
+    removed_in="0.1.8",
+)
 class DNSResolver:
+    """Simillar to aiodns's version but it aims to be more compact and have better typehints"""
+
     def __init__(
         self,
+        # TODO: Deprecate nameservers and rename to servers instead so that unwanted arguments
+        # can't overlap with servers argument
         nameservers: list[str] | None = None,
         loop: asyncio.AbstractEventLoop | None = None,
         event_thread: bool = True,
@@ -177,6 +190,7 @@ class DNSResolver:
 
     async def _cleanup(self) -> None:
         """Cleanup timers and file descriptors when closing resolver."""
+        # TODO: Add Checkpoint so things remain asynchronous
         if self._closed:
             return
         # Mark as closed first to prevent double cleanup
@@ -390,9 +404,6 @@ class DNSResolver:
     #             qclass = query_class_map[qclass]
     #         except KeyError as e:
     #             raise ValueError(f"invalid query class: {qclass}") from e
-
-    #     # we use a different technique than pycares to try and
-    #     # aggressively prevent vulnerabilities
 
     #     return self._wrap_future(self._channel.query(host, qtype, qclass))
 

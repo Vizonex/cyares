@@ -10,14 +10,32 @@ requires-python = ">=3.9"
 
 dependencies = [
     # Self argument
-    'typing-extensions; python_version<"3.11"'    
-    # Planned but not ready...
-    # "yarl>=1.20.1"
+    'typing-extensions; python_version<"3.11"',
+    # temporary until Cyares 0.1.7
+    # I also am the main author of deprecated-params
+    'deprecated-params>=0.1.6'
+
+    # yarl support is planned but not ready, 
+    # I would like for yarl to have a cimport for URL objects first before
+    # I start using it with this project so that maximum performance can
+    # be achieved and before that can happen 3 things must take place for 
+    # that to be completed. 
+
+    # 1. propcache which yarl utilizes needs to be cimportable,
+    #   I have already wrote a pull request that would do that it 
+    #   just needs the stamp of approval by another maintainer.
+    # 2. multidict needs a CPython capsule, this should be avalible in 6.7
+    # 3. yarl will need a cython branch not just for Quoting/UnQuoting but also 
+    # for URL objects and an __init__.pxd file for importing with cython
+  
 ]
+
 [project.optional-dependencies]
+aiohttp = ["aiohttp>=3.12.15"]
+all = ["idna>=2.1", "trio>=0.30.0", "aiohttp>=3.12.15"]
 idna = ["idna>=2.1"]
 trio = ["trio>=0.30.0"]
-all = ["idna>=2.1", "trio>=0.30.0"]
+
 
 [tool.cibuildwheel]
 build-frontend = "build"
