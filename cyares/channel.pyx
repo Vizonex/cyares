@@ -535,6 +535,7 @@ cdef class Channel:
         cdef object fut = self.__create_future(callback)
         cdef Py_buffer view
 
+        # TODO: use match ...: cases when cython releases match support 
         if isinstance(qtype, str):
             try:
                 _qtype = <int>self._query_lookups[qtype]

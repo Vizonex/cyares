@@ -1,26 +1,32 @@
+"""
+trio
+----
+
+Trio is also supported by cyares it works the same way as the `cyares.aio` module
+and **aiodns** so it should not be too tricky to navigate.
+
+"""
+
 from __future__ import annotations
+
+import socket
 from concurrent.futures import Future as ccFuture
 from types import GenericAlias
 from typing import (
+    Any,
     Callable,
     Generic,
     Iterable,
+    Literal,
     Optional,
     Sequence,
     TypeVar,
-    Literal,
     overload,
-    Any,
 )
 
-import socket
 import trio
-from trio import Event
-from trio.lowlevel import (
-    checkpoint,
-    current_clock,
-    current_trio_token
-)
+from deprecated_params import deprecated_params
+from trio.lowlevel import current_clock, current_trio_token
 
 from .channel import *
 from .resulttypes import *
@@ -31,7 +37,6 @@ try:
 except AttributeError:
     _wait_readable = trio.lowlevel.wait_socket_readable
     _wait_writable = trio.lowlevel.wait_socket_writable
-
 
 
 class CancelledError(Exception):
@@ -66,7 +71,7 @@ class Timer:
 
     def cancel(self):
         if not self._close_event:
-            self._close_event = Event()
+            self._close_event = trio.Event()
 
     async def close(self) -> None:
         """Waits for the timer to come to a callback where it can shut down"""
@@ -104,17 +109,17 @@ _T = TypeVar("_T")
 class Future(Generic[_T]):
     __class_getitem__ = classmethod(GenericAlias)
 
-    def __init__(self, fut: ccFuture[_T], uses_thread:bool = True):
+    def __init__(self, fut: ccFuture[_T], uses_thread: bool = True):
         self._exc = None
         self._result = None
         self._cancelled = False
-        self.event = Event()
+        self.event = trio.Event()
         self._callbacks: list[Callable[["Future[_T]"], None]] = []
         # Token will allow use to reach the homethread allowing for a seamless transition
         self._token = current_trio_token()
         # all we needed the other future for was preparing to chain it.
         fut.add_done_callback(self.__on_done)
-        # determines if were in the Home Thread 
+        # determines if were in the Home Thread
         self._uses_thread = uses_thread
 
     def __execute_callbacks(self):
@@ -162,12 +167,17 @@ class Future(Generic[_T]):
         return self._wait().__await__()
 
 
+@deprecated_params(
+    ["sock_state_cb"],
+    "attempting to pass socket_state_cb will throw an Exception instead "
+    "of being ignored in a future version of cyares",
+    removed_in="0.1.8",
+)
 class DNSResolver:
-    # TODO: Use deprecated_params for socket_state_cb since it's handled manually
     def __init__(
         self,
         servers: list[str] | None = None,
-        event_thread: bool = False, # turned off by default but you can always pass it if you wish...
+        event_thread: bool = False,  # turned off by default but you can always pass it if you wish...
         **kw,
     ):
         kw.pop("socket_state_cb", None)

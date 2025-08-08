@@ -1,6 +1,4 @@
-from typing import ClassVar
-
-from _typeshed import Incomplete
+from typing import Optional, Union
 
 __test__: dict
 
@@ -15,7 +13,8 @@ class ares_addrinfo_cname_result(AresResult):
     ttl: int
 
 class ares_addrinfo_node_result(AresResult):
-    addr: bytes
+    # One of two things is (address, port) or adding in flow_info and scope_id
+    addr: Union[tuple[bytes, int], tuple[bytes, int, int, int]]
     family: int
     flags: int
     protocol: int
@@ -33,7 +32,7 @@ class ares_host_result(AresResult):
 
 class ares_nameinfo_result(AresResult):
     node: bytes
-    service: bytes | None
+    service: Optional[bytes]
 
 class ares_query_a_result(AresResult):
     host: bytes
@@ -67,7 +66,7 @@ class ares_query_ns_result(AresResult):
 
 class ares_query_ptr_result(AresResult):
     aliases: list[bytes]
-    name: Incomplete
+    name: bytes
     ttl: int
 
 class ares_query_soa_result(AresResult):
