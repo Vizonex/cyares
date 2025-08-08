@@ -23,6 +23,11 @@ pip install cyares[trio]
 pip install cyares[idna]
 ```
 
+## How to install with optional aiohttp extension
+```
+pip install cyares[aiohttp]
+```
+
 ## Installing all bundles
 ```
 pip install cyares[all]
@@ -50,7 +55,7 @@ if __name__ == "__main__":
 ```
 
 ## In Asyncio
-There's a module for an aiodns version if aiodns were using cyares.
+There's a module for an **aiodns** version if aiodns were using cyares.
 
 ```python
 import winloop # or uvloop (asyncio will also work) 
@@ -81,6 +86,67 @@ async def test():
 if __name__ == "__main__":
     trio.run(test)
 ```
+
+
+# Aiohttp
+## Using Globally (Monkey Patch Method)
+
+`install()` applies a monkeypatch globally
+Know that if you wanted to use different resolvers with
+aiohttp you can do that by passing `CyAresResolver` through to the
+`ClientSession`. another way to avoid `install()` not being threadsafe is by
+installing before the rest of your code begins running.
+Same as how **uvloop** and **winloop** both work
+
+```python
+from cyares.aiohttp import install
+from aiohttp import ClientSession
+import asyncio
+
+async def main():
+    # CyAres should be monkeypatched to be the default 
+    # DNS Resolver for this http request
+    async with ClientSession() as client:
+        async with client.get("https://httpbin.org/ip") as result:
+            data = await result.json()
+            print(f'YOUR IP ADDRESS IS: {data["origin"]}')
+
+if __name__ == "__main__":
+    install()
+    asyncio.run(main())
+```
+
+when your done with an evenloop run and want to rerun
+another but with an alternate dnsresolver such as **aiodns**
+or the `ThreadedResolver` use `uninstall()`
+
+# Using Non-Globally
+
+Although slightly more tricky it is possible to pass along `CyAresResolver`
+with the right setup without resorting to `install()`. This will also
+work with aiohttp_socks or using aiohttp_socks with a proxy or tor or i2p.
+If you feel uncomfortable with sending this much stuff to `ClientSession`
+yourself it's encouraged to use globally with `install()` or via
+monkeypatching aiohttp's default dns resolver in your own way.
+
+```python
+
+from cyares.aiohttp import CyAresResolver
+from aiohttp import ClientSession, TCPConnector
+
+# NOTE: This should also be respected when aiohttp_socks is in use
+# Such as the ProxyConnector which is another connector type of it's
+# own
+
+async def main():
+    async with ClientSession(
+        connector=TCPConnector(CyAresResolver()
+    )) as client:
+        async with client.get("https://httpbin.org/ip") as result:
+            data = await result.json()
+            print(f'YOUR IP ADDRESS IS: {data["origin"]}')
+```
+
 
 
 ## Story
