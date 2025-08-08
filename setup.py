@@ -5,6 +5,7 @@ import sys
 import select
 
 from setuptools.command.build_ext import build_ext
+from setuptools._distutils.ccompiler import CCompiler
 from setuptools import setup, Extension
 
 use_system_lib = bool(int(os.environ.get("CYARES_USE_SYSTEM_LIB", 0)))
@@ -127,7 +128,8 @@ class cares_build_ext(build_ext):
         self.cython_always = False
         self.cython_annotate = False
         self.cython_directives = None
-
+        self.parallel = True
+        
     def add_include_dir(self, dir, force=False):
         if use_system_lib and not force:
             return
@@ -219,9 +221,22 @@ class cares_build_ext(build_ext):
             # In the future we may decide to compile the c-ares library
             # first then add it in after due to how long it can take to
             # compile everything
-            for e in self.extensions:
-                e.sources += sources
 
+            # TODO: Optionally allow source compiling 
+            # for now we have to get hacky to cut the time needed compiling this 
+            # stuff by 5x times
+
+            # for e in self.extensions:
+            #     e.sources += sources
+
+            c = self.compiler
+            if not os.path.exists("build"):
+                os.mkdir("build")
+            objects = c.compile(sources, "build")
+            c.create_static_lib(objects, output_libname="cares", output_dir="build")
+            for e in self.extensions:
+                if "build/cares" not in e.libraries:
+                    e.libraries.append("build/cares") 
         super().build_extensions()
 
     # Copied from winloop
