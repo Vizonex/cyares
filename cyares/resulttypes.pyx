@@ -19,7 +19,7 @@ cdef class AresResult:
 
 cdef class ares_query_raw_rr_result(AresResult):
     @property
-    def type():
+    def type(self):
         return "RAW"
 
     @staticmethod
