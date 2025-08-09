@@ -545,6 +545,116 @@ cdef void __callback_gethostbyaddr(
     Py_DECREF(handle)
 
 
+
+
+# Using the newer setup which is ares_query_dns_rec
+# it is possible to determine what kind of DNS Record we 
+# were sent back to us so a game of guessing doesn't need to be done
+# as in pycares.
+cdef void __callback_dns_rec__any(
+    void *arg, 
+    ares_status_t status,
+    size_t timeouts,
+    const ares_dns_record_t *dnsrec
+) noexcept with gil:
+    if arg == NULL:
+        return
+   
+    cdef size_t i, size
+    cdef const ares_dns_rr_t *rr = NULL
+    cdef list records
+    cdef ares_dns_rec_type_t rt
+    cdef object handle = <object>arg
+   
+    if __cancel_check(status, handle):
+        return 
+    elif dnsrec == NULL:
+        return
+
+    try:
+        if status != ARES_SUCCESS:
+            handle.set_exception(AresError(status))
+        else:
+            size = ares_dns_record_rr_cnt(dnsrec, ARES_SECTION_ANSWER)
+            records = PyList_New(<Py_ssize_t>size)
+            for i in range(size):
+                rr = ares_dns_record_rr_get_const(
+                    dnsrec,
+                    ARES_SECTION_ANSWER,
+                    i
+                )
+                rt = ares_dns_rr_get_type(rr)
+                if rt == ARES_REC_TYPE_OPT:
+                    PyList_SET_ITEM(records, i, ares_query_opt_result.new(rr))
+
+                elif rt == ARES_REC_TYPE_A:
+                    PyList_SET_ITEM(records , i, ares_query_a_result.new(rr))
+                
+                elif rt == ARES_REC_TYPE_AAAA:
+                    PyList_SET_ITEM(records, i, ares_query_aaaa_result.new(rr))
+                
+                elif rt == ARES_REC_TYPE_CAA:
+                    PyList_SET_ITEM(records, i, ares_query_caa_result.new(rr))
+                
+                elif rt == ARES_REC_TYPE_CNAME:
+                    PyList_SET_ITEM(records, i , ares_query_cname_result.new(rr))
+                
+                elif rt == ARES_REC_TYPE_MX:
+                    PyList_SET_ITEM(records, i, ares_query_mx_result.new(rr))
+                
+                elif rt == ARES_REC_TYPE_NAPTR:
+                    PyList_SET_ITEM(records, i, ares_query_naptr_result.new(rr))
+                
+                elif rt == ARES_REC_TYPE_NS:
+                    PyList_SET_ITEM(records, i, ares_query_ns_result.new(rr))
+                
+                elif rt == ARES_REC_TYPE_PTR:
+                    PyList_SET_ITEM(records, i, ares_query_ptr_result.new(rr))
+                
+                elif rt == ARES_REC_TYPE_SOA:
+                    PyList_SET_ITEM(records, i, ares_query_soa_result.new(rr))
+                
+                elif rt == ARES_REC_TYPE_SRV:
+                    PyList_SET_ITEM(records, i, ares_query_srv_result.new(rr))
+                
+                elif rt == ARES_REC_TYPE_TXT:
+                    PyList_SET_ITEM(records, i, ares_query_txt_result.new(rr, i))
+
+                elif rt == ARES_REC_TYPE_HINFO:
+                    PyList_SET_ITEM(records, i, ares_query_hinfo_result.new(rr))
+                
+                elif rt == ARES_REC_TYPE_SIG:
+                    PyList_SET_ITEM(records, i, ares_query_sig_result.new(rr))
+                
+                elif rt == ARES_REC_TYPE_TLSA:
+                    PyList_SET_ITEM(records, i, ares_query_tlsa_result.new(rr))
+                
+                elif rt == ARES_REC_TYPE_SVCB:
+                    PyList_SET_ITEM(records, i, ares_query_svcb_result.new(rr))
+                
+                elif rt == ARES_REC_TYPE_HTTPS:
+                    PyList_SET_ITEM(records, i, ares_query_https_result.new(rr))
+
+                elif rt == ARES_REC_TYPE_URI:
+                    PyList_SET_ITEM(records, i, ares_query_uri_result.new(rr))
+                
+                elif rt == ARES_REC_TYPE_RAW_RR:
+                    PyList_SET_ITEM(records, i, ares_query_raw_rr_result.new(rr))
+                
+                else:
+                    # UNKNOWN, IF you need more of the newer dns records or 
+                    # any new ones that c-ares adds throw me an issue
+                    # on github - Vizonex
+                    PyList_SET_ITEM(records, i, None)
+
+            handle.set_result(records)
+    except BaseException as e:
+        handle.set_exception(e)
+
+    Py_DECREF(handle)
+
+
+
 # This is for the new DNS REC Which we plan to replace query with 
 # for now this will be primarly for searching...
 

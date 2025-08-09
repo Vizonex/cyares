@@ -520,6 +520,17 @@ cdef class Channel:
                 __callback_query_on_txt, # type: ignore
                 <void*>fut
             )
+        
+        elif _qtype == T_ANY:
+            ares_query_dnsrec(
+                self.channel,
+                <char*>view.buf,
+                <ares_dns_class_t>qclass,
+                ARES_REC_TYPE_ANY,
+                __callback_dns_rec__any, # type: ignore
+                <void*>fut,
+                NULL, # Passing NULL here will work SEE: ares_query.c 
+            )
 
         else:
             Py_DECREF(fut)
@@ -660,6 +671,13 @@ cdef class Channel:
                 __callback_query_on_txt, # type: ignore
                 <void*>fut
             )
+
+        # On my todolist but we need to figure out a way to reimplement 
+        # ares_search.c lines 431 - 470 
+        # elif _qtype == T_ANY:
+        #     ares_search_dnsrec(
+        #         self.channel, 
+        #     )
 
         else:
             raise ValueError("invalid query type specified")

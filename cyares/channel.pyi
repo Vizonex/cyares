@@ -2,7 +2,7 @@ import sys
 from concurrent.futures import Future
 from typing import Callable, Literal, TypeVar, overload
 
-from resulttypes import *
+from .resulttypes import *
 
 if sys.version_info < (3, 11):
     from typing_extensions import Self
@@ -12,18 +12,18 @@ else:
 CYARES_SOCKET_BAD: int = ...
 
 # Query types
-QUERY_TYPE_A: int = ...
-QUERY_TYPE_AAAA: int = ...
-QUERY_TYPE_ANY: int = ...
-QUERY_TYPE_CAA: int = ...
-QUERY_TYPE_CNAME: int = ...
-QUERY_TYPE_MX: int = ...
-QUERY_TYPE_NAPTR: int = ...
-QUERY_TYPE_NS: int = ...
-QUERY_TYPE_PTR: int = ...
-QUERY_TYPE_SOA: int = ...
-QUERY_TYPE_SRV: int = ...
-QUERY_TYPE_TXT: int = ...
+QUERY_TYPE_A: int = 1
+QUERY_TYPE_AAAA: int = 28
+QUERY_TYPE_ANY: int = 255
+QUERY_TYPE_CAA: int = 257
+QUERY_TYPE_CNAME: int = 5
+QUERY_TYPE_MX: int = 15
+QUERY_TYPE_NAPTR: int = 35
+QUERY_TYPE_NS: int = 2
+QUERY_TYPE_PTR: int = 12
+QUERY_TYPE_SOA: int = 6
+QUERY_TYPE_SRV: int = 33
+QUERY_TYPE_TXT: int = 16
 
 # Query classes
 QUERY_CLASS_IN: int = ...
@@ -63,7 +63,7 @@ class Channel:
     def query(
         self,
         name: str | bytes | bytearray | memoryview[int],
-        query_type: Literal["A"],
+        query_type: Literal["A", 1],
         callback: Callable[[Future[list[ares_query_a_result]]], None] | None = ...,
         query_class: str | int | None = ...,
     ) -> Future[list[ares_query_a_result]]: ...
@@ -71,7 +71,7 @@ class Channel:
     def query(
         self,
         name: str | bytes | bytearray | memoryview[int],
-        query_type: Literal["AAAA"],
+        query_type: Literal["AAAA", 28],
         callback: Callable[[Future[ares_query_aaaa_result]], None] | None = ...,
         query_class: str | int | None = ...,
     ) -> Future[list[ares_query_aaaa_result]]: ...
@@ -79,7 +79,7 @@ class Channel:
     def query(
         self,
         name: str | bytes | bytearray | memoryview[int],
-        query_type: Literal["CAA"],
+        query_type: Literal["CAA", 257],
         callback: Callable[[Future[list[ares_query_caa_result]]], None] | None = ...,
         query_class: str | int | None = ...,
     ) -> Future[list[ares_query_caa_result]]: ...
@@ -87,7 +87,7 @@ class Channel:
     def query(
         self,
         name: str | bytes | bytearray | memoryview[int],
-        query_type: Literal["CNAME"],
+        query_type: Literal["CNAME", 5],
         callback: Callable[[Future[ares_query_cname_result]], None] | None = ...,
         query_class: str | int | None = ...,
     ) -> Future[ares_query_cname_result]: ...
@@ -95,7 +95,7 @@ class Channel:
     def query(
         self,
         name: str | bytes | bytearray | memoryview[int],
-        query_type: Literal["MX"],
+        query_type: Literal["MX", 15],
         callback: Callable[[Future[list[ares_query_mx_result]]], None] | None = ...,
         query_class: str | int | None = ...,
     ) -> Future[list[ares_query_mx_result]]: ...
@@ -103,7 +103,7 @@ class Channel:
     def query(
         self,
         name: str | bytes | bytearray | memoryview[int],
-        query_type: Literal["NAPTR"],
+        query_type: Literal["NAPTR", 35],
         callback: Callable[[Future[ares_query_naptr_result]], None] | None = ...,
         query_class: str | int | None = ...,
     ) -> Future[list[ares_query_naptr_result]]: ...
@@ -111,7 +111,7 @@ class Channel:
     def query(
         self,
         name: str | bytes | bytearray | memoryview[int],
-        query_type: Literal["NS"],
+        query_type: Literal["NS", 2],
         callback: Callable[[Future[ares_query_ns_result]], None] | None = ...,
         query_class: str | int | None = ...,
     ) -> Future[list[ares_query_ns_result]]: ...
@@ -119,7 +119,7 @@ class Channel:
     def query(
         self,
         name: str | bytes | bytearray | memoryview[int],
-        query_type: Literal["PTR"],
+        query_type: Literal["PTR", 12],
         callback: Callable[[Future[ares_query_ptr_result]], None] | None = ...,
         query_class: str | int | None = ...,
     ) -> Future[list[ares_query_ptr_result]]: ...
@@ -127,7 +127,7 @@ class Channel:
     def query(
         self,
         name: str | bytes | bytearray | memoryview[int],
-        query_type: Literal["SOA"],
+        query_type: Literal["SOA", 6],
         callback: Callable[[Future[ares_query_soa_result]], None] | None = ...,
         query_class: str | int | None = ...,
     ) -> Future[ares_query_soa_result]: ...
@@ -135,7 +135,7 @@ class Channel:
     def query(
         self,
         name: str | bytes | bytearray | memoryview[int],
-        query_type: Literal["SRV"],
+        query_type: Literal["SRV", 33],
         callback: Callable[[Future[ares_query_srv_result]], None] | None = ...,
         query_class: str | int | None = ...,
     ) -> Future[list[ares_query_srv_result]]: ...
@@ -143,7 +143,7 @@ class Channel:
     def query(
         self,
         name: str | bytes | bytearray | memoryview[int],
-        query_type: Literal["TXT"],
+        query_type: Literal["TXT", 16],
         callback: Callable[[Future[ares_query_txt_result]], None] | None = ...,
         query_class: str | int | None = ...,
     ) -> Future[list[ares_query_txt_result]]: ...

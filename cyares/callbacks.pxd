@@ -124,3 +124,13 @@ cdef void __callback_gethostbyaddr(
     int timeouts, 
     hostent* _hostent
 ) noexcept with gil
+
+# This uses the newer dns recursion query functions to
+# have better performance the only problem was that new 
+# class objects had to be introduced but that's fine 
+cdef void __callback_dns_rec__any(
+    void *arg, 
+    ares_status_t status,
+    size_t timeouts,
+    const ares_dns_record_t *dnsrec
+) noexcept with gil

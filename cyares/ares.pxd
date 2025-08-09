@@ -641,8 +641,8 @@ cdef extern from "inc/cares_headers.h" nogil:
     
 
     ctypedef struct ares_dns_record_t:
-        # I'm not writing all of that...
-        pass
+        unsigned short id
+
 
     ctypedef struct ares_dns_rr_t:
         # Do want ttl on everyting that we possibly can 
@@ -954,6 +954,12 @@ cdef extern from "inc/cares_headers.h" nogil:
         void *arg,
         unsigned short *qid
     )
+    # used for the callback any guessing
+    ares_dns_record_get_id()
+    
+    ares_dns_rec_type_t ares_dns_rr_get_type(const ares_dns_rr_t *rr);
+
+    
     size_t ares_queue_active_queries(const ares_channel_t *channel)
 
     ares_status_t ares_queue_wait_empty(ares_channel_t *channel, int timeout_ms)
