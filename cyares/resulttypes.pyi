@@ -7,6 +7,54 @@ class AresResult:
     @property
     def type() -> str: ...
 
+class ares_optval_result(AresResult):
+    val: str
+    id: int
+
+class ares_query_hinfo_result(AresResult):
+    cpu: bytes
+    os: bytes
+
+class ares_query_sig_result(AresResult):
+    type_covered: int
+    algorithm: int
+    labels: int
+    original_ttl: int
+    expiration: int
+    inception: int
+    key_tag: int
+    signature: str
+    signers_name: bytes
+
+class ares_query_tlsa_result(AresResult):
+    cert_usage: int
+    selector: int
+    data: str
+
+    # XXX: Might be syntax problems due to match introduced in 3.10
+    # so here's a workaround...
+    @property
+    def match() -> int: ...
+
+class ares_query_svcb_result(AresResult):
+    priority: int
+    target: bytes
+    params: list[ares_optval_result]
+
+class ares_query_https_result(AresResult):
+    priority: int
+    target: bytes
+    params: list[ares_optval_result]
+
+class ares_query_uri_result(AresResult):
+    priority: int
+    weight: int
+    target: bytes
+
+class ares_query_raw_rr_result(AresResult):
+    ty: int
+    data: str
+
 class ares_addrinfo_cname_result(AresResult):
     alias: bytes
     name: bytes

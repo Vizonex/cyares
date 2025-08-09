@@ -8,7 +8,10 @@ from typing import Any, Callable, Generator
 
 import pytest
 
+from select import select
+
 from cyares import Channel
+from cyares.channel import CYARES_SOCKET_BAD
 from cyares.exception import AresError
 
 ChannelType = Callable[..., Channel]
@@ -21,15 +24,34 @@ ChannelType = Callable[..., Channel]
 # TODO: add pycares workflow in 0.1.2 for more aggressive stress testing
 
 
-@pytest.fixture(scope="session")
-def c() -> Generator[Any, Any, Channel]:
+def wait(channel: Channel):
+    while True:
+        read_fds, write_fds = channel.getsock()
+        if not read_fds and not write_fds:
+            break
+        timeout = channel.timeout()
+        if timeout == 0.0:
+            channel.process_fd(CYARES_SOCKET_BAD, CYARES_SOCKET_BAD)
+            continue
+        rlist, wlist, _ = select(read_fds, write_fds, [], timeout)
+        for fd in rlist:
+            channel.process_read_fd(fd)
+        for fd in wlist:
+            channel.process_write_fd(fd)
+
+
+@pytest.fixture(scope="function")
+def c() -> Generator[Any, Any, tuple[Channel, bool]]:
     # should be supported on all operating systems...
+
     with Channel(
         servers=[
             # Added more dns servers incase we lag behind or one kicks us off.
             # unfortunately there's no way for me to contact and say hi, I'm writing
             # a new dns resolver can I use your server for stress-testing?
             # Maybe in the future we can make a local dns server to stress test our things.
+            "8.8.8.8",
+            "8.8.4.4",
             "1.0.0.1",
             "1.1.1.1",
             "141.1.27.249",
@@ -49,11 +71,7 @@ def c() -> Generator[Any, Any, Channel]:
             "144.76.202.253",
             "103.3.46.254",
             "5.144.17.119",
-            "8.8.8.8",
-            "8.8.4.4",
         ],
-        tries=3,
-        timeout=10,
         event_thread=True,
     ) as channel:
         yield channel
@@ -70,7 +88,7 @@ def test_nameservers() -> None:
 
 
 def test_mx_dns_query(c: Channel) -> None:
-    assert c.query("gmail.com", query_type="MX").result()
+    fut = c.query("gmail.com", query_type="MX")
 
 
 def test_a_dns_query(c: Channel) -> None:
@@ -128,7 +146,7 @@ def test_query_srv(c: Channel) -> None:
 
 
 def test_query_naptr(c: Channel) -> None:
-    f = c.query("sip2sip.info", "NAPTR")
+    assert c.query("sip2sip.info", "NAPTR").result()
 
 
 def test_query_ptr(c: Channel) -> None:
@@ -147,9 +165,7 @@ def test_query_bad_class(c: Channel) -> None:
         c.query("google.com", "A", query_class="INVALIDCLASS").result()
 
 
-@pytest.mark.skipif(
-    sys.platform == "darwin", reason="hangs"
-)
+@pytest.mark.skipif(sys.platform == "darwin", reason="hangs")
 def test_mx_dns_search(c: Channel) -> None:
     fut = c.search("gmail.com", query_type="MX").result()
     assert any([mx.host == b"gmail-smtp-in.l.google.com" for mx in fut])
@@ -172,7 +188,6 @@ def test_search_cname(c: Channel) -> None:
     assert c.search("www.amazon.com", "CNAME").result()
 
 
-@pytest.mark.skip(reason="Rare chance it Hangs")
 def test_search_mx(c: Channel) -> None:
     assert c.search("gmail.com", "MX").result()
 

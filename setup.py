@@ -5,7 +5,6 @@ import sys
 import select
 
 from setuptools.command.build_ext import build_ext
-from setuptools._distutils.ccompiler import CCompiler
 from setuptools import setup, Extension
 
 use_system_lib = bool(int(os.environ.get("CYARES_USE_SYSTEM_LIB", 0)))
@@ -128,7 +127,6 @@ class cares_build_ext(build_ext):
         self.cython_always = False
         self.cython_annotate = False
         self.cython_directives = None
-        self.parallel = True
         
     def add_include_dir(self, dir, force=False):
         if use_system_lib and not force:
@@ -228,6 +226,7 @@ class cares_build_ext(build_ext):
 
             # for e in self.extensions:
             #     e.sources += sources
+
 
             c = self.compiler
             if not os.path.exists("build"):

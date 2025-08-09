@@ -4,46 +4,46 @@ import platform
 import sys
 
 import pytest
-import pytest_asyncio
+import anyio as anyio
 
 from cyares.aio import DNSResolver
 from cyares.exception import AresError
 
 uvloop = pytest.importorskip("winloop" if sys.platform == "win32" else "uvloop")
 
+PARAMS = [
+        pytest.param(
+            ("asyncio", {"loop_factory": uvloop.new_event_loop}), id="asyncio[uvloop]"
+        ),
+    pytest.param(("asyncio", {"use_uvloop": False}), id="asyncio"),
+]
+
+if sys.platform == "win32":
+    PARAMS.append(
+        pytest.param(("asyncio", {"loop_factory": asyncio.SelectorEventLoop}), id="asyncio[win32+selector]")
+    )
+@pytest.fixture(
+    params=PARAMS
+)
+def anyio_backend(request: pytest.FixtureRequest):
+    return request.param
+
 
 # TODO: Migrate this section over to anyio in 0.1.6 or sooner...
 
-if platform.python_implementation() != "PyPy":
-    # NOTE: I am working to pytest-asyncio in the future to workaround needing event-loop-policies
-
-    if sys.version_info <= (3, 14):
-        from asyncio import DefaultEventLoopPolicy
-
-        uvloop = pytest.importorskip("winloop" if sys.platform == "win32" else "uvloop")
-
-        @pytest.fixture(
-            scope="session",
-            params=(
-                uvloop.EventLoopPolicy(),
-                DefaultEventLoopPolicy(),
-            ),
-            ids=('uvloop' if sys.platform == "win32" else 'uvloop', 'asyncio'),
-        )
-        def event_loop_policy(
-            request: pytest.FixtureRequest,
-        ) -> asyncio.AbstractEventLoopPolicy:
-            return request.param
-
 
 # TODO: Parametize turning certain event_threads on and off in a future cyares update.
-@pytest_asyncio.fixture(loop_scope="function", params=(True, False), ids=("event-thread", "socket-cb"))
-async def resolver(request: pytest.FixtureRequest):
+@pytest.fixture(
+    params=(True, False), ids=("event-thread", "socket-cb")
+)
+async def resolver(anyio_backend, request: pytest.FixtureRequest):
     # should be supported on all operating systems...
     if request.param == False:
-        if sys.platform == "win32" and type(asyncio.get_event_loop()) is asyncio.ProactorEventLoop:
+        if (
+            sys.platform == "win32"
+            and type(asyncio.get_event_loop()) is asyncio.ProactorEventLoop
+        ):
             pytest.skip(reason="ProactorEventLoop with socket-cb is impossible")
-
 
     async with DNSResolver(
         servers=[
@@ -76,17 +76,17 @@ async def resolver(request: pytest.FixtureRequest):
         yield channel
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_mx_dns_query(resolver: DNSResolver) -> None:
     assert await resolver.query("gmail.com", "MX")
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_a_dns_query(resolver: DNSResolver) -> None:
     assert await resolver.query("python.org", "A")
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_cancelling() -> None:
     async with DNSResolver(servers=["8.8.8.8", "8.8.4.4"]) as channel:
         for f in [
@@ -97,9 +97,9 @@ async def test_cancelling() -> None:
             f.cancel()
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_cancelling_from_resolver() -> None:
-    async with DNSResolver(nameservers=["8.8.8.8", "8.8.4.4"]) as resolver:
+    async with DNSResolver(servers=["8.8.8.8", "8.8.4.4"]) as resolver:
         futures = [
             resolver.query("google.com", "A"),
             resolver.query("llhttp.org", "A"),
@@ -108,7 +108,7 @@ async def test_cancelling_from_resolver() -> None:
         resolver.cancel()
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_a_dns_query_fail(resolver: DNSResolver) -> None:
     with pytest.raises(
         AresError,
@@ -117,140 +117,60 @@ async def test_a_dns_query_fail(resolver: DNSResolver) -> None:
         await resolver.query("hgf8g2od29hdohid.com", "A")
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_query_aaaa(resolver: DNSResolver) -> None:
     assert await resolver.query("ipv6.google.com", "AAAA")
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_query_cname(resolver: DNSResolver) -> None:
     assert await resolver.query("www.amazon.com", "CNAME")
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_query_mx(resolver: DNSResolver) -> None:
     assert await resolver.query("google.com", "MX")
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_query_ns(resolver: DNSResolver) -> None:
     assert await resolver.query("google.com", "NS")
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_query_txt(resolver: DNSResolver) -> None:
     assert await resolver.query("google.com", "TXT")
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_query_soa(resolver: DNSResolver) -> None:
     assert await resolver.query("google.com", "SOA")
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_query_srv(resolver: DNSResolver) -> None:
     assert await resolver.query("_xmpp-server._tcp.jabber.org", "SRV")
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_query_naptr(resolver: DNSResolver) -> None:
     assert await resolver.query("sip2sip.info", "NAPTR")
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_query_ptr(resolver: DNSResolver) -> None:
     assert await resolver.query(
         ipaddress.ip_address("172.253.122.26").reverse_pointer, "PTR"
     )
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_query_bad_type(resolver: DNSResolver) -> None:
     with pytest.raises(ValueError):
         await resolver.query("google.com", "XXX")
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_query_bad_class(resolver: DNSResolver) -> None:
     with pytest.raises(ValueError):
         await resolver.query("google.com", "A", qclass="INVALIDCLASS")
-
-
-# @pytest.mark.asyncio
-# async def test_mx_dns_search(resolver: DNSResolver) -> None:
-#     assert await resolver.search("gmail.com", "MX")
-
-
-# @pytest.mark.asyncio
-# async def test_a_dns_search(resolver: DNSResolver) -> None:
-#     for f in [
-#         resolver.search("llhttp.org", "A"),
-#         resolver.search("llparse.org", "A"),
-#         resolver.search("google.com", "A"),
-#     ]:
-#         assert await f
-
-
-# @pytest.mark.asyncio
-# async def test_search_aaaa(resolver: DNSResolver) -> None:
-#     assert await resolver.search("ipv6.google.com", "AAAA")
-
-
-# @pytest.mark.asyncio
-# async def test_search_cname(resolver: DNSResolver) -> None:
-#     assert await resolver.search("www.amazon.com", "CNAME")
-
-
-# @pytest.mark.asyncio
-# async def test_search_mx(resolver: DNSResolver) -> None:
-#     assert await resolver.search("google.com", "MX")
-
-
-# @pytest.mark.asyncio
-# async def test_search_ns(resolver: DNSResolver) -> None:
-#     assert await resolver.search("google.com", "NS")
-
-
-# @pytest.mark.asyncio
-# async def test_search_txt(resolver: DNSResolver) -> None:
-#     assert await resolver.search("google.com", "TXT")
-
-
-# @pytest.mark.asyncio
-# async def test_search_soa(resolver: DNSResolver) -> None:
-#     assert await resolver.search("google.com", "SOA")
-
-
-# @pytest.mark.asyncio
-# async def test_search_srv(resolver: DNSResolver) -> None:
-#     assert await resolver.search("_xmpp-server._tcp.jabber.org", "SRV")
-
-
-# @pytest.mark.asyncio
-# async def test_search_naptr(resolver: DNSResolver) -> None:
-#     assert await resolver.search("sip2sip.info", "NAPTR")
-
-
-# @pytest.mark.asyncio
-# async def test_search_ptr(resolver: DNSResolver) -> None:
-#     assert await resolver.search(
-#         ipaddress.ip_address("172.253.122.26").reverse_pointer, "PTR"
-#     )
-
-
-# @pytest.mark.asyncio
-# async def test_search_bad_type() -> None:
-#     with pytest.raises(ValueError):
-#         async with DNSResolver(
-#             servers=["8.8.8.8", "8.8.4.4"], event_thread=True
-#         ) as resolver:
-#             await resolver.search("google.com", "XXX")
-
-
-# @pytest.mark.asyncio
-# async def test_search_bad_class() -> None:
-#     with pytest.raises(TypeError):
-#         async with DNSResolver(
-#             servers=["8.8.8.8", "8.8.4.4"], event_thread=True
-#         ) as resolver:
-#             await resolver.search("google.com", "A", qclass="INVALIDCLASS")

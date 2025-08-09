@@ -63,6 +63,14 @@ class Channel:
     def query(
         self,
         name: str | bytes | bytearray | memoryview[int],
+        query_type: Literal["ANY", 255],
+        callback: Callable[[Future[list[AresResult]]], None] | None = ...,
+        query_class: str | int | None = ...,
+    ) -> Future[list[AresResult]]: ...
+    @overload
+    def query(
+        self,
+        name: str | bytes | bytearray | memoryview[int],
         query_type: Literal["A", 1],
         callback: Callable[[Future[list[ares_query_a_result]]], None] | None = ...,
         query_class: str | int | None = ...,

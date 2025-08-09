@@ -335,6 +335,18 @@ cdef class Channel:
     def __dealloc__(self):
         if (not self._cancelled) and self.handles:
             self.cancel()
+
+        # If your not using an event_thread
+        # cancel() will ensure cleanup already happens
+        # otherwise we have to try the method below.
+
+        # To prevent the possibility of freezing
+        # we can wait for the queries to complete
+        # so that use-after-free never sees the 
+        # light of day. 
+        if self.event_thread:
+            self.__wait(-1)
+        
         ares_destroy(self.channel)
 
     def __enter__(self):

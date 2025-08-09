@@ -76,18 +76,30 @@ class DNSResolver:
 
     def __init__(
         self,
-        # TODO: Deprecate nameservers and rename to servers instead so that unwanted arguments
-        # can't overlap with servers argument
-        nameservers: list[str] | None = None,
+        servers: list[str] | None = None,
         loop: asyncio.AbstractEventLoop | None = None,
         event_thread: bool = True,
+        timeout: float | None = None,
+        flags: int | None = None,
+        tries: int | None = None,
+        ndots: object | None = None,
+        tcp_port: int | None = None,
+        udp_port: int | None = None,
+        domains: list[str] | None = None,
+        lookups: str | bytes | bytearray | memoryview[int] | None = None,
+        socket_send_buffer_size: int | None = None,
+        socket_receive_buffer_size: int | None = None,
+        rotate: bool = False,
+        local_ip: str | bytes | bytearray | memoryview[int] | None = None,
+        local_dev: str | bytes | bytearray | memoryview[int] | None = None,
+        resolvconf_path=None,
         **kwargs,
     ) -> None:
         """
         Params
         ------
 
-        :param nameservers: a list of dns servers to connect to
+        :param servers: a list of dns servers to connect to
         :param loop: the asyncio event loop to utilize, supported
             eventloops include, winloop, uvloop and the asyncio standard library
             NOTE for windows users: `SelectorEventLoop` & `winloop.Loop` are the only
@@ -109,24 +121,53 @@ class DNSResolver:
 
         # XXX: Do not use, we override this argument by default
         kwargs.pop("sock_state_cb", None)
-
-        timeout = kwargs.pop("timeout", None)
         self._timeout = timeout
         # Internal (Using with pytest to help debug socket_cb handles)
         if event_thread:
-            self._event_thread, self._channel = self._make_channel(**kwargs)
+            # Still in the process of trying to convince aiodns maintainers about why
+            # passing arguments in this format is a good idea
+            self._event_thread, self._channel = self._make_channel(
+                flags=flags,
+                tries=tries,
+                ndots=ndots,
+                tcp_port=tcp_port,
+                udp_port=udp_port,
+                domains=domains,
+                lookups=lookups,
+                socket_send_buffer_size=socket_send_buffer_size,
+                socket_receive_buffer_size=socket_receive_buffer_size,
+                rotate=rotate,
+                local_ip=local_ip,
+                local_dev=local_dev,
+                resolvconf_path=resolvconf_path,
+                **kwargs,
+            )
 
         else:
             self._raise_if_windows_proctor()
             self._event_thread, self._channel = (
                 False,
                 Channel(
-                    sock_state_cb=self._sock_state_cb, timeout=self._timeout, **kwargs
+                    sock_state_cb=self._sock_state_cb,
+                    flags=flags,
+                    tries=tries,
+                    ndots=ndots,
+                    tcp_port=tcp_port,
+                    udp_port=udp_port,
+                    domains=domains,
+                    lookups=lookups,
+                    socket_send_buffer_size=socket_send_buffer_size,
+                    socket_receive_buffer_size=socket_receive_buffer_size,
+                    rotate=rotate,
+                    local_ip=local_ip,
+                    local_dev=local_dev,
+                    resolvconf_path=None,
+                    **kwargs,
                 ),
             )
 
-        if nameservers:
-            self.nameservers = nameservers
+        if servers:
+            self.nameservers = servers
         self._read_fds: set[int] = set()
         self._write_fds: set[int] = set()
         self._timer: asyncio.TimerHandle | None = None
@@ -164,9 +205,7 @@ class DNSResolver:
 
         self._raise_if_windows_proctor()
 
-        return False, Channel(
-            sock_state_cb=self._sock_state_cb, timeout=self._timeout, **kwargs
-        )
+        return False, Channel(timeout=self._timeout, sock_state_cb=self._sock_state_cb, **kwargs)
 
     def _timer_cb(self) -> None:
         if self._read_fds or self._write_fds:

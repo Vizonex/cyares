@@ -61,7 +61,7 @@ cdef class ares_query_opt_result(AresResult):
         readonly uint8_t version
         readonly uint16_t flags
         readonly list options
-    
+        readonly str type
     @staticmethod
     cdef inline ares_optval_result new(
         const ares_dns_rr_t* dns_rr
@@ -71,14 +71,16 @@ cdef class ares_query_opt_result(AresResult):
         r.version = ares_dns_rr_get_u8(dns_rr, ARES_RR_OPT_VERSION)
         r.flags = ares_dns_rr_get_u16(dns_rr, ARES_RR_OPT_FLAGS)
         r.options = cyares_dns_rr_get_optresults(dns_rr, ARES_RR_OPT_OPTIONS)
-        r._attrs = ("udp_size", "version", "flags", "options")
+        r.type = "OPT"
+        r._attrs = ("udp_size", "version", "flags", "options", "type")
         return r
-        
+        # 
 
 cdef class ares_query_hinfo_result(AresResult):
     cdef:
         readonly bytes cpu
         readonly bytes os
+        readonly str type
 
     @staticmethod
     cdef inline ares_query_hinfo_result new(
@@ -87,7 +89,8 @@ cdef class ares_query_hinfo_result(AresResult):
         cdef ares_query_hinfo_result r = ares_query_hinfo_result.__new__(ares_query_hinfo_result)
         r.cpu = cyares_dns_rr_get_bytes(dns_rr, ARES_RR_HINFO_CPU)
         r.os = cyares_dns_rr_get_bytes(dns_rr, ARES_RR_HINFO_OS)
-        r._attrs = ("cpu", "os")
+        r.type = "HINFO"
+        r._attrs = ("cpu", "os", "type")
         return r
 
 
@@ -102,6 +105,7 @@ cdef class ares_query_sig_result(AresResult):
         readonly uint16_t key_tag
         readonly str signature
         readonly bytes signers_name
+        readonly str type
     
     @staticmethod
     cdef inline ares_query_sig_result new(
@@ -120,7 +124,8 @@ cdef class ares_query_sig_result(AresResult):
         cstr = ares_dns_rr_get_bin(dns_rr, ARES_RR_SIG_SIGNATURE, &len)
         r.signature = cyares_unicode_from_uchar_and_size(cstr, len)
         r.signers_name = cyares_dns_rr_get_bytes(dns_rr, ARES_RR_SIG_SIGNERS_NAME)
-        r._attrs = ("type_covered", "algorithm", "labels", "original_ttl", "expiration", "inception", "key_tag", "signature", "signers_name")
+        r.type = "SIG"
+        r._attrs = ("type_covered", "algorithm", "labels", "original_ttl", "expiration", "inception", "key_tag", "signature", "signers_name", "type")
         return r
 
 
@@ -130,6 +135,8 @@ cdef class ares_query_tlsa_result(AresResult):
         readonly uint8_t  selector
         readonly uint8_t  match
         readonly str data
+        readonly str type
+
     @staticmethod
     cdef inline ares_query_tlsa_result new(
         const ares_dns_rr_t* dns_rr
@@ -142,7 +149,8 @@ cdef class ares_query_tlsa_result(AresResult):
         r.match = ares_dns_rr_get_u8(dns_rr, ARES_RR_TLSA_MATCH)
         cstr = ares_dns_rr_get_bin(dns_rr, ARES_RR_TLSA_DATA, &l)
         r.data = cyares_unicode_from_uchar_and_size(cstr, l)
-        r._attrs = ("cert_usage", "selector", "match", "data")
+        r.type = "TLSA"
+        r._attrs = ("cert_usage", "selector", "match", "data", "type")
         return r
 
 
@@ -152,6 +160,7 @@ cdef class ares_query_svcb_result(AresResult):
         readonly uint16_t priority
         readonly bytes target
         readonly list params
+        readonly str type
     
     @staticmethod
     cdef inline ares_query_svcb_result new(
@@ -161,7 +170,8 @@ cdef class ares_query_svcb_result(AresResult):
         r.priority = ares_dns_rr_get_u16(dns_rr, ARES_RR_SVCB_PRIORITY)
         r.target = cyares_dns_rr_get_bytes(dns_rr, ARES_RR_SVCB_TARGET)
         r.params = cyares_dns_rr_get_optresults(dns_rr, ARES_RR_SVCB_PARAMS)
-        r._attrs = ("priority", "target", "params")
+        r.type = "SVCB"
+        r._attrs = ("priority", "target", "params", "type")
         return r
 
 
@@ -172,6 +182,7 @@ cdef class ares_query_https_result(AresResult):
         readonly uint16_t priority
         readonly bytes target
         readonly list params
+        readonly str type
     
     @staticmethod
     cdef inline ares_query_https_result new(
@@ -181,7 +192,8 @@ cdef class ares_query_https_result(AresResult):
         r.priority = ares_dns_rr_get_u16(dns_rr, ARES_RR_HTTPS_PRIORITY)
         r.target = cyares_dns_rr_get_bytes(dns_rr, ARES_RR_HTTPS_TARGET)
         r.params = cyares_dns_rr_get_optresults(dns_rr, ARES_RR_HTTPS_PARAMS)
-        r._attrs = ("priority", "target", "params")
+        r.type = "HTTPS"
+        r._attrs = ("priority", "target", "params", "type")
         return r
 
 
@@ -190,6 +202,7 @@ cdef class ares_query_uri_result(AresResult):
         readonly uint16_t priority
         readonly uint16_t weight
         readonly bytes target
+        readonly str type
 
     @staticmethod
     cdef inline ares_query_uri_result new(
@@ -199,28 +212,21 @@ cdef class ares_query_uri_result(AresResult):
         r.priority = ares_dns_rr_get_u16(dns_rr, ARES_RR_URI_PRIORITY)
         r.weight = ares_dns_rr_get_u16(dns_rr, ARES_RR_URI_WEIGHT)
         r.target = cyares_dns_rr_get_bytes(dns_rr, ARES_RR_URI_TARGET)
-        r._attrs =  ("priority", "target", "weight")
+        r.type = "URI"
+        r._attrs =  ("priority", "target", "weight", "type")
         return r
 
 
 
 cdef class ares_query_raw_rr_result(AresResult):
     cdef:
-        readonly uint16_t type
+        readonly uint16_t ty
         readonly str data
-    
+
     @staticmethod
     cdef inline ares_query_raw_rr_result new(
         const ares_dns_rr_t* dns_rr
-    ):
-        cdef size_t length
-        cdef const uint8_t* cstr
-        cdef ares_query_raw_rr_result r = ares_query_raw_rr_result.__new__(ares_query_raw_rr_result)
-        r.type = ares_dns_rr_get_u16(dns_rr, ARES_RR_RAW_RR_TYPE)
-        ares_dns_rr_get_bin(dns_rr, ARES_RR_RAW_RR_DATA, &length)
-        r.data = cyares_unicode_from_uchar_and_size(cstr, length)
-        r._attrs = ("type", "data")
-        return r
+    )
 
 
 cdef class ares_query_a_result(AresResult):
