@@ -17,6 +17,25 @@ cdef class AresResult:
 #
 
 
+cdef class ares_query_raw_rr_result(AresResult):
+    @property
+    def type(self):
+        return "RAW"
+
+    @staticmethod
+    cdef inline ares_query_raw_rr_result new(
+        const ares_dns_rr_t* dns_rr
+    ):
+        cdef size_t length
+        cdef const uint8_t* cstr
+        cdef ares_query_raw_rr_result r = ares_query_raw_rr_result.__new__(ares_query_raw_rr_result)
+        r.ty = ares_dns_rr_get_u16(dns_rr, ARES_RR_RAW_RR_TYPE)
+        ares_dns_rr_get_bin(dns_rr, ARES_RR_RAW_RR_DATA, &length)
+        r.data = cyares_unicode_from_uchar_and_size(cstr, length)
+        r._attrs = ("type", "data")
+        return r
+        
+
 
 cdef class ares_query_a_result(AresResult):
 

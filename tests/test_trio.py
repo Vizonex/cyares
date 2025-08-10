@@ -4,17 +4,17 @@ from cyares.exception import AresError
 import ipaddress
 import anyio as anyio
 
+
 # set the backend to just trio
 @pytest.fixture()
 def anyio_backend() -> str:
-    return 'trio'
+    return "trio"
+
 
 @pytest.fixture(
-    params=(True, False),
-    ids=("trio-event-thread", "trio-socket-cb"),
-    scope='function'
+    params=(True, False), ids=("trio-event-thread", "trio-socket-cb"), scope="function"
 )
-async def resolver(anyio_backend: str, request:pytest.FixtureRequest):
+async def resolver(anyio_backend: str, request: pytest.FixtureRequest):
     # should be supported on all operating systems...
 
     async with DNSResolver(
@@ -43,7 +43,7 @@ async def resolver(anyio_backend: str, request:pytest.FixtureRequest):
         ],
         event_thread=request.param,
         tries=3,
-        timeout=10
+        timeout=10,
     ) as channel:
         yield channel
 
@@ -146,4 +146,3 @@ async def test_query_bad_type(resolver: DNSResolver) -> None:
 async def test_query_bad_class(resolver: DNSResolver) -> None:
     with pytest.raises(ValueError):
         await resolver.query("google.com", "A", qclass="INVALIDCLASS")
-

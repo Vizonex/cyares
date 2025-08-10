@@ -178,7 +178,22 @@ class DNSResolver:
         self,
         servers: list[str] | None = None,
         event_thread: bool = False,  # turned off by default but you can always pass it if you wish...
-        **kw,
+        timeout: float | None = None,
+        flags: int | None = None,
+        tries: int | None = None,
+        ndots: object | None = None,
+        tcp_port: int | None = None,
+        udp_port: int | None = None,
+        domains: list[str] | None = None,
+        lookups: str | bytes | bytearray | memoryview[int] | None = None,
+        socket_send_buffer_size: int | None = None,
+        socket_receive_buffer_size: int | None = None,
+        rotate: bool = False,
+        local_ip: str | bytes | bytearray | memoryview[int] | None = None,
+        local_dev: str | bytes | bytearray | memoryview[int] | None = None,
+        resolvconf_path=None,
+        
+        **kw
     ):
         kw.pop("socket_state_cb", None)
 
@@ -186,6 +201,19 @@ class DNSResolver:
             servers=servers,
             event_thread=event_thread,
             sock_state_cb=self._socket_state_cb if not event_thread else None,
+            flags=flags,
+            tries=tries,
+            ndots=ndots,
+            tcp_port=tcp_port,
+            udp_port=udp_port,
+            domains=domains,
+            lookups=lookups,
+            socket_send_buffer_size=socket_send_buffer_size,
+            socket_receive_buffer_size=socket_receive_buffer_size,
+            rotate=rotate,
+            local_ip=local_ip,
+            local_dev=local_dev,
+            resolvconf_path=resolvconf_path,
             **kw,
         )
         self._manager = trio.open_nursery()

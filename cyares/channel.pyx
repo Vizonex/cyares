@@ -335,6 +335,18 @@ cdef class Channel:
     def __dealloc__(self):
         if (not self._cancelled) and self.handles:
             self.cancel()
+
+        # If your not using an event_thread
+        # cancel() will ensure cleanup already happens
+        # otherwise we have to try the method below.
+
+        # To prevent the possibility of freezing
+        # we can wait for the queries to complete
+        # so that use-after-free never sees the 
+        # light of day. 
+        if self.event_thread:
+            self.__wait(-1)
+        
         ares_destroy(self.channel)
 
     def __enter__(self):
@@ -520,6 +532,17 @@ cdef class Channel:
                 __callback_query_on_txt, # type: ignore
                 <void*>fut
             )
+        
+        elif _qtype == T_ANY:
+            ares_query_dnsrec(
+                self.channel,
+                <char*>view.buf,
+                <ares_dns_class_t>qclass,
+                ARES_REC_TYPE_ANY,
+                __callback_dns_rec__any, # type: ignore
+                <void*>fut,
+                NULL, # Passing NULL here will work SEE: ares_query.c 
+            )
 
         else:
             Py_DECREF(fut)
@@ -660,6 +683,13 @@ cdef class Channel:
                 __callback_query_on_txt, # type: ignore
                 <void*>fut
             )
+
+        # On my todolist but we need to figure out a way to reimplement 
+        # ares_search.c lines 431 - 470 
+        # elif _qtype == T_ANY:
+        #     ares_search_dnsrec(
+        #         self.channel, 
+        #     )
 
         else:
             raise ValueError("invalid query type specified")
