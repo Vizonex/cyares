@@ -64,11 +64,9 @@ query_class_map = {
 
 
 @deprecated_params(
-    ["sock_state_cb"],
-    {
-        "socket_state_cb": "providing socket_state_cb will throw an Exception instead "
-        "of being ignored in a future version of cyares"
-    },
+    "sock_state_cb",
+    "providing socket_state_cb will throw an Exception instead "
+    "of being ignored in a future version of cyares",
     removed_in="0.1.8",
 )
 class DNSResolver:

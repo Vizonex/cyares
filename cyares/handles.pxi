@@ -1,6 +1,7 @@
 from concurrent.futures import Future as _Future
 
-# XXX: Planning to move this all to Cython in the future but for now were stuck with this...
+# There's a big surprise for 1.6 up ahead that will involve a new Chained Future Object.
 
 cdef Future = _Future
+
 
