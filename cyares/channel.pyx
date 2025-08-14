@@ -162,7 +162,6 @@ cdef class Channel:
         self.event_thread = event_thread
 
         self._cancelled = False
-        self.handles = set()
         self._query_lookups = {
             "A":T_A,
             "AAAA":T_AAAA, 
@@ -333,7 +332,21 @@ cdef class Channel:
             
     
     def __dealloc__(self):
-        if (not self._cancelled) and self.handles:
+        # Cleanup all active queries
+
+        # faster route first then try the slower route
+        if self._running or ares_queue_active_queries(self.channel):
+            # NOTE: I got rid of having to carry handles in the 1.5 update
+            #   here's why.
+            # - cancel will also cleanup all pending future objects and it 
+            #   will do it all from the main thread if were not the event-thread
+            #
+            # - if were on an event-thread the __wait(-1) function
+            #   will stop use-after-free situations 
+            #
+            # - I refuse to use a daemon setup that pycares does for cleanup it 
+            #   just feels wrong and it's not threadsafe to use globals 
+
             self.cancel()
 
         # If your not using an event_thread
@@ -367,10 +380,9 @@ cdef class Channel:
         return memory
 
     # Not public to .pyi, please do not use... - Vizonex 
-    def __remove_future(self, object fut):
-        self.handles.remove(fut)
+    def __remove_future(self, *args, **kw):
         self._closed += 1
-    
+        self._running -= 1
 
     # there's a secret function
     # called debug() if you need to debug the handles however 
@@ -385,7 +397,6 @@ cdef class Channel:
     cdef object __create_future(self, object callback):
         cdef object fut = Future()
         self._running += 1
-        self.handles.add(fut)
 
         # handle removal of finished futures...
         fut.add_done_callback(self.__remove_future)
@@ -395,8 +406,8 @@ cdef class Channel:
                 raise TypeError("Provided callbacks must be callable")
             fut.add_done_callback(callback)    
 
-        # Up the objects refcount by 1 because were sending through a void object
-        # in a bit 
+        # Up the objects refcount by 1 so we don't need a 
+        # global object like with pycares
         Py_INCREF(fut)
         return fut
 
@@ -773,6 +784,7 @@ cdef class Channel:
 
         if port:
             if isinstance(port, int):
+                # TODO: itoa function?
                 port = bytes(port)
             cyares_get_buffer(port, &service_data)
             service = <char*>service_data.buf
@@ -951,7 +963,7 @@ cdef class Channel:
             if ARES_GETSOCK_READABLE(bitmask, i):
                 rfds.append(<object>socks[i])
             if ARES_GETSOCK_WRITABLE(bitmask, i):
-                wfds.append(socks[i])
+                wfds.append(<object>socks[i])
         
         return rfds, wfds
 

@@ -168,7 +168,7 @@ class Future(Generic[_T]):
 
 
 @deprecated_params(
-    ["sock_state_cb"],
+    "sock_state_cb",
     "attempting to pass socket_state_cb will throw an Exception instead "
     "of being ignored in a future version of cyares",
     removed_in="0.1.8",

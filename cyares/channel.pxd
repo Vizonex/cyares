@@ -19,7 +19,6 @@ cdef class Channel:
         uint64_t _running
         uint64_t _closed
 
-        set handles
         dict _query_lookups
         bint _cancelled
         

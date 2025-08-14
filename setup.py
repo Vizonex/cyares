@@ -123,10 +123,12 @@ class cares_build_ext(build_ext):
     ]
 
     def initialize_options(self):
-        super().initialize_options()
         self.cython_always = False
         self.cython_annotate = False
         self.cython_directives = None
+        self.parallel = True
+        super().initialize_options()
+        
         
     def add_include_dir(self, dir, force=False):
         if use_system_lib and not force:
@@ -290,6 +292,8 @@ class cares_build_ext(build_ext):
                 compiler_directives=directives,
                 annotate=self.cython_annotate,
                 emit_linenums=self.debug,
+                # Try using a cache to help with compiling as well...
+                cache=True
             )
 
         return super().finalize_options()
@@ -299,23 +303,26 @@ if __name__ == "__main__":
     setup(
         ext_modules=[
             Extension(
-                "cyares.callbacks", ["cyares/callbacks.pyx"], extra_compile_args=["-O2"]
+                "cyares.callbacks", ["cyares/callbacks.pyx"], 
+                # extra_compile_args=["-O2"]
             ),
             Extension(
-                "cyares.channel", ["cyares/channel.pyx"], extra_compile_args=["-O2"]
+                "cyares.channel", ["cyares/channel.pyx"], 
+                # extra_compile_args=["-O2"]
             ),
             Extension(
-                "cyares.exception", ["cyares/exception.pyx"], extra_compile_args=["-O2"]
+                "cyares.exception", ["cyares/exception.pyx"], 
+                # extra_compile_args=["-O2"]
             ),
             Extension(
                 "cyares.resulttypes",
                 ["cyares/resulttypes.pyx"],
-                extra_compile_args=["-O2"],
+                # extra_compile_args=["-O2"],
             ),
             Extension(
                 "cyares.socket_handle",
                 ["cyares/socket_handle.pyx"],
-                extra_compile_args=["-O2"],
+                # extra_compile_args=["-O2"],
             ),
         ],
         cmdclass={"build_ext": cares_build_ext},

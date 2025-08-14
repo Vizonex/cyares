@@ -2,7 +2,7 @@ import os
 import sys
 from concurrent.futures import Future
 
-import pycares
+
 import pytest
 from dnslib.dns import RR, DNSQuestion
 from dnslib.server import BaseResolver, DNSHandler, DNSRecord, DNSServer
@@ -12,6 +12,9 @@ import cyares
 from cyares.exception import AresError
 
 IN_GITHUB_ACTIONS = os.getenv("GITHUB_ACTIONS") == "true"
+
+pycares = pytest.importorskip("pycares")
+
 
 if sys.version_info < (3, 11):
     from typing_extensions import Self
