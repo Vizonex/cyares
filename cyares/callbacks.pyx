@@ -6,7 +6,7 @@ from cpython.ref cimport Py_DECREF
 from .exception cimport AresError
 from .resulttypes cimport *
 
-include "handles.pxi"
+from .handles cimport Future
 
 
 cdef extern from "Python.h":
@@ -25,12 +25,12 @@ cdef extern from "Python.h":
 
 
 # Checks to see if we issued a cancel from the channel itself...
-cdef bint __cancel_check(int status, object fut) noexcept:
+cdef bint __cancel_check(int status, Future fut) noexcept:
     if status == ARES_ECANCELLED:
         try:
             fut.cancel()
         except BaseException as e:
-            PyObject_CallMethodOneArg(fut, "set_exception", e)
+            fut.set_exception(e)
         # we can safely deref after the future is 
         # finished since we added a reference in Channel to keep
         # the future alive long enough.
@@ -40,8 +40,11 @@ cdef bint __cancel_check(int status, object fut) noexcept:
         Py_DECREF(fut)
         return 1
     else:
-        return 0
-
+        # supress exceptions and notify not to cacnel mid-way
+        try:
+             <bint>fut.set_running_or_notify_cancel()
+        except BaseException:
+            return 0
 
 cdef void __callback_query_on_a(
     void *arg,
@@ -55,7 +58,8 @@ cdef void __callback_query_on_a(
     cdef ares_addrttl[256] ttl
     cdef int ttl_size = 256
     cdef hostent* host
-    cdef object handle = <object>arg
+    cdef Future handle = <Future>arg
+
     if __cancel_check(status, handle):
         return
 
@@ -85,7 +89,7 @@ cdef void __callback_query_on_aaaa(
     cdef int ttl_size = 256
     
     
-    cdef object handle = <object>arg
+    cdef Future handle = <Future>arg
 
     if __cancel_check(status, handle):
         return
@@ -117,14 +121,14 @@ cdef void __callback_query_on_caa(
     cdef ares_caa_reply * reply = NULL
     
     cdef list result = []
-    cdef object handle = <object>arg
+    cdef Future handle = <Future>arg
     
     if __cancel_check(status, handle):
         return
 
     
     try:
-        status = ares_parse_caa_reply(abuf,alen, &reply)
+        status = ares_parse_caa_reply(abuf, alen, &reply)
         if status != ARES_SUCCESS:
             handle.set_exception(AresError(status))
         else:
@@ -139,8 +143,6 @@ cdef void __callback_query_on_caa(
     if reply != NULL:
         ares_free_data(reply)
     Py_DECREF(handle)
-    
-  
 
 
 
@@ -157,7 +159,7 @@ cdef void __callback_query_on_cname(
     cdef hostent* host = NULL
     
     cdef ares_query_cname_result result
-    cdef object handle = <object>arg
+    cdef Future handle = <Future>arg
     
     if __cancel_check(status, handle):
         return
@@ -192,7 +194,7 @@ cdef void __callback_query_on_mx(
     cdef ares_mx_reply* reply = NULL
     
     cdef list result = []
-    cdef object handle = <object>arg
+    cdef Future handle = <Future>arg
 
     if __cancel_check(status, handle):
         return
@@ -229,7 +231,7 @@ cdef void __callback_query_on_naptr(
     cdef ares_naptr_reply* reply = NULL
     
     cdef list result = []
-    cdef object handle = <object>arg
+    cdef Future handle = <Future>arg
 
     if __cancel_check(status, handle):
         return
@@ -265,7 +267,7 @@ cdef void __callback_query_on_ns(
     
     cdef list result = []
     cdef Py_ssize_t i = 0
-    cdef object handle = <object>arg
+    cdef Future handle = <Future>arg
 
     if __cancel_check(status, handle):
         return
@@ -305,7 +307,7 @@ cdef void __callback_query_on_ptr(
     cdef list aliases = []
     cdef ares_query_ptr_result result
     cdef Py_ssize_t i = 0
-    cdef object handle = <object>arg
+    cdef Future handle = <Future>arg
 
     if __cancel_check(status, handle):
         return
@@ -343,7 +345,7 @@ cdef void __callback_query_on_soa(
     cdef ares_soa_reply* reply = NULL
     
     cdef ares_query_soa_result result
-    cdef object handle = <object>arg
+    cdef Future handle = <Future>arg
 
     if __cancel_check(status, handle):
         return
@@ -379,7 +381,7 @@ cdef void __callback_query_on_srv(
     cdef ares_srv_reply* reply = NULL
     
     cdef list result = []
-    cdef object handle = <object>arg
+    cdef Future handle = <Future>arg
 
     if __cancel_check(status, handle):
         return
@@ -419,7 +421,7 @@ cdef void __callback_query_on_txt(
     cdef list result = []
     cdef ares_query_txt_result tmp_obj
     cdef bint initalized = False
-    cdef object handle = <object>arg
+    cdef Future handle = <Future>arg
 
     if __cancel_check(status, handle):
         return
@@ -466,7 +468,7 @@ cdef void __callback_getaddrinfo(
     if arg == NULL:
         return
 
-    cdef object handle = <object>arg
+    cdef Future handle = <Future>arg
 
     if __cancel_check(status, handle):
         return
@@ -485,7 +487,7 @@ cdef void __callback_gethostbyname(
     if arg == NULL:
         return
     
-    cdef object handle = <object>arg
+    cdef Future handle = <Future>arg
     
     if __cancel_check(status, handle):
         return 
@@ -508,7 +510,7 @@ cdef void __callback_nameinfo(
     if arg == NULL:
         return
 
-    cdef object handle = <object>arg
+    cdef Future handle = <Future>arg
     
     if __cancel_check(status, handle):
         return 
@@ -529,7 +531,7 @@ cdef void __callback_gethostbyaddr(
     if arg == NULL:
         return
     
-    cdef object handle = <object>arg
+    cdef Future handle = <Future>arg
     
     if __cancel_check(status, handle):
         return 
@@ -564,7 +566,7 @@ cdef void __callback_dns_rec__any(
     cdef const ares_dns_rr_t *rr = NULL
     cdef list records
     cdef ares_dns_rec_type_t rt
-    cdef object handle = <object>arg
+    cdef Future handle = <Future>arg
    
     if __cancel_check(status, handle):
         return 
@@ -674,7 +676,7 @@ cdef void __callback_dns_rec__any(
 #     if arg == NULL:
 #         return
     
-#     cdef object handle = <object>arg
+#     cdef Future handle = <Future>arg
 #     cdef size_t i, size
 #     cdef const ares_dns_rr_t *rr = NULL
 #     cdef list records

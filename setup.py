@@ -236,6 +236,10 @@ class cares_build_ext(build_ext):
             objects = c.compile(sources, "build")
             c.create_static_lib(objects, output_libname="cares", output_dir="build")
             for e in self.extensions:
+                if e.name == "cyares.handles":
+                    # cyares.handles doesn't need c-ares it's only the others so exclude it.
+                    continue
+
                 if "build/cares" not in e.libraries:
                     e.libraries.append("build/cares") 
         super().build_extensions()
@@ -324,6 +328,10 @@ if __name__ == "__main__":
                 ["cyares/socket_handle.pyx"],
                 # extra_compile_args=["-O2"],
             ),
+            Extension(
+                "cyares.handles",
+                ["cyares/handles.pyx"]
+            )
         ],
         cmdclass={"build_ext": cares_build_ext},
     )

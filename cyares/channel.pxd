@@ -2,10 +2,9 @@ from libc.stdint cimport uint64_t
 
 from .ares cimport *
 from .exception cimport AresError
+from .handles cimport Future
 from .resulttypes cimport *
 from .socket_handle cimport SocketHandle
-
-include "handles.pxi"
 
 
 cdef class Channel:
@@ -30,9 +29,9 @@ cdef class Channel:
 
     cpdef void cancel(self) noexcept
     cdef void* _malloc(self, size_t size) except NULL
-    cdef object _query(self, object qname, object qtype, int qclass, object callback)
-    cdef object _search(self, object qname, object qtype, int qclass, object callback)
-    cdef object __create_future(self, object callback)
+    cdef Future _query(self, object qname, object qtype, int qclass, object callback)
+    cdef Future _search(self, object qname, object qtype, int qclass, object callback)
+    cdef Future __create_future(self, object callback)
     cdef ares_status_t __wait(self, int milliseconds)
 
 

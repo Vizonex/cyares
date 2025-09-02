@@ -1,7 +1,9 @@
-import sys
-from concurrent.futures import Future
-from typing import Callable, Literal, TypeVar, overload
+from __future__ import annotations
 
+import sys
+from typing import Callable, Literal, overload
+
+from .handles import Future
 from .resulttypes import *
 
 if sys.version_info < (3, 11):
