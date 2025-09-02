@@ -15,17 +15,18 @@ with aiodns.
 from __future__ import annotations
 
 import asyncio
+from asyncio import isfuture, wrap_future as w
 import socket
 import sys
-from concurrent.futures import Future as cc_Future
 from logging import getLogger
 from typing import Any, Iterable, Literal, Sequence, TypeVar, overload
 
 from deprecated_params import deprecated_params
 
 from .channel import *  # type: ignore
-from .exception import AresError
-from .resulttypes import *
+from .exception import AresError # type: ignore
+from .handles import CancelledError, InvalidStateError, Future as cc_Future  # type: ignore
+from .resulttypes import * # type: ignore
 
 _T = TypeVar("_T")
 
@@ -61,6 +62,135 @@ query_class_map = {
     "NONE": QUERY_CLASS_NONE,
     "ANY": QUERY_CLASS_ANY,
 }
+
+
+# Mirrors asyncio this is to inject the faster Concurrent.future.Future 
+# object that is in handles.pyx rather than the slower one.
+
+# This will be ultimately removed within a few updates depending on
+# how deadlocks are to be stopped.
+
+def _get_loop(fut):
+    # Tries to call Future.get_loop() if it's available.
+    # Otherwise fallbacks to using the old '_loop' property.
+    try:
+        get_loop = fut.get_loop
+    except AttributeError:
+        pass
+    else:
+        return get_loop()
+    return fut._loop
+
+
+def _set_result_unless_cancelled(fut, result):
+    """Helper setting the result only if the future was not cancelled."""
+    if fut.cancelled():
+        return
+    fut.set_result(result)
+
+def _convert_future_exc(exc):
+    exc_class = type(exc)
+    if exc_class is CancelledError:
+        return CancelledError(*exc.args)
+    elif exc_class is TimeoutError:
+        return exc
+    elif exc_class is InvalidStateError:
+        return InvalidStateError(*exc.args)
+    else:
+        return exc
+
+
+def _set_concurrent_future_state(concurrent, source):
+    """Copy state from a future to a Future."""
+    assert source.done()
+    if source.cancelled():
+        concurrent.cancel()
+    if not concurrent.set_running_or_notify_cancel():
+        return
+    exception = source.exception()
+    if exception is not None:
+        concurrent.set_exception(_convert_future_exc(exception))
+    else:
+        result = source.result()
+        concurrent.set_result(result)
+
+
+def _copy_future_state(source, dest):
+    """Internal helper to copy state from another Future.
+
+    The other Future may be a Future.
+    """
+    assert source.done()
+    if dest.cancelled():
+        return
+    assert not dest.done()
+    if source.cancelled():
+        dest.cancel()
+    else:
+        exception = source.exception()
+        if exception is not None:
+            dest.set_exception(_convert_future_exc(exception))
+        else:
+            result = source.result()
+            dest.set_result(result)
+
+
+def _chain_future(source, destination):
+    """Chain two futures so that when one completes, so does the other.
+
+    The result (or exception) of source will be copied to destination.
+    If destination is cancelled, source gets cancelled too.
+    Compatible with both asyncio.Future and Future.
+    """
+    if not asyncio.isfuture(source) and not isinstance(source, cc_Future):
+        raise TypeError('A future is required for source argument')
+    if not asyncio.isfuture(destination) and not isinstance(destination, cc_Future):
+        raise TypeError('A future is required for destination argument')
+    source_loop = _get_loop(source) if asyncio.isfuture(source) else None
+    dest_loop = _get_loop(destination) if asyncio.isfuture(destination) else None
+
+    def _set_state(future, other):
+        print("_set_state")
+        if isfuture(future):
+            _copy_future_state(other, future)
+        else:
+            _set_concurrent_future_state(future, other)
+
+    def _call_check_cancel(destination):
+        print("_call_check_cancel")
+        if destination.cancelled():
+            if source_loop is None or source_loop is dest_loop:
+                source.cancel()
+            else:
+                source_loop.call_soon_threadsafe(source.cancel)
+
+    def _call_set_state(source):
+        print("_call_set_state")
+        if (destination.cancelled() and
+                dest_loop is not None and dest_loop.is_closed()):
+            return
+        if dest_loop is None or dest_loop is source_loop:
+            _set_state(destination, source)
+        else:
+            if dest_loop.is_closed():
+                return
+            dest_loop.call_soon_threadsafe(_set_state, destination, source)
+
+    destination.add_done_callback(_call_check_cancel)
+    source.add_done_callback(_call_set_state)
+
+
+def wrap_future(future: cc_Future[_T], *, loop: asyncio.AbstractEventLoop | None = None) -> asyncio.Future[_T]:
+    """Wrap Future object."""
+    if isfuture(future):
+        return future
+    assert isinstance(future, cc_Future), \
+        f'cyares.handles.Future is expected, got {future!r}'
+    if loop is None:
+        loop = asyncio.get_event_loop()
+    new_future = loop.create_future()
+    _chain_future(future, new_future)
+    return new_future
 
 
 @deprecated_params(
@@ -176,7 +306,7 @@ class DNSResolver:
             raise RuntimeError(WINDOWS_SELECTOR_ERR_MSG)
 
     def _wrap_future(self, fut: cc_Future[_T]) -> asyncio.Future[_T]:
-        return asyncio.wrap_future(fut)
+        return wrap_future(fut, loop=self.loop)
 
     def _make_channel(self, **kwargs: Any) -> tuple[bool, Channel]:
         if cyares_threadsafety():
@@ -203,7 +333,9 @@ class DNSResolver:
 
         self._raise_if_windows_proctor()
 
-        return False, Channel(timeout=self._timeout, sock_state_cb=self._sock_state_cb, **kwargs)
+        return False, Channel(
+            timeout=self._timeout, sock_state_cb=self._sock_state_cb, **kwargs
+        )
 
     def _timer_cb(self) -> None:
         if self._read_fds or self._write_fds:

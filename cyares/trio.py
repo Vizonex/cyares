@@ -192,8 +192,7 @@ class DNSResolver:
         local_ip: str | bytes | bytearray | memoryview[int] | None = None,
         local_dev: str | bytes | bytearray | memoryview[int] | None = None,
         resolvconf_path=None,
-        
-        **kw
+        **kw,
     ):
         kw.pop("socket_state_cb", None)
 
@@ -220,7 +219,7 @@ class DNSResolver:
         self._nursery: Optional[trio.Nursery] = None
         self._read_fds: set[int] = set()
         self._write_fds: set[int] = set()
-        self._timeout = kw.get("timeout", None)
+        self._timeout = timeout
         self._timer = None
         self._token = current_trio_token()
 

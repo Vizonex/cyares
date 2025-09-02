@@ -9,14 +9,11 @@ from libc.math cimport floor, fmod
 from .ares cimport *
 from .callbacks cimport *
 from .exception cimport AresError
+from .handles cimport Future
 from .inc cimport (cyares_check_qclasses, cyares_check_qtypes,
                    cyares_get_buffer, cyares_htonl, cyares_htons,
                    cyares_release_buffer)
 from .resulttypes cimport *
-
-include "handles.pxi"
-
-
 from .socket_handle cimport SocketHandle, __socket_state_callback
 
 
@@ -380,6 +377,8 @@ cdef class Channel:
         return memory
 
     # Not public to .pyi, please do not use... - Vizonex 
+
+    # WARNING: _closed & _running might be scheduled for deprecation soon.
     def __remove_future(self, *args, **kw):
         self._closed += 1
         self._running -= 1
@@ -389,16 +388,17 @@ cdef class Channel:
     # using such functions for non-development purposes is discouraged.
 
     def debug(self):
+        print('=== WARNING DEPRECATION IS PENDING MIGHT REMOVE IN A FUTURE UPDATE ===')
         print('Running Handles: {}'.format(self._running))
         print('Running Queries: {}'.format(self.running_queries))
         print('Closed Handles: {}'.format(self._closed))
         
     @cython.nonecheck(False)
-    cdef object __create_future(self, object callback):
-        cdef object fut = Future()
+    cdef Future __create_future(self, object callback):
+        cdef Future fut = Future()
         self._running += 1
 
-        # handle removal of finished futures...
+        # handle removal of finished futures for debugging
         fut.add_done_callback(self.__remove_future)
 
         if callback:
@@ -414,9 +414,9 @@ cdef class Channel:
     # _query is a lower-level C Function
     # query is the upper-end and is meant to assist in
     # being a theoretical drop in replacement for pycares in aiodns
-    cdef object _query(self, object qname, object qtype, int qclass, object callback):
+    cdef Future _query(self, object qname, object qtype, int qclass, object callback):
         cdef int _qtype
-        cdef object fut 
+        cdef Future fut 
         cdef Py_buffer view
 
         if isinstance(qtype, str):
@@ -431,7 +431,7 @@ cdef class Channel:
             raise 
 
         if cyares_get_domain_name_buffer(qname, &view) < 0:
-            raise 
+            raise
 
         fut = self.__create_future(callback)
         if _qtype == T_A:
@@ -564,9 +564,9 @@ cdef class Channel:
     def query(self, object name, object query_type, object callback = None , object query_class = None):
         return self._query(name, query_type, C_IN if query_class is None else <int>query_class, callback)
     
-    cdef object _search(self, object qname, object qtype, int qclass, object callback):
+    cdef Future _search(self, object qname, object qtype, int qclass, object callback):
         cdef int _qtype
-        cdef object fut = self.__create_future(callback)
+        cdef Future fut = self.__create_future(callback)
         cdef Py_buffer view
 
         # TODO: use match ...: cases when cython releases match support 
