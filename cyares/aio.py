@@ -150,14 +150,12 @@ def _chain_future(source, destination):
     dest_loop = _get_loop(destination) if asyncio.isfuture(destination) else None
 
     def _set_state(future, other):
-        print("_set_state")
         if isfuture(future):
             _copy_future_state(other, future)
         else:
             _set_concurrent_future_state(future, other)
 
     def _call_check_cancel(destination):
-        print("_call_check_cancel")
         if destination.cancelled():
             if source_loop is None or source_loop is dest_loop:
                 source.cancel()
@@ -165,7 +163,6 @@ def _chain_future(source, destination):
                 source_loop.call_soon_threadsafe(source.cancel)
 
     def _call_set_state(source):
-        print("_call_set_state")
         if (destination.cancelled() and
                 dest_loop is not None and dest_loop.is_closed()):
             return
