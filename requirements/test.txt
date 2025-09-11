@@ -10,5 +10,5 @@ idna>=2.1
 dnslib==0.9.26
 # Benchmarking CyAres & Pycares
 pytest-codspeed==4.0.0
-pycares==4.10.0
+pycares==4.11.0
 trio>=0.30.0
