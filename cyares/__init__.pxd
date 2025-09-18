@@ -2,3 +2,4 @@
 from .channel cimport Channel
 from .exception cimport AresError
 from .handles cimport CancelledError, Future, InvalidStateError
+from .resulttypes cimport *
