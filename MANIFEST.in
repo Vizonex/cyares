@@ -1,0 +1,4 @@
+include cyares/*.pxd
+include cyares/*.pyx
+include cyares/inc/*.pxd
+include cyares/inc/*.pyx

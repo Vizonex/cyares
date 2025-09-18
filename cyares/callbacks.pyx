@@ -1,12 +1,10 @@
 from cpython.bytes cimport *
 from cpython.list cimport PyList_New, PyList_SET_ITEM
-from cpython.object cimport PyObject
 from cpython.ref cimport Py_DECREF
 
 from .exception cimport AresError
-from .resulttypes cimport *
-
 from .handles cimport Future
+from .resulttypes cimport *
 
 
 cdef extern from "Python.h":
@@ -42,7 +40,10 @@ cdef bint __cancel_check(int status, Future fut) noexcept:
     else:
         # supress exceptions and notify not to cacnel mid-way
         try:
-             <bint>fut.set_running_or_notify_cancel()
+            # we want the opposite effect.
+            # if state is cancelled then exit
+            # if state is running then continue
+            return 0 if <bint>fut.set_running_or_notify_cancel() else 1
         except BaseException:
             return 0
 

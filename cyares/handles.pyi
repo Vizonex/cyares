@@ -5,7 +5,7 @@ A New and Improved version of concurrent.future._base for cyares
 import asyncio
 from logging import Logger
 from types import GenericAlias
-from typing import Any, Callable, Generic, TypeVar, Iterable, Sequence
+from typing import Any, Callable, Generic, Iterable, Sequence, TypeVar
 
 LOGGER: Logger = ...
 
@@ -66,7 +66,9 @@ def _result_or_cancel(fut: Future[_T], timeout: object = ...):  # -> object:
 class DoneAndNotDoneFutures: ...
 
 def wait(
-    _fs: Sequence[Future[_T]] | Iterable[Future[_T]], timeout: float | None = ..., return_when: str = ...
+    _fs: Sequence[Future[_T]] | Iterable[Future[_T]],
+    timeout: float | None = ...,
+    return_when: str = ...,
 ):  # -> DoneAndNotDoneFutures:
     """Wait for the futures in the given sequence to complete.
 
