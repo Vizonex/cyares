@@ -15,18 +15,21 @@ with aiodns.
 from __future__ import annotations
 
 import asyncio
-from asyncio import isfuture, wrap_future as w
 import socket
 import sys
+from asyncio import isfuture
+from asyncio import wrap_future as w
 from logging import getLogger
 from typing import Any, Iterable, Literal, Sequence, TypeVar, overload
 
 from deprecated_params import deprecated_params
 
 from .channel import *  # type: ignore
-from .exception import AresError # type: ignore
-from .handles import CancelledError, InvalidStateError, Future as cc_Future  # type: ignore
-from .resulttypes import * # type: ignore
+from .exception import AresError  # type: ignore
+from .handles import CancelledError
+from .handles import Future as cc_Future  # type: ignore
+from .handles import InvalidStateError
+from .resulttypes import *  # type: ignore
 
 _T = TypeVar("_T")
 
@@ -64,11 +67,12 @@ query_class_map = {
 }
 
 
-# Mirrors asyncio this is to inject the faster Concurrent.future.Future 
+# Mirrors asyncio this is to inject the faster Concurrent.future.Future
 # object that is in handles.pyx rather than the slower one.
 
 # This will be ultimately removed within a few updates depending on
 # how deadlocks are to be stopped.
+
 
 def _get_loop(fut):
     # Tries to call Future.get_loop() if it's available.
@@ -87,6 +91,7 @@ def _set_result_unless_cancelled(fut, result):
     if fut.cancelled():
         return
     fut.set_result(result)
+
 
 def _convert_future_exc(exc):
     exc_class = type(exc)
@@ -143,9 +148,9 @@ def _chain_future(source, destination):
     Compatible with both asyncio.Future and Future.
     """
     if not asyncio.isfuture(source) and not isinstance(source, cc_Future):
-        raise TypeError('A future is required for source argument')
+        raise TypeError("A future is required for source argument")
     if not asyncio.isfuture(destination) and not isinstance(destination, cc_Future):
-        raise TypeError('A future is required for destination argument')
+        raise TypeError("A future is required for destination argument")
     source_loop = _get_loop(source) if asyncio.isfuture(source) else None
     dest_loop = _get_loop(destination) if asyncio.isfuture(destination) else None
 
@@ -163,8 +168,7 @@ def _chain_future(source, destination):
                 source_loop.call_soon_threadsafe(source.cancel)
 
     def _call_set_state(source):
-        if (destination.cancelled() and
-                dest_loop is not None and dest_loop.is_closed()):
+        if destination.cancelled() and dest_loop is not None and dest_loop.is_closed():
             return
         if dest_loop is None or dest_loop is source_loop:
             _set_state(destination, source)
@@ -177,12 +181,15 @@ def _chain_future(source, destination):
     source.add_done_callback(_call_set_state)
 
 
-def wrap_future(future: cc_Future[_T], *, loop: asyncio.AbstractEventLoop | None = None) -> asyncio.Future[_T]:
+def wrap_future(
+    future: cc_Future[_T], *, loop: asyncio.AbstractEventLoop | None = None
+) -> asyncio.Future[_T]:
     """Wrap Future object."""
     if isfuture(future):
         return future
-    assert isinstance(future, cc_Future), \
-        f'cyares.handles.Future is expected, got {future!r}'
+    assert isinstance(future, cc_Future), (
+        f"cyares.handles.Future is expected, got {future!r}"
+    )
     if loop is None:
         loop = asyncio.get_event_loop()
     new_future = loop.create_future()

@@ -147,6 +147,18 @@ async def main():
             print(f'YOUR IP ADDRESS IS: {data["origin"]}')
 ```
 
+## In Cython
+```cython
+from cyares cimport Channel, Future, AresError
+
+
+def dns_resolve_a(str domain):
+    """Resolves IPV4 Using cython"""
+    cdef Future fut
+    with Channel(['8.8.8.8', '8.8.4.4'], event_thread=True) as   channel:
+        fut = cannel.query(domain, "A")
+    return fut.wait()
+```
 
 
 ## Story
