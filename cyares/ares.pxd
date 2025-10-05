@@ -10,6 +10,12 @@ cdef extern from  "ares_private.h" nogil:
         pass 
 
 cdef extern from "inc/cares_headers.h" nogil:
+    """
+/* wrapper helpers for cython */
+typedef void* (*cyares_amalloc)(size_t size);
+typedef void (*cyares_afree)(void *ptr);
+typedef void* (*cyares_arealloc)(void *ptr, size_t size);
+    """
     
     # ctypedef long suseconds_t
     ctypedef int h_addrtype_t
@@ -963,4 +969,14 @@ cdef extern from "inc/cares_headers.h" nogil:
     size_t ares_queue_active_queries(const ares_channel_t *channel)
 
     ares_status_t ares_queue_wait_empty(ares_channel_t *channel, int timeout_ms)
-    
+
+    # Introduced in cyares 0.1.8 typedefs are to bypass cyright's annoyances...
+    ctypedef void* (*cyares_amalloc)(size_t size) nogil
+    ctypedef void (*cyares_afree)(void *ptr) nogil
+    ctypedef void* (*cyares_arealloc)(void *ptr, size_t size) nogil
+    int ares_library_init_mem(
+        int flags, 
+        cyares_amalloc amalloc,
+        cyares_afree afree,
+        cyares_arealloc arealloc
+    )
