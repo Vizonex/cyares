@@ -25,7 +25,6 @@ from typing import (
 )
 
 import trio
-from deprecated_params import deprecated_params
 from trio.lowlevel import current_clock, current_trio_token
 
 from .channel import *
@@ -167,12 +166,7 @@ class Future(Generic[_T]):
         return self._wait().__await__()
 
 
-@deprecated_params(
-    "sock_state_cb",
-    "attempting to pass socket_state_cb will throw an Exception instead "
-    "of being ignored in a future version of cyares",
-    removed_in="0.1.8",
-)
+
 class DNSResolver:
     def __init__(
         self,
@@ -191,11 +185,8 @@ class DNSResolver:
         rotate: bool = False,
         local_ip: str | bytes | bytearray | memoryview[int] | None = None,
         local_dev: str | bytes | bytearray | memoryview[int] | None = None,
-        resolvconf_path=None,
-        **kw,
+        resolvconf_path=None
     ):
-        kw.pop("socket_state_cb", None)
-
         self._channel = Channel(
             servers=servers,
             event_thread=event_thread,
@@ -212,8 +203,7 @@ class DNSResolver:
             rotate=rotate,
             local_ip=local_ip,
             local_dev=local_dev,
-            resolvconf_path=resolvconf_path,
-            **kw,
+            resolvconf_path=resolvconf_path
         )
         self._manager = trio.open_nursery()
         self._nursery: Optional[trio.Nursery] = None
