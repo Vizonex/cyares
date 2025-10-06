@@ -22,8 +22,6 @@ from asyncio import wrap_future as w
 from logging import getLogger
 from typing import Any, Iterable, Literal, Sequence, TypeVar, overload
 
-from deprecated_params import deprecated_params
-
 from .channel import *  # type: ignore
 from .exception import AresError  # type: ignore
 from .handles import CancelledError
@@ -197,12 +195,6 @@ def wrap_future(
     return new_future
 
 
-@deprecated_params(
-    "sock_state_cb",
-    "providing socket_state_cb will throw an Exception instead "
-    "of being ignored in a future version of cyares",
-    removed_in="0.1.8",
-)
 class DNSResolver:
     """Simillar to aiodns's version but it aims to be more compact and have better typehints"""
 
@@ -225,7 +217,6 @@ class DNSResolver:
         local_ip: str | bytes | bytearray | memoryview[int] | None = None,
         local_dev: str | bytes | bytearray | memoryview[int] | None = None,
         resolvconf_path=None,
-        **kwargs,
     ) -> None:
         """
         Params
@@ -251,8 +242,8 @@ class DNSResolver:
         self._closed = True
         self.loop = loop or asyncio.get_event_loop()
 
-        # XXX: Do not use, we override this argument by default
-        kwargs.pop("sock_state_cb", None)
+   
+
         self._timeout = timeout
         # Internal (Using with pytest to help debug socket_cb handles)
         if event_thread:
@@ -271,8 +262,7 @@ class DNSResolver:
                 rotate=rotate,
                 local_ip=local_ip,
                 local_dev=local_dev,
-                resolvconf_path=resolvconf_path,
-                **kwargs,
+                resolvconf_path=resolvconf_path
             )
 
         else:
@@ -294,7 +284,6 @@ class DNSResolver:
                     local_ip=local_ip,
                     local_dev=local_dev,
                     resolvconf_path=None,
-                    **kwargs,
                 ),
             )
 

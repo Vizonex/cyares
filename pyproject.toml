@@ -11,10 +11,7 @@ requires-python = ">=3.9"
 dependencies = [
     # Self argument
     'typing-extensions; python_version<"3.11"',
-    # temporary until Cyares 0.1.7
-    # I also am the main author of deprecated-params
-    'deprecated-params>=0.1.7'
-
+    
     # yarl support is planned but not ready, 
     # I would like for yarl to have a cimport for URL objects first before
     # I start using it with this project so that maximum performance can
