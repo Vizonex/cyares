@@ -1,7 +1,7 @@
 # cython: embed_signature=Trie
 cimport cython
 from cpython.exc cimport PyErr_NoMemory, PyErr_SetObject
-from cpython.mem cimport PyMem_Free, PyMem_Malloc
+from cpython.mem cimport PyMem_Free, PyMem_Malloc, PyMem_RawMalloc, PyMem_RawRealloc, PyMem_RawFree
 from cpython.ref cimport Py_DECREF, Py_INCREF
 from cpython.unicode cimport PyUnicode_Check, PyUnicode_GetLength
 from libc.math cimport floor, fmod
@@ -1017,7 +1017,12 @@ def cyares_threadsafety():
 
 
 
-cdef int init_status = ares_library_init(ARES_LIB_INIT_ALL)
+cdef int init_status = ares_library_init_mem(
+    ARES_LIB_INIT_ALL,
+    PyMem_RawMalloc,
+    PyMem_RawFree,
+    PyMem_RawRealloc
+)
 if ARES_SUCCESS != init_status:
     raise AresError(init_status)
 
