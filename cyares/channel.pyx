@@ -414,10 +414,12 @@ cdef class Channel:
     # _query is a lower-level C Function
     # query is the upper-end and is meant to assist in
     # being a theoretical drop in replacement for pycares in aiodns
+ 
     cdef Future _query(self, object qname, object qtype, int qclass, object callback):
         cdef int _qtype
         cdef Future fut 
         cdef Py_buffer view
+        cdef ares_status_t status
 
         if isinstance(qtype, str):
             try:
@@ -435,24 +437,31 @@ cdef class Channel:
 
         fut = self.__create_future(callback)
         if _qtype == T_A:
-            ares_query(
+            status = ares_query_dnsrec(
                 self.channel,
                 <char*>view.buf,
-                qclass,
-                T_A,
-                __callback_query_on_a, # type: ignore
-                <void*>fut
+                <ares_dns_class_t>qclass,
+                ARES_REC_TYPE_A,
+                __callback_dns_rec__a, # type: ignore
+                <void*>fut,
+                NULL, # Passing NULL here will work SEE: ares_query.c 
             )
+            if status != ARES_SUCCESS:
+                raise AresError(status)
+            
             
         elif _qtype == T_AAAA:
-            ares_query(
+            status = ares_query_dnsrec(
                 self.channel,
                 <char*>view.buf,
-                qclass,
-                T_AAAA,               
-                __callback_query_on_aaaa, # type: ignore
-                <void*>fut
+                <ares_dns_class_t>qclass,
+                ARES_REC_TYPE_AAAA,
+                __callback_dns_rec__aaaa, # type: ignore
+                <void*>fut,
+                NULL, # Passing NULL here will work SEE: ares_query.c 
             )
+            if status != ARES_SUCCESS:
+                raise AresError(status)
         
         elif _qtype == T_CAA:
             ares_query(
@@ -475,14 +484,17 @@ cdef class Channel:
             )
         
         elif _qtype == T_MX:
-            ares_query(
+            status = ares_query_dnsrec(
                 self.channel,
                 <char*>view.buf,
-                qclass,
-                T_MX,
-                __callback_query_on_mx, # type: ignore
-                <void*>fut
+                <ares_dns_class_t>qclass,
+                ARES_REC_TYPE_MX,
+                __callback_dns_rec__mx, # type: ignore
+                <void*>fut,
+                NULL, # Passing NULL here will work SEE: ares_query.c 
             )
+            if status != ARES_SUCCESS:
+                raise AresError(status)
 
         elif _qtype == T_NAPTR:
             ares_query(
@@ -586,24 +598,30 @@ cdef class Channel:
 
 
         if _qtype == T_A:
-            ares_search(
+            status = ares_query_dnsrec(
                 self.channel,
                 <char*>view.buf,
-                qclass,
-                T_A,
-                __callback_query_on_a, # type: ignore
-                <void*>fut
+                <ares_dns_class_t>qclass,
+                ARES_REC_TYPE_A,
+                __callback_dns_rec__a, # type: ignore
+                <void*>fut,
+                NULL, # Passing NULL here will work SEE: ares_query.c 
             )
+            if status != ARES_SUCCESS:
+                raise AresError(status)
             
         elif _qtype == T_AAAA:
-            ares_search(
+            status = ares_query_dnsrec(
                 self.channel,
                 <char*>view.buf,
-                qclass,
-                T_AAAA,               
-                __callback_query_on_aaaa, # type: ignore
-                <void*>fut
+                <ares_dns_class_t>qclass,
+                ARES_REC_TYPE_AAAA,
+                __callback_dns_rec__aaaa, # type: ignore
+                <void*>fut,
+                NULL, # Passing NULL here will work SEE: ares_query.c 
             )
+            if status != ARES_SUCCESS:
+                raise AresError(status)
         
         elif _qtype == T_CAA:
             ares_search(
@@ -626,14 +644,18 @@ cdef class Channel:
             )
         
         elif _qtype == T_MX:
-            ares_search(
+            # TODO: Fix it...
+            status = ares_query_dnsrec(
                 self.channel,
                 <char*>view.buf,
-                qclass,
-                T_MX,
-                __callback_query_on_mx, # type: ignore
-                <void*>fut
+                <ares_dns_class_t>qclass,
+                ARES_REC_TYPE_MX,
+                __callback_dns_rec__mx, # type: ignore
+                <void*>fut,
+                NULL, # Passing NULL here will work SEE: ares_query.c 
             )
+            if status != ARES_SUCCESS:
+                raise AresError(status)
 
         elif _qtype == T_NAPTR:
             ares_search(
