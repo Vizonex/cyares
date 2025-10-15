@@ -56,11 +56,11 @@ cdef class ares_query_a_result(AresResult):
 
     @staticmethod
     cdef ares_query_a_result new(const ares_dns_rr_t *rr):
-        cdef bytes buf = PyBytes_FromStringAndSize(NULL, INET_ADDRSTRLEN)
+        cdef char buf[16]
         cdef ares_query_a_result r = ares_query_a_result.__new__(ares_query_a_result)
         cdef const in_addr* addr = ares_dns_rr_get_addr(rr, ARES_RR_A_ADDR)
-        ares_inet_ntop(AF_INET, <void*>addr, PyBytes_AS_STRING(buf), INET6_ADDRSTRLEN)
-        r.host = buf
+        ares_inet_ntop(AF_INET, <void*>addr, buf, INET_ADDRSTRLEN)
+        r.host = PyBytes_FromString(buf)
         r.ttl = rr.ttl
         r._attrs = ("host", "ttl")
         return r
@@ -89,7 +89,7 @@ cdef class ares_query_aaaa_result(AresResult):
     cdef ares_query_aaaa_result new(const ares_dns_rr_t *rr):
         cdef char[46] buf 
         cdef ares_query_aaaa_result r = ares_query_aaaa_result.__new__(ares_query_aaaa_result)
-        cdef const ares_in6_addr* addr = ares_dns_rr_get_addr6(rr, ARES_RR_A_ADDR)
+        cdef const ares_in6_addr* addr = ares_dns_rr_get_addr6(rr, ARES_RR_AAAA_ADDR)
 
         ares_inet_ntop(AF_INET6, <void*>addr, buf, INET6_ADDRSTRLEN)
         r.host = PyBytes_FromString(buf)
