@@ -47,66 +47,116 @@ cdef bint __cancel_check(int status, Future fut) noexcept:
         except BaseException:
             return 0
 
-cdef void __callback_query_on_a(
-    void *arg,
-    int status,
-    int timeouts,
-    unsigned char *abuf,
-    int alen
+
+
+# This is for the new DNS REC Which we plan to replace query with 
+# for now this will be primarly for searching...
+
+
+# DNS - RECURSION Callbacks
+
+# Extremely helpful worth a read...
+# https://github.com/c-ares/c-ares/discussions/962
+
+cdef void __callback_dns_rec__a(
+    void *arg, 
+    ares_status_t status,
+    size_t timeouts,
+    const ares_dns_record_t *dnsrec
 ) noexcept with gil:
     if arg == NULL:
         return
-    cdef ares_addrttl[256] ttl
-    cdef int ttl_size = 256
-    cdef hostent* host
+   
+    cdef size_t i, size
+    cdef const ares_dns_rr_t *rr = NULL
+    cdef list records
+    cdef ares_dns_rec_type_t rt
     cdef Future handle = <Future>arg
-
+   
     if __cancel_check(status, handle):
         return
 
-    try:
-        status = ares_parse_a_reply(abuf, alen, &host, ttl, &ttl_size)
-        if status != ARES_SUCCESS:
-            handle.set_exception(AresError(status))
-        else:
-            handle.set_result([ares_query_a_result.old_new(&ttl[i]) for i in range(ttl_size)])
-    except BaseException as e:
-        handle.set_exception(e)
-
-
-
-
-cdef void __callback_query_on_aaaa(
-    void *arg,
-    int status,
-    int timeouts,
-    unsigned char *abuf,
-    int alen
-) noexcept with gil:
-    if arg == NULL:
-        return
-
-    cdef ares_addr6ttl[256] ttl
-    cdef int ttl_size = 256
-    
-    
-    cdef Future handle = <Future>arg
-
-    if __cancel_check(status, handle):
+    # Aggressive check
+    if dnsrec == NULL:
+        # There was no data...
+        handle.set_exception(AresError(ARES_ENODATA))
+        Py_DECREF(handle)
         return
     
     try:
-        status = ares_parse_aaaa_reply(abuf, alen, NULL, ttl, &ttl_size)
         if status != ARES_SUCCESS:
             handle.set_exception(AresError(status))
         else:
-            handle.set_result([ares_query_aaaa_result.old_new(&ttl[i]) for i in range(ttl_size)])
+            size = ares_dns_record_rr_cnt(dnsrec, ARES_SECTION_ANSWER)
+            records = []
+            for i in range(size):
+                rr = ares_dns_record_rr_get_const(
+                    dnsrec,
+                    ARES_SECTION_ANSWER,
+                    i
+                )
+                rt = ares_dns_rr_get_type(rr)
+
+                if rt == ARES_REC_TYPE_A:
+                    records.append(ares_query_a_result.new(rr))
+            
+            handle.set_result(records)
 
     except BaseException as e:
         handle.set_exception(e)
     Py_DECREF(handle)
-    
 
+
+
+cdef void __callback_dns_rec__aaaa(
+    void *arg, 
+    ares_status_t status,
+    size_t timeouts,
+    const ares_dns_record_t *dnsrec
+) noexcept with gil:
+    if arg == NULL:
+        return
+   
+    cdef size_t i, size
+    cdef const ares_dns_rr_t *rr = NULL
+    cdef list records
+    cdef ares_dns_rec_type_t rt
+    cdef Future handle = <Future>arg
+   
+    if __cancel_check(status, handle):
+        return
+
+    # Aggressive check
+    if dnsrec == NULL:
+        # There was no data...
+        handle.set_exception(AresError(ARES_ENODATA))
+        Py_DECREF(handle)
+        return
+    
+    try:
+        if status != ARES_SUCCESS:
+            handle.set_exception(AresError(status))
+        else:
+            size = ares_dns_record_rr_cnt(dnsrec, ARES_SECTION_ANSWER)
+            records = []
+            for i in range(size):
+                rr = ares_dns_record_rr_get_const(
+                    dnsrec,
+                    ARES_SECTION_ANSWER,
+                    i
+                )
+                rt = ares_dns_rr_get_type(rr)
+
+                if rt == ARES_REC_TYPE_AAAA:
+                    print(records)
+                    print("append")
+                    records.append(ares_query_aaaa_result.new(rr))
+                    print("append done")
+            handle.set_result(records)
+
+    except BaseException as e:
+        handle.set_exception(e)
+    Py_DECREF(handle)
 
 
 cdef void __callback_query_on_caa(
@@ -182,40 +232,53 @@ cdef void __callback_query_on_cname(
 
 
 
-cdef void __callback_query_on_mx(
-    void *arg,
-    int status,
-    int timeouts,
-    unsigned char *abuf,
-    int alen
+
+cdef void __callback_dns_rec__mx(
+    void *arg, 
+    ares_status_t status,
+    size_t timeouts,
+    const ares_dns_record_t *dnsrec
 ) noexcept with gil:
     if arg == NULL:
         return
-
-    cdef ares_mx_reply* reply = NULL
-    
-    cdef list result = []
+   
+    cdef size_t i, size
+    cdef const ares_dns_rr_t *rr = NULL
+    cdef list records
+    cdef ares_dns_rec_type_t rt
     cdef Future handle = <Future>arg
-
+   
     if __cancel_check(status, handle):
         return
+
+    # Aggressive check
+    if dnsrec == NULL:
+        # There was no data...
+        handle.set_exception(AresError(ARES_ENODATA))
+        Py_DECREF(handle)
+        return
+    
     try:
-        status = ares_parse_mx_reply(abuf, alen, &reply)
         if status != ARES_SUCCESS:
             handle.set_exception(AresError(status))
         else:
-            while reply != NULL:
-                result.append(ares_query_mx_result.old_new(reply))
-                reply = reply.next
-            handle.set_result(result)
+            size = ares_dns_record_rr_cnt(dnsrec, ARES_SECTION_ANSWER)
+            records = []
+            for i in range(size):
+                rr = ares_dns_record_rr_get_const(
+                    dnsrec,
+                    ARES_SECTION_ANSWER,
+                    i
+                )
+                rt = ares_dns_rr_get_type(rr)
+
+                if rt == ARES_REC_TYPE_MX:
+                    records.append(ares_query_mx_result.new(rr))
+            handle.set_result(records)
+
     except BaseException as e:
         handle.set_exception(e)
-
-    if reply != NULL:
-        ares_free_data(reply)
-
     Py_DECREF(handle)
-
 
 
 
@@ -549,7 +612,6 @@ cdef void __callback_gethostbyaddr(
 
 
 
-
 # Using the newer setup which is ares_query_dns_rec
 # it is possible to determine what kind of DNS Record we 
 # were sent back to us so a game of guessing doesn't need to be done
@@ -572,6 +634,8 @@ cdef void __callback_dns_rec__any(
     if __cancel_check(status, handle):
         return 
     elif dnsrec == NULL:
+        handle.set_exception(AresError(ARES_ENODATA))
+        Py_DECREF(handle)
         return
 
     try:
@@ -657,45 +721,4 @@ cdef void __callback_dns_rec__any(
     Py_DECREF(handle)
 
 
-
-# This is for the new DNS REC Which we plan to replace query with 
-# for now this will be primarly for searching...
-
-
-# DNS - RECURSION Callbacks
-
-# Extremely helpful worth a read...
-# https://github.com/c-ares/c-ares/discussions/962
-
-
-# cdef void __callback_dns_rec__a(
-#     void *arg,
-#     ares_status_t status,
-#     size_t timeouts,
-#     const ares_dns_record_t *dnsrec
-# ) noexcept with gil:
-#     if arg == NULL:
-#         return
-    
-#     cdef Future handle = <Future>arg
-#     cdef size_t i, size
-#     cdef const ares_dns_rr_t *rr = NULL
-#     cdef list records
-
-#     if __cancel_check(status, handle):
-#         return 
-#     elif dnsrec == NULL:
-#         return
-
-#     try:
-#         if status != ARES_SUCCESS:
-#             handle.set_exception(AresError(status))
-#         else:
-#             size = ares_dns_record_rr_cnt(dnsrec, ARES_SECTION_ANSWER)
-#             records = PyList_New(<Py_ssize_t>size)
-#             for i in range(size):
-#                 rr = ares_dns_record_rr_get_const(
-#                     dnsrec,
-#                     ARES_SECTION_ANSWER,
-#                 )
 

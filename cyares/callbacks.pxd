@@ -1,21 +1,20 @@
 from .ares cimport *
 
 
-cdef void __callback_query_on_a(
-    void *arg,
-    int status,
-    int timeouts,
-    unsigned char *abuf,
-    int alen
+cdef void __callback_dns_rec__a(
+    void *arg, 
+    ares_status_t status,
+    size_t timeouts,
+    const ares_dns_record_t *dnsrec
 ) noexcept with gil
 
 
-cdef void __callback_query_on_aaaa(
-    void *arg,
-    int status,
-    int timeouts,
-    unsigned char *abuf,
-    int alen
+
+cdef void __callback_dns_rec__aaaa(
+    void *arg, 
+    ares_status_t status,
+    size_t timeouts,
+    const ares_dns_record_t *dnsrec
 ) noexcept with gil
 
 
@@ -28,7 +27,6 @@ cdef void __callback_query_on_caa(
 ) noexcept with gil
 
 
-
 cdef void __callback_query_on_cname(
     void *arg,
     int status,
@@ -38,15 +36,12 @@ cdef void __callback_query_on_cname(
 ) noexcept with gil
 
 
-
-cdef void __callback_query_on_mx(
-    void *arg,
-    int status,
-    int timeouts,
-    unsigned char *abuf,
-    int alen
+cdef void __callback_dns_rec__mx(
+    void *arg, 
+    ares_status_t status,
+    size_t timeouts,
+    const ares_dns_record_t *dnsrec
 ) noexcept with gil
-
 
 cdef void __callback_query_on_naptr(
     void *arg,
