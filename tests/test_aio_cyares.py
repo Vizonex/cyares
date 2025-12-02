@@ -12,19 +12,22 @@ from cyares.exception import AresError
 uvloop = pytest.importorskip("winloop" if sys.platform == "win32" else "uvloop")
 
 PARAMS = [
-        pytest.param(
-            ("asyncio", {"loop_factory": uvloop.new_event_loop}), id="asyncio[uvloop]"
-        ),
+    pytest.param(
+        ("asyncio", {"loop_factory": uvloop.new_event_loop}), id="asyncio[uvloop]"
+    ),
     pytest.param(("asyncio", {"use_uvloop": False}), id="asyncio"),
 ]
 
 if sys.platform == "win32":
     PARAMS.append(
-        pytest.param(("asyncio", {"loop_factory": asyncio.SelectorEventLoop}), id="asyncio[win32+selector]")
+        pytest.param(
+            ("asyncio", {"loop_factory": asyncio.SelectorEventLoop}),
+            id="asyncio[win32+selector]",
+        )
     )
-@pytest.fixture(
-    params=PARAMS
-)
+
+
+@pytest.fixture(params=PARAMS)
 def anyio_backend(request: pytest.FixtureRequest):
     return request.param
 
@@ -33,9 +36,7 @@ def anyio_backend(request: pytest.FixtureRequest):
 
 
 # TODO: Parametize turning certain event_threads on and off in a future cyares update.
-@pytest.fixture(
-    params=(True, False), ids=("event-thread", "socket-cb")
-)
+@pytest.fixture(params=(True, False), ids=("event-thread", "socket-cb"))
 async def resolver(anyio_backend, request: pytest.FixtureRequest):
     # should be supported on all operating systems...
     if request.param == False:

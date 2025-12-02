@@ -2,10 +2,10 @@
 A New and Improved version of concurrent.future._base for cyares
 """
 
-import asyncio
+from collections.abc import Callable, Iterable, Sequence
 from logging import Logger
 from types import GenericAlias
-from typing import Any, Callable, Generic, Iterable, Sequence, TypeVar
+from typing import Any, Generic, TypeVar
 
 LOGGER: Logger = ...
 

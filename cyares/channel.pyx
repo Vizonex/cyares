@@ -1,7 +1,8 @@
-# cython: embed_signature=Trie
+# cython: embed_signature=True
 cimport cython
 from cpython.exc cimport PyErr_NoMemory, PyErr_SetObject
-from cpython.mem cimport PyMem_Free, PyMem_Malloc, PyMem_RawMalloc, PyMem_RawRealloc, PyMem_RawFree
+from cpython.mem cimport (PyMem_Free, PyMem_Malloc, PyMem_RawFree,
+                          PyMem_RawMalloc, PyMem_RawRealloc)
 from cpython.ref cimport Py_DECREF, Py_INCREF
 from cpython.unicode cimport PyUnicode_Check, PyUnicode_GetLength
 from libc.math cimport floor, fmod
