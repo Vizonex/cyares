@@ -56,7 +56,6 @@ monkeypatching aiohttp's default dns resolver in your own way.
 
 import asyncio
 import socket
-from typing import Optional, Union
 
 import aiohttp
 from aiohttp.abc import AbstractResolver, ResolveResult
@@ -72,7 +71,7 @@ if hasattr(socket, "AI_MASK"):
 
 class CyAresResolver(AbstractResolver):
     def __init__(
-        self, loop: Optional[asyncio.AbstractEventLoop] = None, *args, **kwargs
+        self, loop: asyncio.AbstractEventLoop | None = None, *args, **kwargs
     ) -> None:
         # we already have getaddrinfo implemented in our version so
         # no need to write more functions than the required ones
@@ -100,7 +99,7 @@ class CyAresResolver(AbstractResolver):
             raise OSError(None, msg) from exc
         hosts: list[ResolveResult] = []
         for node in resp.nodes:
-            address: Union[tuple[bytes, int], tuple[bytes, int, int, int]] = node.addr
+            address: tuple[bytes, int] | tuple[bytes, int, int, int] = node.addr
             family = node.family
             if family == socket.AF_INET6:
                 # check scope ID to see if we need
@@ -110,7 +109,8 @@ class CyAresResolver(AbstractResolver):
                         (address[0].decode("ascii"), *address[1:])
                     )
                     # XXX: Seems aiohttp forgot about
-                    # decoding ascii here Maybe a pull request on their end would fix that?
+                    # decoding ascii here Maybe a pull request on their end would fix
+                    # that?
                     resolved_host = result.node.decode("ascii")
                 else:
                     resolved_host = address[0].decode("ascii")
@@ -144,7 +144,7 @@ class CyAresResolver(AbstractResolver):
 
 
 PreviousDefaultResolver = aiohttp.resolver.DefaultResolver
-"""Module Variable that is responsible for undoing CyAres 
+"""Module Variable that is responsible for undoing CyAres
 aiohttp installation if nessesary"""
 
 

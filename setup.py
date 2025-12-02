@@ -1,11 +1,11 @@
 # NOTE: many parts were borrowed from pycares so that we wouldn't need to reinvent the wheel.
 
 import os
-import sys
 import select
+import sys
 
+from setuptools import Extension, setup
 from setuptools.command.build_ext import build_ext
-from setuptools import setup, Extension
 
 use_system_lib = bool(int(os.environ.get("CYARES_USE_SYSTEM_LIB", 0)))
 
@@ -128,8 +128,7 @@ class cares_build_ext(build_ext):
         self.cython_directives = None
         self.parallel = True
         super().initialize_options()
-        
-        
+
     def add_include_dir(self, dir, force=False):
         if use_system_lib and not force:
             return
@@ -222,13 +221,12 @@ class cares_build_ext(build_ext):
             # first then add it in after due to how long it can take to
             # compile everything
 
-            # TODO: Optionally allow source compiling 
-            # for now we have to get hacky to cut the time needed compiling this 
+            # TODO: Optionally allow source compiling
+            # for now we have to get hacky to cut the time needed compiling this
             # stuff by 5x times
 
             # for e in self.extensions:
             #     e.sources += sources
-
 
             c = self.compiler
             if not os.path.exists("build"):
@@ -241,7 +239,7 @@ class cares_build_ext(build_ext):
                     continue
 
                 if "build/cares" not in e.libraries:
-                    e.libraries.append("build/cares") 
+                    e.libraries.append("build/cares")
         super().build_extensions()
 
     # Copied from winloop
@@ -297,7 +295,7 @@ class cares_build_ext(build_ext):
                 annotate=self.cython_annotate,
                 emit_linenums=self.debug,
                 # Try using a cache to help with compiling as well...
-                cache=True
+                cache=True,
             )
 
         return super().finalize_options()
@@ -307,15 +305,18 @@ if __name__ == "__main__":
     setup(
         ext_modules=[
             Extension(
-                "cyares.callbacks", ["cyares/callbacks.pyx"], 
+                "cyares.callbacks",
+                ["cyares/callbacks.pyx"],
                 # extra_compile_args=["-O2"]
             ),
             Extension(
-                "cyares.channel", ["cyares/channel.pyx"], 
+                "cyares.channel",
+                ["cyares/channel.pyx"],
                 # extra_compile_args=["-O2"]
             ),
             Extension(
-                "cyares.exception", ["cyares/exception.pyx"], 
+                "cyares.exception",
+                ["cyares/exception.pyx"],
                 # extra_compile_args=["-O2"]
             ),
             Extension(
@@ -328,10 +329,7 @@ if __name__ == "__main__":
                 ["cyares/socket_handle.pyx"],
                 # extra_compile_args=["-O2"],
             ),
-            Extension(
-                "cyares.handles",
-                ["cyares/handles.pyx"]
-            )
+            Extension("cyares.handles", ["cyares/handles.pyx"]),
         ],
         cmdclass={"build_ext": cares_build_ext},
     )

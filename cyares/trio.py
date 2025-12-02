@@ -10,25 +10,17 @@ and **aiodns** so it should not be too tricky to navigate.
 from __future__ import annotations
 
 import socket
+from collections.abc import Callable, Iterable, Sequence
 from concurrent.futures import Future as ccFuture
 from types import GenericAlias
-from typing import (
-    Any,
-    Callable,
-    Generic,
-    Iterable,
-    Literal,
-    Optional,
-    Sequence,
-    TypeVar,
-    overload,
-)
+from typing import Any, Generic, Literal, TypeVar, overload
 
 import trio
 from trio.lowlevel import current_clock, current_trio_token
 
-from .channel import *
-from .resulttypes import *
+from .channel import *  # noqa: F403
+from .deprecated_subclass import deprecated_subclass
+from .resulttypes import *  # noqa: F403
 
 try:
     _wait_readable = trio.lowlevel.wait_readable
@@ -43,20 +35,26 @@ class CancelledError(Exception):
 
 
 class Timer:
-    def __init__(self, cb: Callable[..., None], timeout: Optional[float] = None):
+    __slots__ = ("clockdeadline", "cb", "_running", "_close_event")
+
+    # TODO
+    #  - Seperate Library for deprecation of subclassing in a wrapper
+    # - maybe and a Tool for blocking subclassing?
+
+    def __init__(self, cb: Callable[..., None], timeout: float | None = None) -> None:
         self.clock = current_clock()
         self.deadline = self.clock.current_time() + (timeout or 1)
         self.cb = cb
         self._running = False
-        self._close_event: Optional[trio.Event] = None
+        self._close_event: trio.Event = trio.Event()
 
-    def _check_soon(self):
+    def _check_soon(self) -> None:
         current_trio_token().run_sync_soon(self._check_time)
 
-    def _check_time(self):
-        if self._close_event:
+    def _check_time(self) -> None:
+        if self._close_event.is_set():
             # Timer was turned off by the end user to prepare for closure
-            return self._close_event.set()
+            return
 
         if self.clock.current_time() >= self.deadline:
             self.cb()
@@ -64,13 +62,12 @@ class Timer:
         else:
             self._check_soon()
 
-    def start(self):
+    def start(self) -> None:
         self._running = True
         self._check_soon()
 
-    def cancel(self):
-        if not self._close_event:
-            self._close_event = trio.Event()
+    def cancel(self) -> None:
+        self._close_event.set()
 
     async def close(self) -> None:
         """Waits for the timer to come to a callback where it can shut down"""
@@ -105,28 +102,32 @@ query_class_map = {
 _T = TypeVar("_T")
 
 
+@deprecated_subclass(
+    "subclassing this object for other purposes is discouraged", removed_in="0.5.0"
+)
 class Future(Generic[_T]):
     __class_getitem__ = classmethod(GenericAlias)
 
-    def __init__(self, fut: ccFuture[_T], uses_thread: bool = True):
+    def __init__(self, fut: ccFuture[_T], uses_thread: bool = True) -> None:
         self._exc = None
         self._result = None
         self._cancelled = False
         self.event = trio.Event()
         self._callbacks: list[Callable[["Future[_T]"], None]] = []
-        # Token will allow use to reach the homethread allowing for a seamless transition
+        # Token will allow use to reach the homethread allowing for a seamless
+        # transition
         self._token = current_trio_token()
         # all we needed the other future for was preparing to chain it.
         fut.add_done_callback(self.__on_done)
         # determines if were in the Home Thread
         self._uses_thread = uses_thread
 
-    def __execute_callbacks(self):
+    def __execute_callbacks(self) -> None:
         for cb in self._callbacks:
             cb(self)
         self._callbacks.clear()
 
-    def __handle_done(self):
+    def __handle_done(self) -> None:
         self.event.set()
         self.__execute_callbacks()
 
@@ -166,12 +167,14 @@ class Future(Generic[_T]):
         return self._wait().__await__()
 
 
-
+@deprecated_subclass(
+    "Subclassing this object is discouraged", category=PendingDeprecationWarning
+)
 class DNSResolver:
     def __init__(
         self,
         servers: list[str] | None = None,
-        event_thread: bool = False,  # turned off by default but you can always pass it if you wish...
+        event_thread: bool = False,  # turned off by default pass it if you wish...
         timeout: float | None = None,
         flags: int | None = None,
         tries: int | None = None,
@@ -185,8 +188,8 @@ class DNSResolver:
         rotate: bool = False,
         local_ip: str | bytes | bytearray | memoryview[int] | None = None,
         local_dev: str | bytes | bytearray | memoryview[int] | None = None,
-        resolvconf_path=None
-    ):
+        resolvconf_path=None,
+    ) -> None:
         self._channel = Channel(
             servers=servers,
             event_thread=event_thread,
@@ -203,10 +206,10 @@ class DNSResolver:
             rotate=rotate,
             local_ip=local_ip,
             local_dev=local_dev,
-            resolvconf_path=resolvconf_path
+            resolvconf_path=resolvconf_path,
         )
         self._manager = trio.open_nursery()
-        self._nursery: Optional[trio.Nursery] = None
+        self._nursery: trio.Nursery | None = None
         self._read_fds: set[int] = set()
         self._write_fds: set[int] = set()
         self._timeout = timeout
@@ -396,7 +399,8 @@ class DNSResolver:
         return self._wrap_future(self._channel.getnameinfo(sockaddr, flags))
 
     def _wrap_future(self, fut: ccFuture[_T]) -> Future[_T]:
-        # use the event_thread readonly property to determine if we will be in the home thread or not.
+        # use the event_thread readonly property to determine if we will be in the home
+        # thread or not.
         return Future(fut, self._channel.event_thread)
 
     def cancel(self) -> None:

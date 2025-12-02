@@ -18,16 +18,16 @@ import asyncio
 import socket
 import sys
 from asyncio import isfuture
-from asyncio import wrap_future as w
+from collections.abc import Iterable, Sequence
 from logging import getLogger
-from typing import Any, Iterable, Literal, Sequence, TypeVar, overload
+from typing import Any, Literal, TypeVar, overload
 
-from .channel import *  # type: ignore
+from .channel import *  # type: ignore  # noqa: F403
+from .deprecated_subclass import deprecated_subclass
 from .exception import AresError  # type: ignore
-from .handles import CancelledError
+from .handles import CancelledError, InvalidStateError
 from .handles import Future as cc_Future  # type: ignore
-from .handles import InvalidStateError
-from .resulttypes import *  # type: ignore
+from .resulttypes import *  # type: ignore  # noqa: F403
 
 _T = TypeVar("_T")
 
@@ -195,8 +195,12 @@ def wrap_future(
     return new_future
 
 
+@deprecated_subclass(
+    "Subclassing this object is discouraged", category=PendingDeprecationWarning
+)
 class DNSResolver:
-    """Simillar to aiodns's version but it aims to be more compact and have better typehints"""
+    """Simillar to aiodns's version but it aims to be more compact and have better
+    typehints"""
 
     def __init__(
         self,
@@ -226,14 +230,15 @@ class DNSResolver:
         :param loop: the asyncio event loop to utilize, supported
             eventloops include, winloop, uvloop and the asyncio standard library
             NOTE for windows users: `SelectorEventLoop` & `winloop.Loop` are the only
-            eventloops you can use when the event_thread is disabled or when event_thread 
-            is not supported SEE: https://github.com/aio-libs/aiodns#note-for-windows-users
+            eventloops you can use when the event_thread is disabled or when
+            event_thread is not supported
+            SEE: https://github.com/aio-libs/aiodns#note-for-windows-users
             for more information
- 
+
         :param event_thread: if enabled try to see if cyares can utilize \
             event threads otherwise fallback to using a socket callback handle \
             if `false` socket callback will be used no matter what,
-            setting to `false` is good for testing purposes or 
+            setting to `false` is good for testing purposes or
             when trying to act threadsafe until closure.
             A quick word of caution , deletion is **Not Thread-Safe**
             SEE: https://c-ares.org/docs/ares_destroy.html
@@ -241,8 +246,6 @@ class DNSResolver:
         """
         self._closed = True
         self.loop = loop or asyncio.get_event_loop()
-
-   
 
         self._timeout = timeout
         # Internal (Using with pytest to help debug socket_cb handles)
@@ -262,7 +265,7 @@ class DNSResolver:
                 rotate=rotate,
                 local_ip=local_ip,
                 local_dev=local_dev,
-                resolvconf_path=resolvconf_path
+                resolvconf_path=resolvconf_path,
             )
 
         else:

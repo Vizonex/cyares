@@ -4,7 +4,7 @@ import sys
 from typing import Callable, Literal, overload
 
 from .handles import Future
-from .resulttypes import *
+from .resulttypes import *  # noqa: F403
 
 if sys.version_info < (3, 11):
     from typing_extensions import Self
@@ -37,7 +37,7 @@ QUERY_CLASS_ANY: int = ...
 class Channel:
     event_thread: bool
     """Used for checking if event-thread is in use before using wait(...)
-    This is good for when you plan to make event-thread optional in a user 
+    This is good for when you plan to make event-thread optional in a user
     program
     """
 

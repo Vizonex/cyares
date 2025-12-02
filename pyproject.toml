@@ -1,12 +1,13 @@
 [project]
 name = "cyares"
-version = "0.1.8"
+dynamic = ["version"]
+
 description = "A Cython Version of c-ares"
 readme = "README.md"
 authors = [
     { name = "Vizonex", email = "VizonexBusiness@gmail.com" }
 ]
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 
 dependencies = [
     # Self argument
@@ -27,12 +28,15 @@ dependencies = [
   
 ]
 
+[tool.setuptools.dynamic]
+version = {attr = "cyares.__version__"}
+
+
 [project.optional-dependencies]
 aiohttp = ["aiohttp>=3.12.15"]
 all = ["idna>=2.1", "trio>=0.30.0", "aiohttp>=3.12.15"]
 idna = ["idna>=2.1"]
 trio = ["trio>=0.30.0"]
-
 
 [tool.cibuildwheel]
 build-frontend = "build"
@@ -53,3 +57,15 @@ packages = ['cyares']
 
 [project.urls]
     repository = "https://github.com/Vizonex/cyares.git"
+
+
+[tool.ruff.lint]
+select = [
+    "E",
+    "W",
+    "I",
+    "F"
+]
+ignore = [
+    "F405" # may be undefined, or defined from star imports (I Need these)
+]
