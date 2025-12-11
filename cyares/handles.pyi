@@ -135,7 +135,7 @@ class Future(Generic[_T]):
         """
         ...
 
-    def result(self, timeout: float | None = None) -> object:
+    def result(self, timeout: float | None = None) -> _T:
         """Return the result of the call that the future represents.
 
         Args:

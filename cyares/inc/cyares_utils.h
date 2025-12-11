@@ -1,4 +1,4 @@
-/* 
+/*
 Using this implementation did not feel wrong at all.
 This source code utilizes some of msgspec's implementations for dealing with
 buffer extraction of unicode characters into a python buffer...
@@ -6,8 +6,8 @@ buffer extraction of unicode characters into a python buffer...
 - Some functions and macros were re-named for the sake of being convienient.
 
 - (
-cyares_copy_memory, 
-cyares_unicode_from_uchar, 
+cyares_copy_memory,
+cyares_unicode_from_uchar,
 cyares_unicode_from_uchar_and_size
 cyares_htons
 cyares_htonl
@@ -15,7 +15,7 @@ cyares_htonl
 
 */
 
-/* 
+/*
 Copyright (c) 2021, Jim Crist-Harif
 All rights reserved.
 
@@ -54,7 +54,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <Python.h>
 
-#ifdef __cplusplus 
+#ifdef __cplusplus
 extern "C" {
 #endif
 
@@ -126,7 +126,7 @@ cyares_release_buffer(Py_buffer *view) {
 
 
 
-static inline PyObject* 
+static inline PyObject*
 cyares_unicode_from_uchar_and_size(
     const uint8_t* chars, Py_ssize_t size
 ){
@@ -135,7 +135,7 @@ cyares_unicode_from_uchar_and_size(
     );
 }
 
-static inline PyObject* 
+static inline PyObject*
 cyares_unicode_from_uchar(
     const uint8_t* chars
 ){
@@ -161,7 +161,7 @@ static int cyares_copy_memory(char** ptr_to, PyObject* ptr_from){
         PyErr_NoMemory();
         return -1;
     }
-    
+
     memcpy(s, ptr_from, sizeof(char) * view.len);
     *ptr_to = s;
 
@@ -176,9 +176,10 @@ static int cyares_copy_memory(char** ptr_to, PyObject* ptr_from){
 
 #define cyares_htons htons
 #define cyares_htonl htonl
+#define cyares_ntohs ntohs
 
 
-#ifdef __cplusplus 
+#ifdef __cplusplus
 }
 #endif
 

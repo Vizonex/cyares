@@ -1,137 +1,215 @@
-from typing import Optional, Union
+from dataclasses import dataclass
 
-__test__: dict
+# Brought over from pycares
 
-class AresResult:
-    def __repr__(self) -> str: ...
-    @property
-    def type() -> str: ...
+@dataclass
+class ARecordData:
+    """Data for A (IPv4 address) record"""
 
-class ares_optval_result(AresResult):
-    val: str
-    id: int
+    addr: str
 
-class ares_query_hinfo_result(AresResult):
-    cpu: bytes
-    os: bytes
+@dataclass
+class AAAARecordData:
+    """Data for AAAA (IPv6 address) record"""
 
-class ares_query_sig_result(AresResult):
-    type_covered: int
-    algorithm: int
-    labels: int
-    original_ttl: int
-    expiration: int
-    inception: int
-    key_tag: int
-    signature: str
-    signers_name: bytes
+    addr: str
 
-class ares_query_tlsa_result(AresResult):
-    cert_usage: int
-    selector: int
-    data: str
+@dataclass
+class MXRecordData:
+    """Data for MX (mail exchange) record"""
 
-    # XXX: Might be syntax problems due to match introduced in 3.10
-    # so here's a workaround...
-    @property
-    def match() -> int: ...
-
-class ares_query_svcb_result(AresResult):
     priority: int
-    target: bytes
-    params: list[ares_optval_result]
+    exchange: str
 
-class ares_query_https_result(AresResult):
-    priority: int
-    target: bytes
-    params: list[ares_optval_result]
+@dataclass
+class TXTRecordData:
+    """Data for TXT (text) record"""
 
-class ares_query_uri_result(AresResult):
-    priority: int
-    weight: int
-    target: bytes
+    data: bytes
 
-class ares_query_raw_rr_result(AresResult):
-    ty: int
-    data: str
+@dataclass
+class CAARecordData:
+    """Data for CAA (certification authority authorization) record"""
 
-class ares_addrinfo_cname_result(AresResult):
-    alias: bytes
-    name: bytes
-    ttl: int
-
-class ares_addrinfo_node_result(AresResult):
-    # One of two things is (address, port) or adding in flow_info and scope_id
-    addr: Union[tuple[bytes, int], tuple[bytes, int, int, int]]
-    family: int
-    flags: int
-    protocol: int
-    socktype: int
-    ttl: int
-
-class ares_addrinfo_result(AresResult):
-    cnames: list[ares_addrinfo_cname_result]
-    nodes: list[ares_addrinfo_node_result]
-
-class ares_host_result(AresResult):
-    addresses: list[bytes]
-    aliases: list[bytes]
-    name: bytes
-
-class ares_nameinfo_result(AresResult):
-    node: bytes
-    service: Optional[bytes]
-
-class ares_query_a_result(AresResult):
-    host: bytes
-    ttl: int
-
-class ares_query_aaaa_result(AresResult):
-    host: bytes
-    ttl: int
-
-class ares_query_caa_result(AresResult):
     critical: int
-    property: bytes
-    ttl: int
-    value: bytes
+    tag: str
+    value: str
 
-class ares_query_cname_result(AresResult):
-    cname: bytes
-    ttl: int
+@dataclass
+class CNAMERecordData:
+    """Data for CNAME (canonical name) record"""
 
-class ares_query_mx_result(AresResult):
-    host: bytes
-    priority: int
-    ttl: int
+    cname: str
 
-class ares_query_naptr_result(AresResult):
-    host: bytes
-    ttl: int
+@dataclass
+class NAPTRRecordData:
+    """Data for NAPTR (naming authority pointer) record"""
 
-class ares_query_ns_result(AresResult):
-    host: bytes
+    order: int
+    preference: int
+    flags: str
+    service: str
+    regexp: str
+    replacement: str
 
-class ares_query_ptr_result(AresResult):
-    aliases: list[bytes]
-    name: bytes
-    ttl: int
+@dataclass
+class NSRecordData:
+    """Data for NS (name server) record"""
 
-class ares_query_soa_result(AresResult):
-    nsname: bytes
-    hostmaster: bytes
+    nsdname: str
+
+@dataclass
+class PTRRecordData:
+    """Data for PTR (pointer) record"""
+
+    dname: str
+
+@dataclass
+class SOARecordData:
+    """Data for SOA (start of authority) record"""
+
+    mname: str
+    rname: str
     serial: int
-    referesh: int
+    refresh: int
     retry: int
     expire: int
-    minttl: int
-    ttl: int
+    minimum: int
 
-class ares_query_srv_result(AresResult):
-    host: bytes
-    port: int
+@dataclass
+class SRVRecordData:
+    """Data for SRV (service) record"""
+
     priority: int
+    weight: int
+    port: int
+    target: str
 
-class ares_query_txt_result(AresResult):
-    text: bytes
+@dataclass
+class TLSARecordData:
+    """Data for TLSA (DANE TLS authentication) record - RFC 6698"""
+
+    cert_usage: int
+    selector: int
+    matching_type: int
+    cert_association_data: bytes
+
+@dataclass
+class HTTPSRecordData:
+    """Data for HTTPS (service binding) record - RFC 9460"""
+
+    priority: int
+    target: str
+    params: list[tuple[int, bytes]]
+
+@dataclass
+class URIRecordData:
+    """Data for URI (Uniform Resource Identifier) record - RFC 7553"""
+
+    priority: int
+    weight: int
+    target: str
+
+@dataclass
+class DNSRecord:
+    """Represents a single DNS resource record"""
+
+    name: str
+    type: int
+    record_class: int
     ttl: int
+    data: (
+        ARecordData
+        | AAAARecordData
+        | MXRecordData
+        | TXTRecordData
+        | CAARecordData
+        | CNAMERecordData
+        | HTTPSRecordData
+        | NAPTRRecordData
+        | NSRecordData
+        | PTRRecordData
+        | SOARecordData
+        | SRVRecordData
+        | TLSARecordData
+        | URIRecordData
+    )
+
+@dataclass
+class DNSResult:
+    """Represents a complete DNS query result with all sections"""
+
+    answer: list[DNSRecord]
+    authority: list[DNSRecord]
+    additional: list[DNSRecord]
+
+# Host/AddrInfo result types
+
+@dataclass
+class HostResult:
+    """Result from gethostbyaddr() operation"""
+
+    name: str
+    aliases: list[str]
+    addresses: list[str]
+
+@dataclass
+class NameInfoResult:
+    """Result from getnameinfo() operation"""
+
+    node: str
+    service: str | None
+
+@dataclass
+class AddrInfoNode:
+    """Single address node from getaddrinfo() result"""
+
+    ttl: int
+    flags: int
+    family: int
+    socktype: int
+    protocol: int
+    addr: (
+        tuple[str, int] | tuple[str, int, int, int]
+    )  # (ip, port) or (ip, port, flowinfo, scope_id)
+
+@dataclass
+class AddrInfoCname:
+    """CNAME information from getaddrinfo() result"""
+
+    ttl: int
+    alias: str
+    name: str
+
+@dataclass
+class AddrInfoResult:
+    """Complete result from getaddrinfo() operation"""
+
+    cnames: list[AddrInfoCname]
+    nodes: list[AddrInfoNode]
+
+
+# Ruff has this annoying obession with __all__ for some strange reason...
+__all__ = (
+    "AAAARecordData",
+    "AddrInfoCname",
+    "AddrInfoNode",
+    "AddrInfoResult",
+    "ARecordData",
+    "CAARecordData",
+    "CNAMERecordData",
+    "DNSRecord",
+    "DNSResult",
+    "HostResult",
+    "HTTPSRecordData",
+    "MXRecordData",
+    "NameInfoResult",
+    "NAPTRRecordData",
+    "NSRecordData",
+    "PTRRecordData",
+    "SOARecordData",
+    "SRVRecordData",
+    "TLSARecordData",
+    "TXTRecordData",
+    "URIRecordData",
+)

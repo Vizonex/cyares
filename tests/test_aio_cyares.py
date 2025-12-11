@@ -1,10 +1,9 @@
 import asyncio
 import ipaddress
-import platform
 import sys
 
-import pytest
 import anyio as anyio
+import pytest
 
 from cyares.aio import DNSResolver
 from cyares.exception import AresError
@@ -39,7 +38,7 @@ def anyio_backend(request: pytest.FixtureRequest):
 @pytest.fixture(params=(True, False), ids=("event-thread", "socket-cb"))
 async def resolver(anyio_backend, request: pytest.FixtureRequest):
     # should be supported on all operating systems...
-    if request.param == False:
+    if request.param is False:
         if (
             sys.platform == "win32"
             and type(asyncio.get_event_loop()) is asyncio.ProactorEventLoop
@@ -101,7 +100,7 @@ async def test_cancelling() -> None:
 @pytest.mark.anyio
 async def test_cancelling_from_resolver() -> None:
     async with DNSResolver(servers=["8.8.8.8", "8.8.4.4"]) as resolver:
-        futures = [
+        _ = [
             resolver.query("google.com", "A"),
             resolver.query("llhttp.org", "A"),
             resolver.query("llparse.org", "A"),

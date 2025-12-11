@@ -31,3 +31,8 @@ cdef extern from "cyares_utils.h":
         unsigned long l
     ) noexcept nogil
 
+    unsigned short cyares_ntohs(
+        unsigned short netshort
+    ) noexcept nogil
+    
+
