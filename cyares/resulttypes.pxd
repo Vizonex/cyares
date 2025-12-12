@@ -93,6 +93,43 @@ cdef class TLSARecordData:
         public int matching_type
         public bytes cert_association_data
 
+
+
+# These are not implemented into pycares yet but a look at ares_dns_private.h gives us a clear clue on how to apporch this...
+
+@cython.dataclasses.dataclass
+cdef class SIGRecordData:
+    """Data for SIG Record - RFC 2535 / RFC 2931."""
+    cdef:
+        public unsigned short type_covered
+        public unsigned char  algorithm
+        public unsigned char  labels
+        public unsigned int   original_ttl
+        public unsigned int   expiration
+        public unsigned int   inception
+        public unsigned short key_tag
+        public str signers_name
+        public str signature
+
+@cython.dataclasses.dataclass
+cdef class OPTRecordData:
+    """Data for Opt Record - RFC 6891. EDNS0 option (meta-RR)"""
+    cdef:
+        public unsigned short udp_size
+        public unsigned char  version
+        public unsigned short flags
+        public list options # list[tuple[int, str]]
+
+
+@cython.dataclasses.dataclass
+cdef class SVCBRecordData:
+    """Data for SVCB Record"""
+    cdef:
+        public unsigned short priority
+        public str target
+        public list options
+
+
 @cython.dataclasses.dataclass
 cdef class HTTPSRecordData:
     """Data for HTTPS (service binding) record - RFC 9460"""

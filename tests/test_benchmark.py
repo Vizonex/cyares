@@ -2,9 +2,8 @@ import os
 import sys
 from concurrent.futures import Future
 
-
 import pytest
-from dnslib.dns import RR, DNSQuestion
+from dnslib.dns import RR
 from dnslib.server import BaseResolver, DNSHandler, DNSRecord, DNSServer
 from pytest_codspeed import BenchmarkFixture
 

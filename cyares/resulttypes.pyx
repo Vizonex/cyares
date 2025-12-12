@@ -2,7 +2,7 @@ from cpython.mem cimport PyMem_Free, PyMem_Malloc, PyMem_Realloc
 from cpython.exc cimport PyErr_NoMemory
 from cpython.bytes cimport (PyBytes_AS_STRING, PyBytes_FromString,
                             PyBytes_FromStringAndSize)
-from cpython.unicode cimport PyUnicode_FromKindAndData, PyUnicode_1BYTE_KIND, PyUnicode_FromString
+from cpython.unicode cimport PyUnicode_FromKindAndData, PyUnicode_1BYTE_KIND, PyUnicode_FromString, PyUnicode_FromStringAndSize
 from .ares cimport *
 from libc.string cimport memset, memcpy
 from .inc cimport cyares_ntohs, cyares_unicode_from_uchar_and_size
@@ -139,8 +139,27 @@ cdef class URIRecordData:
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}"\
             f"(priority={self.priority!r},"\
-            f" weight={self.weight!r})"\
+            f" weight={self.weight!r},"\
             f" target={self.target!r})"\
+
+# These are currently missing from pycares
+@cython.dataclasses.dataclass
+cdef class OPTRecordData:
+    def __repr__(self) -> str:
+        return f"{self.__class__.__name__}"\
+            f"(udp_size={self.udp_size!r}," \
+            f" flags={self.flags!r}," \
+            f" version={self.version!r}" \
+            f" options={self.options!r},"\
+            f" )"\
+
+@cython.dataclasses.dataclass
+cdef class SVCBRecordData:
+    def __repr__(self) -> str:
+        return f"{self.__class__.__name__}"\
+            f"(priority={self.priority!r},"\
+            f" target={self.target!r}," \
+            f" options={self.options!r})"
 
 
 # TODO: (Ask Saghul (pycares owner) to consider making DNSRecord a Generic Type because of the data attribute)
@@ -174,7 +193,6 @@ cdef class HostResult:
             f"(name={self.name!r}," \
             f" aliases={self.aliases!r},"\
             f" addresses={self.addresses!r})"
-
 
 @cython.dataclasses.dataclass
 cdef class NameInfoResult:
@@ -382,7 +400,7 @@ cdef AAAARecordData parse_aaaa_record_data(const ares_dns_rr_t* rr):
 cdef MXRecordData parse_mx_record_data(const ares_dns_rr_t* rr):
     cdef unsigned short priority = ares_dns_rr_get_u16(rr, ARES_RR_MX_PREFERENCE)
     cdef const char* exchange = ares_dns_rr_get_str(rr, ARES_RR_MX_EXCHANGE)
-    return MXRecordData(priority=priority, exchange=PyUnicode_FromString(buf))
+    return MXRecordData(priority=priority, exchange=PyUnicode_FromString(exchange))
 
 
 
@@ -458,18 +476,26 @@ cdef SOARecordData parse_soa_record_data(const ares_dns_rr_t* rr):
     )
 
 cdef SRVRecordData parse_srv_record_data(const ares_dns_rr_t* rr):
-    cdef size_t data_len
-    cdef uint8_t cert_usage = ares_dns_rr_get_u8(rr, ARES_RR_TLSA_CERT_USAGE)
-    cdef uint8_t selector = ares_dns_rr_get_u8(rr, ARES_RR_TLSA_SELECTOR)
-    cdef uint8_t matching_type = ares_dns_rr_get_u8(rr, ARES_RR_TLSA_MATCH)
-    cdef const unsigned char* data_ptr = ares_dns_rr_get_bin(rr, ARES_RR_TLSA_DATA, &data_len)
-
-    return TLSARecordData(
-        cert_usage=cert_usage,
-        selector=selector,
-        matching_type=matching_type,
-        cert_association_data=PyUnicode_FromKindAndData(PyUnicode_1BYTE_KIND, data_ptr, data_len)
+    return SRVRecordData(
+        priority=ares_dns_rr_get_u16(rr, ARES_RR_SRV_PRIORITY),
+        weight=ares_dns_rr_get_u16(rr, ARES_RR_SRV_WEIGHT),
+        port=ares_dns_rr_get_u16(rr, ARES_RR_SRV_PORT),
+        target=PyUnicode_FromString(ares_dns_rr_get_str(rr, ARES_RR_SRV_TARGET))
     )
+
+cdef bytes write_uchar_as_bytes(const unsigned char* data, size_t size):
+    cdef Writer writer
+    cdef char buf[8192]
+    cdef size_t i 
+    _init_writer(&writer, buf)
+    try:
+        for i in range(size):
+            if _write_utf8(&writer, data[i]) < 0:
+                raise
+        return _writer_finish(&writer)
+    finally:
+        _release_writer(&writer)
+
 
 cdef TLSARecordData parse_tlsa_record_data(const ares_dns_rr_t* rr):
     cdef size_t data_len
@@ -483,12 +509,13 @@ cdef TLSARecordData parse_tlsa_record_data(const ares_dns_rr_t* rr):
         cert_usage=cert_usage,
         selector=selector,
         matching_type=matching_type,
-        cert_association_data=cyares_unicode_from_uchar_and_size(data_ptr, <Py_ssize_t>data_len)
+        cert_association_data=write_uchar_as_bytes(data_ptr, data_len)
     )
 
 cdef list _extract_opt_params(const ares_dns_rr_t* rr, ares_dns_rr_key_t key):
     # """Extract OPT params as list of (key, value) tuples for HTTPS/SVCB records."""
     cdef unsigned char* val_ptr
+    cdef str val
     cdef size_t val_len
     cdef size_t opt_cnt = ares_dns_rr_get_opt_cnt(rr, key)
     if not opt_cnt:
@@ -501,10 +528,40 @@ cdef list _extract_opt_params(const ares_dns_rr_t* rr, ares_dns_rr_key_t key):
         if val_ptr != NULL:
             val = cyares_unicode_from_uchar_and_size(val_ptr, val_len)
         else:
-            val = b''
+            val = ''
         params.append((opt_key, val))
     return params
 
+
+cdef OPTRecordData parse_opt_record_data(const ares_dns_rr_t* rr):
+    return OPTRecordData(
+        udp_size= ares_dns_rr_get_u16(rr, ARES_RR_OPT_UDP_SIZE),
+        version= ares_dns_rr_get_u8(rr, ARES_RR_OPT_VERSION),
+        flags=ares_dns_rr_get_u16(rr, ARES_RR_OPT_FLAGS),
+        options=_extract_opt_params(rr, ARES_RR_OPT_OPTIONS)
+    )
+
+cdef SIGRecordData parse_sig_record_data(const ares_dns_rr_t* rr):
+    cdef size_t signature_len = 0
+    cdef const unsigned char* signature = ares_dns_rr_get_bin(rr, ARES_RR_SIG_SIGNATURE, &signature_len)
+    return SIGRecordData(
+        type_covered=ares_dns_rr_get_u16(rr, ARES_RR_SIG_TYPE_COVERED),
+        algorithm=ares_dns_rr_get_u8(rr, ARES_RR_SIG_ALGORITHM),
+        labels=ares_dns_rr_get_u8(rr, ARES_RR_SIG_LABELS),
+        original_ttl=ares_dns_rr_get_u32(rr, ARES_RR_SIG_ORIGINAL_TTL),
+        expiration=ares_dns_rr_get_u32(rr, ARES_RR_SIG_EXPIRATION),
+        inception=ares_dns_rr_get_u32(rr, ARES_RR_SIG_INCEPTION),
+        key_tag=ares_dns_rr_get_u16(rr, ARES_RR_SIG_KEY_TAG),
+        signers_name=PyUnicode_FromString(ares_dns_rr_get_str(rr, ARES_RR_SIG_SIGNERS_NAME)),
+        signature=cyares_unicode_from_uchar_and_size(signature, signature_len)
+    )
+
+cdef SVCBRecordData parse_svcb_record_data(const ares_dns_rr_t* rr):
+    return SVCBRecordData(
+        priority=ares_dns_rr_get_u16(rr, ARES_RR_SVCB_PRIORITY),
+        target=PyUnicode_FromString(ares_dns_rr_get_str(rr, ARES_RR_SVCB_TARGET)),
+        params=_extract_opt_params(rr, ARES_RR_SVCB_PARAMS)
+    )
 
 cdef HTTPSRecordData parse_https_record_data(const ares_dns_rr_t* rr):
     priority = ares_dns_rr_get_u16(rr, ARES_RR_HTTPS_PRIORITY)
@@ -554,7 +611,11 @@ cdef object extract_record_data(const ares_dns_rr_t* rr, ares_dns_rec_type_t rec
         return parse_https_record_data(rr)
     elif record_type == ARES_REC_TYPE_URI:
         return parse_uri_record_data(rr)
-    
+    elif record_type == ARES_REC_TYPE_OPT:
+        return parse_opt_record_data(rr)
+    elif record_type == ARES_REC_TYPE_SIG:
+        return parse_sig_record_data(rr)
+
     raise ValueError(f"Unsupported DNS record type: {record_type}")
 
 
@@ -563,7 +624,8 @@ cdef tuple parse_dnsrec_any(const ares_dns_record_t* dnsrec):
     cdef size_t i
     cdef ares_dns_class_t rec_class
     cdef ares_dns_rec_type_t rec_type
-    
+    cdef const ares_dns_rr_t* rr
+
     if dnsrec == NULL:
         return None, ARES_EBADRESP
 
@@ -581,18 +643,18 @@ cdef tuple parse_dnsrec_any(const ares_dns_record_t* dnsrec):
             rec_class = ares_dns_rr_get_class(rr)
             ttl = ares_dns_rr_get_ttl(rr)
 
-            try:
-                data = extract_record_data(rr, rec_type)
-                answer_records.append(DNSRecord(
-                    name=name,
-                    type=rec_type,
-                    record_class=rec_class,
-                    ttl=ttl,
-                    data=data
-                ))
-            except (ValueError, Exception):
-                # Skip unsupported record types
-                pass
+            # try:
+            data = extract_record_data(rr, rec_type)
+            answer_records.append(DNSRecord(
+                name=name,
+                type=rec_type,
+                record_class=rec_class,
+                ttl=ttl,
+                data=data
+            ))
+            # except (ValueError, Exception):
+            #     # Skip unsupported record types
+            #     pass
 
     # Parse authority section
     cdef size_t authority_count = ares_dns_record_rr_cnt(dnsrec, ARES_SECTION_AUTHORITY)
@@ -604,18 +666,18 @@ cdef tuple parse_dnsrec_any(const ares_dns_record_t* dnsrec):
             rec_class = ares_dns_rr_get_class(rr)
             ttl = ares_dns_rr_get_ttl(rr)
 
-            try:
-                data = extract_record_data(rr, rec_type)
-                authority_records.append(DNSRecord(
-                    name=name,
-                    type=rec_type,
-                    record_class=rec_class,
-                    ttl=ttl,
-                    data=data
-                ))
-            except (ValueError, Exception):
-                # Skip unsupported record types
-                pass
+            # try:
+            data = extract_record_data(rr, rec_type)
+            authority_records.append(DNSRecord(
+                name=name,
+                type=rec_type,
+                record_class=rec_class,
+                ttl=ttl,
+                data=data
+            ))
+            # except (ValueError, Exception):
+            #     # Skip unsupported record types
+            #     pass
 
     # Parse additional section
     additional_count = ares_dns_record_rr_cnt(dnsrec, ARES_SECTION_ADDITIONAL)
@@ -627,18 +689,18 @@ cdef tuple parse_dnsrec_any(const ares_dns_record_t* dnsrec):
             rec_class = ares_dns_rr_get_class(rr)
             ttl = ares_dns_rr_get_ttl(rr)
 
-            try:
-                data = extract_record_data(rr, rec_type)
-                additional_records.append(DNSRecord(
-                    name=name,
-                    type=rec_type,
-                    record_class=rec_class,
-                    ttl=ttl,
-                    data=data
-                ))
-            except (ValueError, Exception):
-                # Skip unsupported record types
-                pass
+            # try:
+            data = extract_record_data(rr, rec_type)
+            additional_records.append(DNSRecord(
+                name=name,
+                type=rec_type,
+                record_class=rec_class,
+                ttl=ttl,
+                data=data
+            ))
+            # except (ValueError, Exception):
+            #     # Skip unsupported record types
+            #     pass
 
     result = DNSResult(
         answer=answer_records,

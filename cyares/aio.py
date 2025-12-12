@@ -20,9 +20,31 @@ import sys
 from asyncio import isfuture
 from collections.abc import Iterable, Sequence
 from logging import getLogger
-from typing import Any, Literal, TypeVar, overload
+from typing import Any, TypeVar
 
-from .channel import *  # type: ignore  # noqa: F403
+from .channel import (
+    QUERY_CLASS_ANY,
+    QUERY_CLASS_CHAOS,
+    QUERY_CLASS_HS,
+    QUERY_CLASS_IN,
+    QUERY_CLASS_NONE,
+    QUERY_TYPE_A,
+    QUERY_TYPE_AAAA,
+    QUERY_TYPE_ANY,
+    QUERY_TYPE_CAA,
+    QUERY_TYPE_CNAME,
+    QUERY_TYPE_HTTPS,
+    QUERY_TYPE_MX,
+    QUERY_TYPE_NAPTR,
+    QUERY_TYPE_NS,
+    QUERY_TYPE_PTR,
+    QUERY_TYPE_SOA,
+    QUERY_TYPE_SRV,
+    QUERY_TYPE_TLSA,
+    QUERY_TYPE_TXT,
+    Channel,
+    cyares_threadsafety,
+)  # type: ignore  # noqa: F403
 from .deprecated_subclass import deprecated_subclass
 from .exception import AresError  # type: ignore
 from .handles import CancelledError, InvalidStateError
@@ -42,18 +64,20 @@ _LOGGER = getLogger(__name__)
 
 
 query_type_map = {
-    "A": QUERY_TYPE_A,
-    "AAAA": QUERY_TYPE_AAAA,
-    "ANY": QUERY_TYPE_ANY,
-    "CAA": QUERY_TYPE_CAA,
-    "CNAME": QUERY_TYPE_CNAME,
-    "MX": QUERY_TYPE_MX,
-    "NAPTR": QUERY_TYPE_NAPTR,
-    "NS": QUERY_TYPE_NS,
-    "PTR": QUERY_TYPE_PTR,
-    "SOA": QUERY_TYPE_SOA,
-    "SRV": QUERY_TYPE_SRV,
-    "TXT": QUERY_TYPE_TXT,
+    "A":QUERY_TYPE_A,
+    "AAAA":QUERY_TYPE_AAAA,
+    "ANY":QUERY_TYPE_ANY,
+    "CAA":QUERY_TYPE_CAA,
+    "CNAME":QUERY_TYPE_CNAME,
+    "HTTPS":QUERY_TYPE_HTTPS,
+    "MX":QUERY_TYPE_MX,
+    "NAPTR":QUERY_TYPE_NAPTR,
+    "NS":QUERY_TYPE_NS,
+    "PTR":QUERY_TYPE_PTR,
+    "SOA":QUERY_TYPE_SOA,
+    "SRV":QUERY_TYPE_SRV,
+    "TLSA":QUERY_TYPE_TLSA,
+    "TXT":QUERY_TYPE_TXT,
 }
 
 query_class_map = {
@@ -335,7 +359,7 @@ class DNSResolver:
 
     def _timer_cb(self) -> None:
         if self._read_fds or self._write_fds:
-            self._channel.process_fd(CYARES_SOCKET_BAD, CYARES_SOCKET_BAD)
+            self._channel.process_no_fds()
             self._start_timer()
         else:
             self._timer = None
@@ -407,54 +431,9 @@ class DNSResolver:
     def nameservers(self, value: Iterable[str | bytes]) -> None:
         self._channel.servers = value
 
-    @overload
-    def query(
-        self, host: str, qtype: Literal["A"], qclass: str | None = ...
-    ) -> asyncio.Future[list[ares_query_a_result]]: ...
-    @overload
-    def query(
-        self, host: str, qtype: Literal["AAAA"], qclass: str | None = ...
-    ) -> asyncio.Future[list[ares_query_aaaa_result]]: ...
-    @overload
-    def query(
-        self, host: str, qtype: Literal["CAA"], qclass: str | None = ...
-    ) -> asyncio.Future[list[ares_query_caa_result]]: ...
-    @overload
-    def query(
-        self, host: str, qtype: Literal["CNAME"], qclass: str | None = ...
-    ) -> asyncio.Future[ares_query_cname_result]: ...
-    @overload
-    def query(
-        self, host: str, qtype: Literal["MX"], qclass: str | None = ...
-    ) -> asyncio.Future[list[ares_query_mx_result]]: ...
-    @overload
-    def query(
-        self, host: str, qtype: Literal["NAPTR"], qclass: str | None = ...
-    ) -> asyncio.Future[list[ares_query_naptr_result]]: ...
-    @overload
-    def query(
-        self, host: str, qtype: Literal["NS"], qclass: str | None = ...
-    ) -> asyncio.Future[list[ares_query_ns_result]]: ...
-    @overload
-    def query(
-        self, host: str, qtype: Literal["PTR"], qclass: str | None = ...
-    ) -> asyncio.Future[list[ares_query_ptr_result]]: ...
-    @overload
-    def query(
-        self, host: str, qtype: Literal["SOA"], qclass: str | None = ...
-    ) -> asyncio.Future[ares_query_soa_result]: ...
-    @overload
-    def query(
-        self, host: str, qtype: Literal["SRV"], qclass: str | None = ...
-    ) -> asyncio.Future[list[ares_query_srv_result]]: ...
-    @overload
-    def query(
-        self, host: str, qtype: Literal["TXT"], qclass: str | None = ...
-    ) -> asyncio.Future[list[ares_query_txt_result]]: ...
-
     def query(
         self, host: str, qtype: str, qclass: str | None = None
-    ) -> asyncio.Future[list[Any]] | asyncio.Future[Any]:
+    ) -> asyncio.Future[DNSResult]:
         try:
             qtype = query_type_map[qtype]
         except KeyError as e:
@@ -470,10 +449,10 @@ class DNSResolver:
 
         return self._wrap_future(self._channel.query(host, qtype, qclass))
 
-    def gethostbyname(
-        self, host: str, family: socket.AddressFamily
-    ) -> asyncio.Future[ares_host_result]:
-        return self._wrap_future(self._channel.gethostbyname(host, family))
+    # def gethostbyname(
+    #     self, host: str, family: socket.AddressFamily
+    # ):
+    #     return self._wrap_future(self._channel.gethostbyname(host, family))
 
     def getaddrinfo(
         self,
@@ -483,7 +462,7 @@ class DNSResolver:
         proto: int = 0,
         type: int = 0,
         flags: int = 0,
-    ) -> asyncio.Future[ares_addrinfo_result]:
+    ) -> asyncio.Future[AddrInfoResult]:
         return self._wrap_future(
             self._channel.getaddrinfo(
                 host, port, family=family, type=type, proto=proto, flags=flags
@@ -492,7 +471,7 @@ class DNSResolver:
 
     def gethostbyaddr(
         self, name: str | bytes | bytearray | memoryview[int]
-    ) -> asyncio.Future[ares_host_result]:
+    ) -> asyncio.Future[AddrInfoResult]:
         return self._wrap_future(self._channel.gethostbyaddr(name))
 
     async def close(self) -> None:
@@ -508,7 +487,7 @@ class DNSResolver:
         self,
         sockaddr: tuple[str, int] | tuple[str, int, int, int],
         flags: int = 0,
-    ) -> asyncio.Future[ares_nameinfo_result]:
+    ) -> asyncio.Future[NameInfoResult]:
         return self._wrap_future(self._channel.getnameinfo(sockaddr, flags))
 
     # Still needs a little bit more work on...

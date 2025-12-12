@@ -23,6 +23,7 @@ cdef extern from "inc/cares_headers.h" nogil:
 /* hepers for ares because hostent sucks and had one job and fails it spectacularly */
 typedef struct hostent hostent_t;
 typedef struct ares_addrinfo ares_addrinfo_t;
+typedef short sa_family_t;
 
 /* wrapper helpers for cython */
 typedef void* (*cyares_amalloc)(size_t size);
@@ -75,23 +76,35 @@ typedef void* (*cyares_arealloc)(void *ptr, size_t size);
     int AF_UNSPEC
 
 
-# /* DNS record types */
+    # /* DNS record types */
     ctypedef enum ares_dns_rec_type_t:
-        ARES_REC_TYPE_A = 1
-        ARES_REC_TYPE_NS = 2
-        ARES_REC_TYPE_CNAME = 5
-        ARES_REC_TYPE_SOA = 6
-        ARES_REC_TYPE_PTR = 12
-        ARES_REC_TYPE_MX = 15
-        ARES_REC_TYPE_TXT = 16
-        ARES_REC_TYPE_AAAA = 28
-        ARES_REC_TYPE_SRV = 33
-        ARES_REC_TYPE_NAPTR = 35
-        ARES_REC_TYPE_TLSA = 52
-        ARES_REC_TYPE_HTTPS = 65
-        ARES_REC_TYPE_CAA = 257
-        ARES_REC_TYPE_URI = 256
-        ARES_REC_TYPE_ANY = 255
+        ARES_REC_TYPE_A     = 1      #/*!< Host address. */
+        ARES_REC_TYPE_NS    = 2      #/*!< Authoritative server. */
+        ARES_REC_TYPE_CNAME = 5      #/*!< Canonical name. */
+        ARES_REC_TYPE_SOA   = 6      #/*!< Start of authority zone. */
+        ARES_REC_TYPE_PTR   = 12     #/*!< Domain name pointer. */
+        ARES_REC_TYPE_HINFO = 13     #/*!< Host information. */
+        ARES_REC_TYPE_MX    = 15     #/*!< Mail routing information. */
+        ARES_REC_TYPE_TXT   = 16     #/*!< Text strings. */
+        ARES_REC_TYPE_SIG   = 24     #/*!< RFC 2535 / RFC 2931. SIG Record */
+        ARES_REC_TYPE_AAAA  = 28     #/*!< RFC 3596. Ip6 Address. */
+        ARES_REC_TYPE_SRV   = 33     #/*!< RFC 2782. Server Selection. */
+        ARES_REC_TYPE_NAPTR = 35     #/*!< RFC 3403. Naming Authority Pointer */
+        ARES_REC_TYPE_OPT   = 41     #/*!< RFC 6891. EDNS0 option (meta-RR) */
+        
+        ARES_REC_TYPE_TLSA = 52      #/*!< RFC 6698. DNS-Based Authentication of Named
+                                     # *   Entities (DANE) Transport Layer Security
+                                     # *   (TLS) Protocol: TLSA */
+        ARES_REC_TYPE_SVCB  = 64     #/*!< RFC 9460. General Purpose Service Binding */
+        ARES_REC_TYPE_HTTPS = 65     #/*!< RFC 9460. Service Binding type for use with
+                                     # *   HTTPS */
+        ARES_REC_TYPE_ANY = 255      #/*!< Wildcard match.  Not response RR. */
+        ARES_REC_TYPE_URI = 256      #/*!< RFC 7553. Uniform Resource Identifier */
+        ARES_REC_TYPE_CAA = 257      #/*!< RFC 6844. Certification Authority
+                                     # *   Authorization. */
+        ARES_REC_TYPE_RAW_RR = 65536 #/*!< Used as an indicator that the RR record
+                                     # *   is not parsed, but provided in wire
+                                     # *   format */
 
     # DNS classes
     ctypedef enum ares_dns_class_t:
@@ -161,6 +174,11 @@ typedef void* (*cyares_arealloc)(void *ptr, size_t size);
         # /* CNAME record */
         ARES_RR_CNAME_CNAME = 1
 
+        # /* SIG Record */
+
+        # /* HINFO Record */
+
+
         # /* SOA record */
         ARES_RR_SOA_MNAME = 1
         ARES_RR_SOA_RNAME = 2
@@ -214,6 +232,33 @@ typedef void* (*cyares_arealloc)(void *ptr, size_t size);
         ARES_RR_URI_PRIORITY = 25601
         ARES_RR_URI_WEIGHT = 25602
         ARES_RR_URI_TARGET = 25603
+
+        # Isn't in pycares yet, found it while debugging...
+        # /* OPT Record */
+        ARES_RR_OPT_UDP_SIZE = 4101
+        ARES_RR_OPT_VERSION = 4103
+        ARES_RR_OPT_FLAGS = 4104
+        ARES_RR_OPT_OPTIONS = 4105
+
+        # /* SIG Record */
+        ARES_RR_SIG_TYPE_COVERED  = 2401
+        ARES_RR_SIG_ALGORITHM = 2402
+        ARES_RR_SIG_LABELS = 2403
+        ARES_RR_SIG_ORIGINAL_TTL = 2404,
+        ARES_RR_SIG_EXPIRATION = 2405,
+        ARES_RR_SIG_INCEPTION = 2406,
+        ARES_RR_SIG_KEY_TAG = 2407,
+        # /*! SIG Record. Signers Name. Datatype: NAME */
+        ARES_RR_SIG_SIGNERS_NAME = 2408,
+        # /*! SIG Record. Signature. Datatype: BIN */
+        ARES_RR_SIG_SIGNATURE = 2409,
+
+
+        #  /* SVCB Record */
+        ARES_RR_SVCB_PRIORITY = 6401
+        ARES_RR_SVCB_TARGET = 6402
+        ARES_RR_SVCB_PARAMS = 6403
+
 
 
     # /* Opaque DNS record structures */

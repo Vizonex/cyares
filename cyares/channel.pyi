@@ -5,27 +5,9 @@ from typing import Callable, Literal, overload
 
 from .handles import Future
 from .resulttypes import (
-    AAAARecordData,
-    AddrInfoCname,
-    AddrInfoNode,
     AddrInfoResult,
-    ARecordData,
-    CAARecordData,
-    CNAMERecordData,
-    DNSRecord,
     DNSResult,
-    HostResult,
-    HTTPSRecordData,
-    MXRecordData,
     NameInfoResult,
-    NAPTRRecordData,
-    NSRecordData,
-    PTRRecordData,
-    SOARecordData,
-    SRVRecordData,
-    TLSARecordData,
-    TXTRecordData,
-    URIRecordData,
 )
 
 if sys.version_info < (3, 11):
@@ -36,26 +18,70 @@ else:
 CYARES_SOCKET_BAD: int = ...
 
 # Query types
-QUERY_TYPE_A = 1
-QUERY_TYPE_NS = 2
-QUERY_TYPE_CNAME = 5
-QUERY_TYPE_SOA = 6
-QUERY_TYPE_PTR = 12
-QUERY_TYPE_MX = 15
-QUERY_TYPE_TXT = 16
-QUERY_TYPE_AAAA = 28
-QUERY_TYPE_SRV = 33
-QUERY_TYPE_NAPTR = 35
-QUERY_TYPE_TLSA = 52
-QUERY_TYPE_HTTPS = 65
-QUERY_TYPE_CAA = 257
-QUERY_TYPE_URI = 256
-QUERY_TYPE_ANY = 255
+
+QUERY_TYPE_A     = 1      #/*!< Host address. */
+QUERY_TYPE_NS    = 2      #/*!< Authoritative server. */
+QUERY_TYPE_CNAME = 5      #/*!< Canonical name. */
+QUERY_TYPE_SOA   = 6      #/*!< Start of authority zone. */
+QUERY_TYPE_PTR   = 12     #/*!< Domain name pointer. */
+QUERY_TYPE_HINFO = 13     #/*!< Host information. */
+QUERY_TYPE_MX    = 15     #/*!< Mail routing information. */
+QUERY_TYPE_TXT   = 16     #/*!< Text strings. */
+QUERY_TYPE_SIG   = 24     #/*!< RFC 2535 / RFC 2931. SIG Record */
+QUERY_TYPE_AAAA  = 28     #/*!< RFC 3596. Ip6 Address. */
+QUERY_TYPE_SRV   = 33     #/*!< RFC 2782. Server Selection. */
+QUERY_TYPE_NAPTR = 35     #/*!< RFC 3403. Naming Authority Pointer */
+QUERY_TYPE_OPT   = 41     #/*!< RFC 6891. EDNS0 option (meta-RR) */
+
+QUERY_TYPE_TLSA = 52      #/*!< RFC 6698. DNS-Based Authentication of Named
+                                     # *   Entities (DANE) Transport Layer Security
+                                     # *   (TLS) Protocol: TLSA */
+QUERY_TYPE_SVCB  = 64     #/*!< RFC 9460. General Purpose Service Binding */
+QUERY_TYPE_HTTPS = 65     #/*!< RFC 9460. Service Binding type for use with
+                                     # *   HTTPS */
+QUERY_TYPE_ANY = 255      #/*!< Wildcard match.  Not response RR. */
+QUERY_TYPE_URI = 256      #/*!< RFC 7553. Uniform Resource Identifier */
+QUERY_TYPE_CAA = 257      #/*!< RFC 6844. Certification Authority
+
 
 QUERY_TYPES_INT = Literal[
-    1, 2, 5, 6, 12, 15, 16, 28, 33, 35, 52, 65, 257, 256, 255,
-    "A", "NS", "CNAME", "SOA", "PTR", "MX", "TXT", "AAAA",
-    "SRV", "NAPTR", "TLSA", "HTTPS", "CAA", "URI", "ANY"
+    1,
+    2,
+    5,
+    6,
+    12,
+    13,
+    15,
+    16,
+    24,
+    28,
+    33,
+    35,
+    41,
+    52,
+    64,
+    65,
+    257,
+    256,
+    255,
+    "A",
+    "NS",
+    "CNAME",
+    "SOA",
+    "PTR",
+    "MX",
+    "TXT",
+    "AAAA",
+    "SRV",
+    "SIG",
+    "OPT",
+    "SVCB",
+    "NAPTR",
+    "TLSA",
+    "HTTPS",
+    "CAA",
+    "URI",
+    "ANY",
 ]
 
 # Query classes
@@ -65,6 +91,34 @@ ARES_CLASS_HESOID = 4
 ARES_CLASS_NONE = 254
 ARES_CLASS_ANY = 255
 
+NI_NOFQDN: int
+NI_NUMERICHOST: int
+NI_NAMEREQD: int
+NI_NUMERICSERV: int
+NI_DGRAM: int
+NI_TCP: int
+NI_UDP: int
+NI_SCTP: int
+NI_DCCP: int
+NI_NUMERICSCPE: int
+NI_LOOKUPHOST: int
+NI_LOOKUPSERVICE: int
+NI_IDN: int
+NI_IDN_ALLOW_UNASSIGNED: int
+NI_IDN_USE_STD3_ASCII_RULES: int
+
+AI_CANONNAME: int  # CANONNAME
+AI_NUMERICHOST: int  # NUMERICHOST
+AI_PASSIVE: int  # PASSIVE
+AI_NUMERICSERV: int  # NUMERICSERV
+AI_V4MAPPED: int  # V4MAPPED
+AI_ALL: int  # ALL
+AI_ADDRCONFIG: int  # ADDRCONFIG
+AI_IDN: int  # IDN
+AI_IDN_ALLOW_UNASSIGNED: int  # IDN_ALLOW_UNASSIGNED
+AI_IDN_USE_STD3_ASCII_RULES: int  # IDN_USE_STD3_ASCII_RULES
+AI_CANONIDN: int  # CANONIDN
+AI_MASK: int  # MASK
 
 class Channel:
     event_thread: bool
@@ -72,7 +126,6 @@ class Channel:
     This is good for when you plan to make event-thread optional in a user
     program
     """
-
 
     def __init__(
         self,
@@ -94,52 +147,104 @@ class Channel:
         resolvconf_path: str | bytes | None = None,
         event_thread: bool = False,
     ) -> None: ...
-
     def query(
         self,
         name: str | bytes | bytearray | memoryview[int],
         query_type: Literal[
-    1, 2, 5, 6, 12, 15, 16, 28, 33, 35, 52, 65, 257, 256, 255,
-    "A", "NS", "CNAME", "SOA", "PTR", "MX", "TXT", "AAAA",
-    "SRV", "NAPTR", "TLSA", "HTTPS", "CAA", "URI", "ANY"],
+            1,
+            2,
+            5,
+            6,
+            12,
+            15,
+            16,
+            28,
+            33,
+            35,
+            52,
+            65,
+            257,
+            256,
+            255,
+            "A",
+            "NS",
+            "CNAME",
+            "SOA",
+            "PTR",
+            "MX",
+            "TXT",
+            "AAAA",
+            "SRV",
+            "NAPTR",
+            "TLSA",
+            "HTTPS",
+            "CAA",
+            "URI",
+            "ANY",
+        ],
         callback: Callable[[Future[DNSResult]], None] | None = ...,
         query_class: str | int | None = ...,
     ) -> Future[DNSResult]: ...
-    
     def search(
         self,
         name: str | bytes | bytearray | memoryview[int],
         query_type: Literal[
-    1, 2, 5, 6, 12, 15, 16, 28, 33, 35, 52, 65, 257, 256, 255,
-    "A", "NS", "CNAME", "SOA", "PTR", "MX", "TXT", "AAAA",
-    "SRV", "NAPTR", "TLSA", "HTTPS", "CAA", "URI", "ANY"],
+            1,
+            2,
+            5,
+            6,
+            12,
+            15,
+            16,
+            28,
+            33,
+            35,
+            52,
+            65,
+            257,
+            256,
+            255,
+            "A",
+            "NS",
+            "CNAME",
+            "SOA",
+            "PTR",
+            "MX",
+            "TXT",
+            "AAAA",
+            "SRV",
+            "NAPTR",
+            "TLSA",
+            "HTTPS",
+            "CAA",
+            "URI",
+            "ANY",
+        ],
         callback: Callable[[Future[DNSResult]], None] | None = ...,
         query_class: str | int | None = ...,
     ) -> Future[DNSResult]: ...
-
     @property
     def servers(self) -> list[str]: ...
     @servers.setter
     def servers(self, servers: list[str]) -> None: ...
-    
     def cancel(self) -> None:
         """
         cancels all lookups/requests made on the the
         name service channel identified by channel
-        invokes the callbacks for each pending query 
-        and calls back to all Peninding future objects 
+        invokes the callbacks for each pending query
+        and calls back to all Peninding future objects
         as being cancelled...
-        """ 
-    
+        """
+
     def reinit(self) -> None:
         r"""
         Reinitializes a resolver channel from system configuration.
-        Any existing queries will be automatically requeued if the server 
+        Any existing queries will be automatically requeued if the server
         they are currently assigned to is removed from the system configuration.
 
         This function may cause additional file descriptors to be created, and existing
         ones to be destroyed if server configuration has changed.
-        
+
         :raises AresError: raised if one of 2 things had occurred
             `ARES_EFILE`: A configuration file could not be read.
             `ARES_ENOMEM`: No Memory avalible for use...
@@ -148,7 +253,6 @@ class Channel:
     def __enter__(self) -> Self: ...
     def __exit__(self, *args) -> None: ...
     def process_fd(self, read_fd: int, write_fd: int) -> None: ...
-
     def process_read_fd(self, read_fd: int) -> None:
         """
         processes readable file-descriptor instead of needing to remember
@@ -163,6 +267,12 @@ class Channel:
         to set read-fd to `CYARES_SOCKET_BAD`
 
         :param write_fd: the writeable file descriptor
+        """
+
+    def process_no_fds(self) -> None:
+        """
+        processes no file descriptors assuming both read-fd and write-fd 
+        are `CYARES_SOCKET_BAD`
         """
 
     def getaddrinfo(
@@ -181,16 +291,13 @@ class Channel:
         flags: int,
         callback: Callable[[Future[NameInfoResult]], None] | None = ...,
     ) -> Future[NameInfoResult]: ...
-    
     def gethostbyaddr(
         self,
         name: str | bytes | bytearray | memoryview[int],
         callback: Callable[[Future[AddrInfoResult]], None] | None = ...,
     ) -> Future[AddrInfoResult]: ...
-
     def set_local_dev(self, dev: str | bytes | bytearray | memoryview[int]) -> None: ...
     def set_local_ip(self, ip: str | bytes | bytearray | memoryview[int]) -> None: ...
-    
     @overload
     def timeout(self) -> float: ...
     def timeout(self, t: float = ...) -> float: ...
@@ -204,25 +311,24 @@ class Channel:
             this object will be rounded to milliseconds
 
         :raises TypeError: if object is not None or an `int` or `float`
-        :raises ValueError: if the timeout is less than 0, default runs until 
+        :raises ValueError: if the timeout is less than 0, default runs until
             all cancelled or closed
         :type timeout: float | int | None
         :return: Description
         :rtype: bool
         """
-        
+
     @property
     def running_queries(self) -> int:
         """
-        obtains active number of queries that are currently 
+        obtains active number of queries that are currently
         running. This property is immutable.
 
-        :return: the current number of active queries called 
-            from `ares_queue_active_queries` 
+        :return: the current number of active queries called
+            from `ares_queue_active_queries`
         :rtype: int
         :raises ValueError: if value is attempted to be set
         """
-
 
 def cyares_threadsafety() -> bool:
     """

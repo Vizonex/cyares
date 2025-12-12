@@ -163,7 +163,6 @@ cdef void __callback_dns_rec__any(
     cdef size_t i, size
     cdef const ares_dns_rr_t *rr = NULL
     cdef DNSResult records
-    cdef ares_dns_rec_type_t rt
     cdef Future handle = <Future>arg
    
     if __cancel_check(status, handle):

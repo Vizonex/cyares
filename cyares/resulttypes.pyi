@@ -94,6 +94,36 @@ class TLSARecordData:
     matching_type: int
     cert_association_data: bytes
 
+
+
+@dataclass
+class OPTRecordData:
+    """Data for Opt Record - RFC 6891. EDNS0 option (meta-RR)"""
+    udp_size: int
+    version: int
+    flags: int
+    options: list[tuple[int, str]]
+
+@dataclass
+class SIGRecordData:
+    """Data for SIG Record - RFC 2535 / RFC 2931."""
+    type_covered: int
+    algorithm: int
+    labels: int
+    original_ttl: int
+    expiration: int
+    inception: int
+    key_tag: int
+    signers_name: bytes
+    signature: str
+
+@dataclass
+class SVCBRecordData:
+    priority:int
+    target:str
+    options: list[tuple[int, str]]
+
+
 @dataclass
 class HTTPSRecordData:
     """Data for HTTPS (service binding) record - RFC 9460"""
@@ -133,6 +163,8 @@ class DNSRecord:
         | SRVRecordData
         | TLSARecordData
         | URIRecordData
+        | OPTRecordData
+        | SIGRecordData
     )
 
 @dataclass
@@ -187,7 +219,6 @@ class AddrInfoResult:
 
     cnames: list[AddrInfoCname]
     nodes: list[AddrInfoNode]
-
 
 # Ruff has this annoying obession with __all__ for some strange reason...
 __all__ = (

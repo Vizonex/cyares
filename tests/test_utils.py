@@ -1,5 +1,6 @@
-from socket import htons, htonl
-from cyares.channel import __htons, __htonl  # type: ignore
+from socket import htonl, htons
+
+from cyares.channel import __htonl, __htons  # type: ignore
 
 
 def test_cyares_htons() -> None:

@@ -11,16 +11,37 @@ from __future__ import annotations
 
 import socket
 from collections.abc import Callable, Iterable, Sequence
-from concurrent.futures import Future as ccFuture
 from types import GenericAlias
-from typing import Any, Generic, Literal, TypeVar, overload
+from typing import Generic, TypeVar
 
 import trio
 from trio.lowlevel import current_clock, current_trio_token
 
-from .channel import *  # noqa: F403
+from .channel import (
+    QUERY_CLASS_ANY,
+    QUERY_CLASS_CHAOS,
+    QUERY_CLASS_HS,
+    QUERY_CLASS_IN,
+    QUERY_CLASS_NONE,
+    QUERY_TYPE_A,
+    QUERY_TYPE_AAAA,
+    QUERY_TYPE_ANY,
+    QUERY_TYPE_CAA,
+    QUERY_TYPE_CNAME,
+    QUERY_TYPE_HTTPS,
+    QUERY_TYPE_MX,
+    QUERY_TYPE_NAPTR,
+    QUERY_TYPE_NS,
+    QUERY_TYPE_PTR,
+    QUERY_TYPE_SOA,
+    QUERY_TYPE_SRV,
+    QUERY_TYPE_TLSA,
+    QUERY_TYPE_TXT,
+    Channel,
+)
 from .deprecated_subclass import deprecated_subclass
-from .resulttypes import *  # noqa: F403
+from .handles import Future as ccFuture
+from .resulttypes import AddrInfoResult, DNSResult, HostResult, NameInfoResult
 
 try:
     _wait_readable = trio.lowlevel.wait_readable
@@ -89,6 +110,8 @@ query_type_map = {
     "SOA": QUERY_TYPE_SOA,
     "SRV": QUERY_TYPE_SRV,
     "TXT": QUERY_TYPE_TXT,
+    "HTTPS":QUERY_TYPE_HTTPS,
+    "TLSA": QUERY_TYPE_TLSA
 }
 
 query_class_map = {
@@ -245,7 +268,7 @@ class DNSResolver:
 
     def _timer_cb(self) -> None:
         if self._read_fds or self._write_fds:
-            self._channel.process_fd(CYARES_SOCKET_BAD, CYARES_SOCKET_BAD)
+            self._channel.process_no_fds()
             self._start_timer()
         else:
             timer = self._timer
@@ -294,54 +317,9 @@ class DNSResolver:
     def nameservers(self, value: Iterable[str | bytes]) -> None:
         self._channel.servers = value
 
-    @overload
-    def query(
-        self, host: str, qtype: Literal["A"], qclass: str | None = ...
-    ) -> Future[list[ares_query_a_result]]: ...
-    @overload
-    def query(
-        self, host: str, qtype: Literal["AAAA"], qclass: str | None = ...
-    ) -> Future[list[ares_query_aaaa_result]]: ...
-    @overload
-    def query(
-        self, host: str, qtype: Literal["CAA"], qclass: str | None = ...
-    ) -> Future[list[ares_query_caa_result]]: ...
-    @overload
-    def query(
-        self, host: str, qtype: Literal["CNAME"], qclass: str | None = ...
-    ) -> Future[ares_query_cname_result]: ...
-    @overload
-    def query(
-        self, host: str, qtype: Literal["MX"], qclass: str | None = ...
-    ) -> Future[list[ares_query_mx_result]]: ...
-    @overload
-    def query(
-        self, host: str, qtype: Literal["NAPTR"], qclass: str | None = ...
-    ) -> Future[list[ares_query_naptr_result]]: ...
-    @overload
-    def query(
-        self, host: str, qtype: Literal["NS"], qclass: str | None = ...
-    ) -> Future[list[ares_query_ns_result]]: ...
-    @overload
-    def query(
-        self, host: str, qtype: Literal["PTR"], qclass: str | None = ...
-    ) -> Future[list[ares_query_ptr_result]]: ...
-    @overload
-    def query(
-        self, host: str, qtype: Literal["SOA"], qclass: str | None = ...
-    ) -> Future[ares_query_soa_result]: ...
-    @overload
-    def query(
-        self, host: str, qtype: Literal["SRV"], qclass: str | None = ...
-    ) -> Future[list[ares_query_srv_result]]: ...
-    @overload
-    def query(
-        self, host: str, qtype: Literal["TXT"], qclass: str | None = ...
-    ) -> Future[list[ares_query_txt_result]]: ...
-
     def query(
         self, host: str, qtype: str, qclass: str | None = None
-    ) -> Future[list[Any]] | Future[Any]:
+    ) -> Future[DNSResult]:
         try:
             qtype = query_type_map[qtype]
         except KeyError as e:
@@ -359,7 +337,7 @@ class DNSResolver:
 
     def gethostbyname(
         self, host: str, family: socket.AddressFamily
-    ) -> Future[ares_host_result]:
+    ) -> Future[HostResult]:
         return self._wrap_future(self._channel.gethostbyname(host, family))
 
     def getaddrinfo(
@@ -370,7 +348,7 @@ class DNSResolver:
         proto: int = 0,
         type: int = 0,
         flags: int = 0,
-    ) -> Future[ares_addrinfo_result]:
+    ) -> Future[AddrInfoResult]:
         return self._wrap_future(
             self._channel.getaddrinfo(
                 host, port, family=family, type=type, proto=proto, flags=flags
@@ -379,7 +357,7 @@ class DNSResolver:
 
     def gethostbyaddr(
         self, name: str | bytes | bytearray | memoryview
-    ) -> Future[ares_host_result]:
+    ) -> Future[AddrInfoResult]:
         return self._wrap_future(self._channel.gethostbyaddr(name))
 
     async def close(self) -> None:
@@ -395,7 +373,7 @@ class DNSResolver:
         self,
         sockaddr: tuple[str, int] | tuple[str, int, int, int],
         flags: int = 0,
-    ) -> Future[ares_nameinfo_result]:
+    ) -> Future[NameInfoResult]:
         return self._wrap_future(self._channel.getnameinfo(sockaddr, flags))
 
     def _wrap_future(self, fut: ccFuture[_T]) -> Future[_T]:
