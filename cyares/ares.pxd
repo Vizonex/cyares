@@ -23,7 +23,6 @@ cdef extern from "inc/cares_headers.h" nogil:
 /* hepers for ares because hostent sucks and had one job and fails it spectacularly */
 typedef struct hostent hostent_t;
 typedef struct ares_addrinfo ares_addrinfo_t;
-typedef short sa_family_t;
 
 /* wrapper helpers for cython */
 typedef void* (*cyares_amalloc)(size_t size);
@@ -33,7 +32,6 @@ typedef void* (*cyares_arealloc)(void *ptr, size_t size);
     ctypedef int h_addrtype_t
     ctypedef long suseconds_t
     ctypedef int h_length_t
-    ctypedef short sa_family_t
     ctypedef uint16_t in_port_t
 
     struct in_addr:
