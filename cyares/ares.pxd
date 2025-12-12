@@ -32,6 +32,7 @@ typedef void* (*cyares_arealloc)(void *ptr, size_t size);
     ctypedef int h_addrtype_t
     ctypedef long suseconds_t
     ctypedef int h_length_t
+    ctypedef short sa_family_t
     ctypedef uint16_t in_port_t
 
     struct in_addr:
