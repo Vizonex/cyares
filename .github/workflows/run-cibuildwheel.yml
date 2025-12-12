@@ -27,7 +27,7 @@ jobs:
           - name: Windows arm64
             os: windows-11-arm
           - name: macOS x86_64
-            os: macos-13
+            os: macos-14
           - name: macOS arm64
             os: macos-latest
           - name: Linux
