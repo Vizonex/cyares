@@ -514,7 +514,7 @@ cdef TLSARecordData parse_tlsa_record_data(const ares_dns_rr_t* rr):
 
 cdef list _extract_opt_params(const ares_dns_rr_t* rr, ares_dns_rr_key_t key):
     # """Extract OPT params as list of (key, value) tuples for HTTPS/SVCB records."""
-    cdef unsigned char* val_ptr
+    cdef const unsigned char* val_ptr
     cdef str val
     cdef size_t val_len
     cdef size_t opt_cnt = ares_dns_rr_get_opt_cnt(rr, key)
