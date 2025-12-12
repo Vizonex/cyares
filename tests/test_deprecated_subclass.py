@@ -1,4 +1,3 @@
-from warnings import catch_warnings
 
 import pytest
 

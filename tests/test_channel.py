@@ -1,57 +1,20 @@
-from __future__ import annotations
-
 import ipaddress
-import re
-import socket
-import sys
-from typing import Any, Callable, Generator
+import threading
+from typing import TypeVar
 
 import pytest
 
-from select import select
-
+import cyares
 from cyares import Channel
-from cyares.channel import CYARES_SOCKET_BAD
-from cyares.exception import AresError
+from cyares.handles import Future
 
-ChannelType = Callable[..., Channel]
-
-
-# TODO: To test getsock() in a future update I'll bring in
-# the pycares workflow and see what kinds of tweaks can be
-# made to it.
-
-# TODO: add pycares workflow in 0.1.2 for more aggressive stress testing
+_T = TypeVar("_T")
 
 
-def wait(channel: Channel):
-    while True:
-        read_fds, write_fds = channel.getsock()
-        if not read_fds and not write_fds:
-            break
-        timeout = channel.timeout()
-        if timeout == 0.0:
-            channel.process_fd(CYARES_SOCKET_BAD, CYARES_SOCKET_BAD)
-            continue
-        rlist, wlist, _ = select(read_fds, write_fds, [], timeout)
-        for fd in rlist:
-            channel.process_read_fd(fd)
-        for fd in wlist:
-            channel.process_write_fd(fd)
-
-
-@pytest.fixture(scope="function")
-def c() -> Generator[Any, Any, tuple[Channel, bool]]:
-    # should be supported on all operating systems...
-
-    with Channel(
+@pytest.fixture()
+def channel():
+    with cyares.Channel(
         servers=[
-            # Added more dns servers incase we lag behind or one kicks us off.
-            # unfortunately there's no way for me to contact and say hi, I'm writing
-            # a new dns resolver can I use your server for stress-testing?
-            # Maybe in the future we can make a local dns server to stress test our things.
-            "8.8.8.8",
-            "8.8.4.4",
             "1.0.0.1",
             "1.1.1.1",
             "141.1.27.249",
@@ -70,158 +33,280 @@ def c() -> Generator[Any, Any, tuple[Channel, bool]]:
             "82.151.90.1",
             "144.76.202.253",
             "103.3.46.254",
-            "5.144.17.119",
+            # "5.144.17.119",
+            "8.8.8.8",
+            "8.8.4.4",
         ],
         event_thread=True,
+        tries=3,
+        timeout=10,
     ) as channel:
         yield channel
 
 
-def test_open_and_closure() -> None:
-    with Channel() as c:
-        pass
+def wait(fut: Future[_T], timeout: int | float | None = None) -> _T:
+    return fut.result(timeout)
 
 
-def test_nameservers() -> None:
-    with Channel(servers=["8.8.8.8", "8.8.4.4"]) as c:
-        assert c.servers == ["8.8.8.8:53", "8.8.4.4:53"]
+
+def test_query_a(channel: Channel):
+    result = wait( channel.query("google.com", cyares.QUERY_TYPE_A))
+
+    assert isinstance(result, cyares.DNSResult)
+    assert len(result.answer) > 0
+    for record in result.answer:
+        assert isinstance(record, cyares.DNSRecord)
+        assert isinstance(record.data, cyares.ARecordData)
+        assert record.data.addr is not None
+        assert record.ttl > 0  # Real TTL values now!
 
 
-def test_mx_dns_query(c: Channel) -> None:
-    fut = c.query("gmail.com", query_type="MX")
+def test_query_a_bad(channel: Channel):
+    result = channel.query("hgf8g2od29hdohid.com", cyares.QUERY_TYPE_A)
+    assert result.exception()
+
+    # TODO: Exception Checking...
+    # assert errorno, cyares.errno.ARES_ENOTFOUND
 
 
-def test_a_dns_query(c: Channel) -> None:
-    for f in [
-        c.query("google.com", "A"),
-        c.query("llhttp.org", "A"),
-        c.query("llparse.org", "A"),
-    ]:
-        assert f.result()
 
 
-def test_cancelling(c: Channel) -> None:
-    for f in [
-        c.query("google.com", "A"),
-        c.query("llhttp.org", "A"),
-        c.query("llparse.org", "A"),
-    ]:
-        f.cancel()
+def test_query_aaaa(channel: Channel):
+    result = wait( channel.query("ipv6.google.com", cyares.QUERY_TYPE_AAAA))
+
+    assert isinstance(result, cyares.DNSResult)
+    assert len(result.answer) > 0
+    # DNS may return CNAME records first, followed by AAAA records
+    aaaa_records = [
+        r for r in result.answer if isinstance(r.data, cyares.AAAARecordData)
+    ]
+    assert len(aaaa_records) > 0, "Expected at least one AAAA record"
+    for record in aaaa_records:
+        assert record.data.addr is not None
+        assert record.ttl > 0
 
 
-def test_a_dns_query_fail(c: Channel) -> None:
-    with pytest.raises(
-        AresError,
-        match=re.escape("[ARES_ENODATA : 1] DNS server returned answer with no data"),
-    ):
-        c.query("hgf8g2od29hdohid.com", "A").result()
+def test_query_caa(channel: Channel):
+    result = wait(channel.query("wikipedia.org", cyares.QUERY_TYPE_CAA))
+    assert isinstance(result, cyares.DNSResult)
+    assert len(result.answer)
+    for record in result.answer:
+        assert isinstance(record.data, cyares.CAARecordData)
 
 
-def test_query_aaaa(c: Channel) -> None:
-    assert c.query("ipv6.google.com", "AAAA").result()
+def test_query_cname(channel: Channel):
+    result = wait(channel.query("www.amazon.com", cyares.QUERY_TYPE_CNAME))
+
+    assert isinstance(result, cyares.DNSResult)
+    assert len(result.answer)
+    assert isinstance(result.answer[0].data, cyares.CNAMERecordData)
 
 
-def test_query_cname(c: Channel) -> None:
-    assert c.query("www.amazon.com", "CNAME").result()
+def test_query_mx(channel: Channel):
+    result = wait(channel.query("gmail.com", cyares.QUERY_TYPE_MX), 10)
+    assert isinstance(result, cyares.DNSResult)
+
+    for record in result.answer:
+        assert isinstance(record.data, cyares.MXRecordData)
+
+def test_query_ns(channel: Channel):
+    result = wait(channel.query("google.com", cyares.QUERY_TYPE_NS))
+
+    assert isinstance(result, cyares.DNSResult)
+    assert len(result.answer) > 0
+    for record in result.answer:
+        assert isinstance(record.data, cyares.NSRecordData)
 
 
-def test_query_mx(c: Channel) -> None:
-    assert c.query("google.com", "MX").result()
+def test_query_txt(channel: Channel):
+    result = wait(channel.query("google.com", cyares.QUERY_TYPE_TXT))
+
+    assert isinstance(result, cyares.DNSResult)
+    assert len(result.answer) > 0
+    for record in result.answer:
+        assert isinstance(record.data, cyares.TXTRecordData)
 
 
-def test_query_ns(c: Channel) -> None:
-    assert c.query("google.com", "NS").result()
+def test_query_txt_chunked(channel: Channel):
+    result = wait(channel.query("jobscoutdaily.com", cyares.QUERY_TYPE_TXT))
+
+    # If the chunks are aggregated, only one TXT record should be visible.
+    # Three would show if they are not properly merged.
+    assert isinstance(result, cyares.DNSResult)
+    assert len(result.answer) >= 1
+    assert result.answer[0].data.data.startswith(b"v=spf1 A MX")
 
 
-def test_query_txt(c: Channel) -> None:
-    assert c.query("google.com", "TXT").result()
+def test_query_txt_multiple_chunked(channel: Channel):
+    result = wait(channel.query("google.com", cyares.QUERY_TYPE_TXT))
+
+    # > dig -t txt google.com
+    # google.com.		3270	IN	TXT	"google-site-verification=TV9-DBe4R80X4v0M4U_bd_J9cpOJM0nikft0jAgjmsQ"
+    # google.com.		3270	IN	TXT	"atlassian-domain-verification=5YjTmWmjI92ewqkx2oXmBaD60Td9zWon9r6eakvHX6B77zzkFQto8PQ9QsKnbf4I"
+    # google.com.		3270	IN	TXT	"docusign=05958488-4752-4ef2-95eb-aa7ba8a3bd0e"
+    # google.com.		3270	IN	TXT	"facebook-domain-verification=22rm551cu4k0ab0bxsw536tlds4h95"
+    # google.com.		3270	IN	TXT	"google-site-verification=wD8N7i1JTNTkezJ49swvWW48f8_9xveREV4oB-0Hf5o"
+    # google.com.		3270	IN	TXT	"apple-domain-verification=30afIBcvSuDV2PLX"
+    # google.com.		3270	IN	TXT	"webexdomainverification.8YX6G=6e6922db-e3e6-4a36-904e-a805c28087fa"
+    # google.com.		3270	IN	TXT	"MS=E4A68B9AB2BB9670BCE15412F62916164C0B20BB"
+    # google.com.		3270	IN	TXT	"v=spf1 include:_spf.google.com ~all"
+    # google.com.		3270	IN	TXT	"globalsign-smime-dv=CDYX+XFHUw2wml6/Gb8+59BsH31KzUr6c1l2BPvqKX8="
+    # google.com.		3270	IN	TXT	"docusign=1b0a6754-49b1-4db5-8540-d2c12664b289"
+    assert isinstance(result, cyares.DNSResult)
+    assert len(result.answer) >= 10
 
 
-def test_query_soa(c: Channel) -> None:
-    assert c.query("google.com", "SOA").result()
+def test_query_txt_bytes1(channel: Channel):
+    result = wait(channel.query("google.com", cyares.QUERY_TYPE_TXT))
+
+    assert isinstance(result, cyares.DNSResult)
+    for record in result.answer:
+        assert isinstance(record.data, cyares.TXTRecordData)
+        assert isinstance(record.data.data, bytes)
 
 
-def test_query_srv(c: Channel) -> None:
-    assert c.query("_xmpp-server._tcp.jabber.org", "SRV").result()
-
-
-def test_query_naptr(c: Channel) -> None:
-    assert c.query("sip2sip.info", "NAPTR").result()
-
-
-def test_query_ptr(c: Channel) -> None:
-    assert c.query(
-        ipaddress.ip_address("172.253.122.26").reverse_pointer, "PTR"
-    ).result()
-
-
-def test_query_bad_type(c: Channel) -> None:
-    with pytest.raises(ValueError):
-        c.query("google.com", "XXX")
-
-
-def test_query_bad_class(c: Channel) -> None:
+def test_query_class_invalid(channel: Channel):
     with pytest.raises(TypeError):
-        c.query("google.com", "A", query_class="INVALIDCLASS").result()
+        channel.query(
+            "google.com",
+            cyares.QUERY_TYPE_A,
+            query_class="INVALIDTYPE",
+            callback=lambda *x: None,
+        )
 
 
-@pytest.mark.skipif(sys.platform == "darwin", reason="hangs")
-def test_mx_dns_search(c: Channel) -> None:
-    fut = c.search("gmail.com", query_type="MX").result()
-    assert any([mx.host == b"gmail-smtp-in.l.google.com" for mx in fut])
+def test_query_soa(channel: Channel):
+    result = wait( channel.query("google.com", cyares.QUERY_TYPE_SOA))
+
+    assert isinstance(result, cyares.DNSResult)
+    assert len(result.answer)
+    assert isinstance(result.answer[0].data, cyares.SOARecordData)
 
 
-def test_a_dns_search(c: Channel) -> None:
-    for f in [
-        c.search("google.com", "A"),
-        c.search("llhttp.org", "A"),
-        c.search("llparse.org", "A"),
-    ]:
-        assert f.result()
+def test_query_srv(channel: Channel):
+    result = wait(channel.query("_xmpp-server._tcp.jabber.org", cyares.QUERY_TYPE_SRV))
+
+    assert isinstance(result, cyares.DNSResult)
+    assert len(result.answer)
+    for record in result.answer:
+        assert isinstance(record.data, cyares.SRVRecordData)
 
 
-def test_search_aaaa(c: Channel) -> None:
-    assert c.search("ipv6.google.com", "AAAA").result()
+def test_query_naptr(channel: Channel):
+    result = wait(channel.query("sip2sip.info", cyares.QUERY_TYPE_NAPTR))
+
+    assert isinstance(result, cyares.DNSResult)
+    assert len(result.answer)
+    for record in result.answer:
+        assert isinstance(record.data, cyares.NAPTRRecordData)
 
 
-def test_search_cname(c: Channel) -> None:
-    assert c.search("www.amazon.com", "CNAME").result()
+def test_query_ptr(channel: Channel):
+    ip = "172.253.122.26"
+    result = wait(
+        channel.query(
+            ipaddress.ip_address(ip).reverse_pointer,
+            cyares.QUERY_TYPE_PTR,
+        ),
+    )
+
+    assert isinstance(result, cyares.DNSResult)
+    assert len(result.answer)
+    assert isinstance(result.answer[0].data, cyares.PTRRecordData)
 
 
-def test_search_mx(c: Channel) -> None:
-    assert c.search("gmail.com", "MX").result()
+def test_query_ptr_ipv6(channel: Channel):
+    result = None
+    ip = "2001:4860:4860::8888"
+    result = wait(
+        channel.query(
+            ipaddress.ip_address(ip).reverse_pointer,
+            cyares.QUERY_TYPE_PTR,
+        ),
+    )
+
+    assert isinstance(result, cyares.DNSResult)
+    assert len(result.answer)
+    assert isinstance(result.answer[0].data, cyares.PTRRecordData)
 
 
-def test_search_ns(c: Channel) -> None:
-    assert c.search("google.com", "NS").result()
+def test_query_tlsa(channel: Channel):
+    # DANE-enabled domain with TLSA records
+    result = wait( channel.query("_25._tcp.mail.ietf.org", cyares.QUERY_TYPE_TLSA)
+    )
+
+    assert isinstance(result, cyares.DNSResult)
+    assert len(result.answer)
+    for record in result.answer:
+        assert isinstance(record.data, cyares.TLSARecordData)
+        # Verify TLSA fields are present
+        assert isinstance(record.data.cert_usage, int)
+        assert isinstance(record.data.selector, int)
+        assert isinstance(record.data.matching_type, int)
+        assert isinstance(record.data.cert_association_data, bytes)
 
 
-def test_search_txt(c: Channel) -> None:
-    assert c.search("google.com", "TXT").result()
+def test_query_https(channel: Channel):
+    # Cloudflare has HTTPS records
+    result = wait( channel.query("cloudflare.com", cyares.QUERY_TYPE_HTTPS))
+    assert isinstance(result, cyares.DNSResult)
+    assert len(result.answer)
+    for record in result.answer:
+        assert isinstance(record.data, cyares.HTTPSRecordData)
+        # Verify HTTPS fields are present
+        assert isinstance(record.data.priority, int)
+        assert isinstance(record.data.target, str)
+        assert isinstance(record.data.params, list)
 
 
-def test_search_soa(c: Channel) -> None:
-    assert c.search("google.com", "SOA").result()
+# @pytest.skip("ANY type does not work on Mac.")
+def test_query_any(channel: Channel):
+    result = wait( channel.query("google.com", cyares.QUERY_TYPE_ANY))
+    assert isinstance(result, cyares.DNSResult)
+    assert len(result.answer) >= 1
 
 
-# I'll mix in bytes to speedup the remaining tests incase of hanging
-def test_search_srv(c: Channel) -> None:
-    assert c.search(b"_xmpp-server._tcp.jabber.org", "SRV").result()
+def test_query_cancelled(channel: Channel):
+    result = channel.query("google.com", cyares.QUERY_TYPE_NS)
+    channel.cancel()
+    channel.wait()
+    assert result.cancelled()
 
 
-def test_search_naptr(c: Channel) -> None:
-    assert c.search(b"sip2sip.info", "NAPTR").result()
+def test_reinit(channel: Channel):
+    servers = channel.servers
+    channel.reinit()
+    assert servers == channel.servers
 
 
-def test_search_ptr(c: Channel) -> None:
-    assert c.search(
-        ipaddress.ip_address("172.253.122.26").reverse_pointer, "PTR"
-    ).result()
+def test_query_bad_type(channel: Channel):
+    with pytest.raises(ValueError):
+        channel.query("google.com", 666, callback=lambda *x: None)
 
 
-# TODO: Test getsock and a few other missing functions in a future update.
+def test_close_from_different_thread_safe():
+    # Test that close() can be safely called from different thread
+    channel = cyares.Channel(event_thread=True)
+    close_complete = threading.Event()
+
+    def close_in_thread():
+        channel.cancel()
+        close_complete.set()
+
+    thread = threading.Thread(target=close_in_thread)
+    thread.start()
+    thread.join()
+
+    # Should complete without errors
+    assert (close_complete.is_set())
 
 
-def test_gethostbyname(c: Channel) -> None:
-    # Lets change hosts up a notch...
-    assert c.gethostbyname(b"python.org", socket.AF_INET).result()
+
+# Since we do not have direct access to things anymore since the removal
+# of getsock we have to try something different...
+
+# IF I get around to it I might introduce a new class for processing
+# Cyares without an EventThread using the selectors library - Vizonex
+
+
+

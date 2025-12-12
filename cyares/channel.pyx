@@ -1,5 +1,6 @@
 # cython: embed_signature=True
 cimport cython
+from cpython.bytes cimport PyBytes_FromString, PyBytes_FromStringAndSize
 from cpython.exc cimport PyErr_NoMemory, PyErr_SetObject
 from cpython.mem cimport (PyMem_Free, PyMem_Malloc, PyMem_RawFree,
                           PyMem_RawMalloc, PyMem_RawRealloc)
@@ -8,13 +9,36 @@ from cpython.unicode cimport PyUnicode_Check, PyUnicode_GetLength
 from libc.math cimport floor, fmod
 
 from .ares cimport *
-from .callbacks cimport *
+from .callbacks cimport (__callback_dns_rec__any, __callback_getaddrinfo,
+                         __callback_gethostbyaddr, __callback_nameinfo)
 from .exception cimport AresError
-from .handles cimport Future
+from .handles cimport Future, AresQuery
 from .inc cimport (cyares_check_qclasses, cyares_check_qtypes,
                    cyares_get_buffer, cyares_htonl, cyares_htons,
                    cyares_release_buffer)
-from .resulttypes cimport *
+from .resulttypes cimport (
+    AAAARecordData, 
+    AddrInfoCname, 
+    AddrInfoNode,
+    AddrInfoResult, 
+    ARecordData, 
+    CAARecordData,
+    CNAMERecordData, 
+    DNSRecord, 
+    DNSResult, 
+    HostResult,
+    HTTPSRecordData, 
+    MXRecordData, 
+    NameInfoResult,
+    NAPTRRecordData, 
+    NSRecordData, 
+    PTRRecordData,
+    SOARecordData, 
+    SRVRecordData, 
+    TLSARecordData,
+    TXTRecordData, 
+    URIRecordData
+)
 from .socket_handle cimport SocketHandle, __socket_state_callback
 
 
@@ -105,31 +129,95 @@ cdef int cyares_get_domain_name_buffer(object obj, Py_buffer* view) except -1:
 # Secondary Enums if Writing Strings is not your style...
 
 
+NI_NOFQDN = ARES_NI_NOFQDN
+NI_NUMERICHOST = ARES_NI_NUMERICHOST
+NI_NAMEREQD = ARES_NI_NAMEREQD
+NI_NUMERICSERV = ARES_NI_NUMERICSERV
+NI_DGRAM = ARES_NI_DGRAM
+NI_TCP = ARES_NI_TCP
+NI_UDP = ARES_NI_UDP
+NI_SCTP = ARES_NI_SCTP
+NI_DCCP = ARES_NI_DCCP
+NI_NUMERICSCPE = ARES_NI_NUMERICSCOPE
+NI_LOOKUPHOST = ARES_NI_LOOKUPHOST
+NI_LOOKUPSERVICE = ARES_NI_LOOKUPSERVICE
+NI_IDN = ARES_NI_IDN
+NI_IDN_ALLOW_UNASSIGNED = ARES_NI_IDN_ALLOW_UNASSIGNED
+NI_IDN_USE_STD3_ASCII_RULES = ARES_NI_IDN_USE_STD3_ASCII_RULES
+
+AI_CANONNAME = ARES_AI_CANONNAME
+AI_NUMERICHOST = ARES_AI_NUMERICHOST
+AI_PASSIVE = ARES_AI_PASSIVE
+AI_NUMERICSERV = ARES_AI_NUMERICSERV
+AI_V4MAPPED = ARES_AI_V4MAPPED
+AI_ALL = ARES_AI_ALL
+AI_ADDRCONFIG = ARES_AI_ADDRCONFIG
+AI_IDN = ARES_AI_IDN
+AI_IDN_ALLOW_UNASSIGNED = ARES_AI_IDN_ALLOW_UNASSIGNED
+AI_IDN_USE_STD3_ASCII_RULES = ARES_AI_IDN_USE_STD3_ASCII_RULES
+AI_CANONIDN = ARES_AI_CANONIDN
+AI_MASK = ARES_AI_MASK
 
 CYARES_SOCKET_BAD = ARES_SOCKET_BAD
 
 # From pycares
 
 # Query types
-QUERY_TYPE_A = T_A
-QUERY_TYPE_AAAA = T_AAAA
-QUERY_TYPE_ANY = T_ANY
-QUERY_TYPE_CAA = T_CAA
-QUERY_TYPE_CNAME = T_CNAME
-QUERY_TYPE_MX = T_MX
-QUERY_TYPE_NAPTR = T_NAPTR
-QUERY_TYPE_NS = T_NS
-QUERY_TYPE_PTR = T_PTR
-QUERY_TYPE_SOA = T_SOA
-QUERY_TYPE_SRV = T_SRV
-QUERY_TYPE_TXT = T_TXT
+QUERY_TYPE_A = ARES_REC_TYPE_A
+QUERY_TYPE_AAAA  = ARES_REC_TYPE_AAAA
+QUERY_TYPE_NS = ARES_REC_TYPE_NS
+QUERY_TYPE_CNAME = ARES_REC_TYPE_CNAME
+QUERY_TYPE_SOA = ARES_REC_TYPE_SOA
+QUERY_TYPE_PTR = ARES_REC_TYPE_PTR
+QUERY_TYPE_HINFO = ARES_REC_TYPE_HINFO
+QUERY_TYPE_MX = ARES_REC_TYPE_MX
+QUERY_TYPE_TXT = ARES_REC_TYPE_TXT
+QUERY_TYPE_SIG = ARES_REC_TYPE_SIG
+QUERY_TYPE_SRV = ARES_REC_TYPE_SRV
+QUERY_TYPE_NAPTR = ARES_REC_TYPE_NAPTR
+QUERY_TYPE_OPT = ARES_REC_TYPE_OPT
+QUERY_TYPE_TLSA = ARES_REC_TYPE_TLSA
+QUERY_TYPE_SVCB = ARES_REC_TYPE_SVCB
+QUERY_TYPE_HTTPS = ARES_REC_TYPE_HTTPS
+QUERY_TYPE_ANY = ARES_REC_TYPE_ANY
+QUERY_TYPE_URI = ARES_REC_TYPE_URI   
+QUERY_TYPE_CAA = ARES_REC_TYPE_CAA
 
 # Query classes
-QUERY_CLASS_IN = C_IN
-QUERY_CLASS_CHAOS = C_CHAOS
-QUERY_CLASS_HS = C_HS
-QUERY_CLASS_NONE = C_NONE
-QUERY_CLASS_ANY = C_ANY
+QUERY_CLASS_IN = ARES_CLASS_IN
+QUERY_CLASS_CHAOS = ARES_CLASS_CHAOS
+QUERY_CLASS_HS = ARES_CLASS_HESOID
+QUERY_CLASS_NONE = ARES_CLASS_NONE
+QUERY_CLASS_ANY = ARES_CLASS_ANY
+
+
+# used for helping establish and cleanup the dns_recurion pointer on callback
+# This is not meant to be used in public code outside of channel.pyx
+# copy and paste this code if you need it elsewhere... 
+
+@cython.no_gc_clear(True)
+cdef class _dns_record:
+    cdef:
+        ares_dns_record_t* ptr
+    
+    @staticmethod
+    cdef _dns_record from_ptr(ares_dns_record_t* ptr):
+        cdef _dns_record rec = _dns_record.__new__(_dns_record)
+        rec.ptr = ptr
+        return rec 
+
+    cdef void destory(self):
+        ares_dns_record_destroy(self.ptr)
+        self.ptr = NULL
+    
+    # Safe callback for attaching to a future to destory the record
+    def callback(self, *args, **kwargs):
+        if self.ptr != NULL:
+            self.destory()
+
+    def __dealloc__(self):
+        if self.ptr != NULL:
+            self.destory()
 
 
 cdef class Channel:
@@ -158,35 +246,51 @@ cdef class Channel:
         cdef char** strs = NULL 
         cdef object i
         self.event_thread = event_thread
+        # New in Cyares 0.3.0 as a nod to pycares
+
+        self.__qtypes__ = frozenset((ARES_REC_TYPE_A, ARES_REC_TYPE_AAAA, ARES_REC_TYPE_ANY, ARES_REC_TYPE_CAA, ARES_REC_TYPE_CNAME, ARES_REC_TYPE_HTTPS, ARES_REC_TYPE_MX, ARES_REC_TYPE_NAPTR, ARES_REC_TYPE_NS, ARES_REC_TYPE_PTR, ARES_REC_TYPE_SOA, ARES_REC_TYPE_SRV, ARES_REC_TYPE_TLSA, ARES_REC_TYPE_TXT, ARES_REC_TYPE_URI))
+        self.__qclasses__ = frozenset((ARES_CLASS_IN, ARES_CLASS_CHAOS, ARES_CLASS_HESOID, ARES_CLASS_NONE, ARES_CLASS_ANY))
+
 
         self._cancelled = False
         self._query_lookups = {
-            "A":T_A,
-            "AAAA":T_AAAA, 
-            "ANY":T_ANY, 
-            "CAA":T_CAA, 
-            "CNAME":T_CNAME, 
-            "MX":T_MX, 
-            "NAPTR":T_NAPTR, 
-            "NS":T_NS, 
-            "PTR":T_PTR, 
-            "SOA":T_SOA, 
-            "SRV":T_SRV, 
-            "TXT":T_TXT
+            "A":ARES_REC_TYPE_A,
+            "NS":ARES_REC_TYPE_NS,
+            "CNAME":ARES_REC_TYPE_CNAME,
+            "SOA":ARES_REC_TYPE_SOA,
+            "PTR":ARES_REC_TYPE_PTR,
+            "MX":ARES_REC_TYPE_MX,
+            "TXT":ARES_REC_TYPE_TXT,
+            "AAAA":ARES_REC_TYPE_AAAA,
+            "SRV":ARES_REC_TYPE_SRV,
+            "NAPTR":ARES_REC_TYPE_NAPTR,
+            "TLSA":ARES_REC_TYPE_TLSA,
+            "HTTPS":ARES_REC_TYPE_HTTPS,
+            "CAA":ARES_REC_TYPE_CAA,
+            "URI":ARES_REC_TYPE_URI,
+            "ANY":ARES_REC_TYPE_ANY,
+            "OPT":ARES_REC_TYPE_OPT,
+            "SIG": ARES_REC_TYPE_SIG,
+            "SVCB": ARES_REC_TYPE_SVCB
         } 
         self._closed = 0
         self._running = 0
 
+        # TODO: (Had an idea for parsing Channel options that involves parsing these arguments 
+        # out the CPython Way using PyArg_ParseTupleAndKeywords)
+        # SEE: https://docs.python.org/3/c-api/arg.html#building-values
+          
         if flags is not None:
             self.options.flags = flags
             optmask |= ARES_OPT_FLAGS
         
+        # TODO: Timedelta support?
         if timeout is not None:
             self.options.timeout = int(timeout * 1000)
             optmask |= ARES_OPT_TIMEOUTMS
         
         if tries is not None:
-            self.options.tries = tries
+            self.options.tries = <int>tries
             optmask |= ARES_OPT_TRIES
 
         if ndots is not None:
@@ -194,20 +298,20 @@ cdef class Channel:
             optmask |= ARES_OPT_NDOTS
 
         if tcp_port is not None:
-            self.options.tcp_port = tcp_port
+            self.options.tcp_port = <uint16_t>tcp_port
             optmask |= ARES_OPT_TCP_PORT
 
         if udp_port is not None:
-            self.options.udp_port = udp_port
+            self.options.udp_port = <uint16_t>udp_port
             optmask |= ARES_OPT_UDP_PORT
 
         if socket_send_buffer_size is not None:
-            self.options.socket_send_buffer_size = socket_send_buffer_size
+            self.options.socket_send_buffer_size = <int>socket_send_buffer_size
             optmask |= ARES_OPT_SOCK_SNDBUF
 
 
         if socket_receive_buffer_size is not None:
-            self.options.socket_receive_buffer_size = socket_receive_buffer_size
+            self.options.socket_receive_buffer_size = <int>socket_receive_buffer_size
             optmask |= ARES_OPT_SOCK_RCVBUF
 
         
@@ -381,6 +485,7 @@ cdef class Channel:
 
     # WARNING: _closed & _running might be scheduled for deprecation soon.
     def __remove_future(self, *args, **kw):
+
         self._closed += 1
         self._running -= 1
 
@@ -402,321 +507,166 @@ cdef class Channel:
         # handle removal of finished futures for debugging
         fut.add_done_callback(self.__remove_future)
 
-        if callback:
-            if not callable(callback):
-                raise TypeError("Provided callbacks must be callable")
+        if callback is not None:
             fut.add_done_callback(callback)    
 
-        # Up the objects refcount by 1 so we don't need a 
+        # Up the objects refcount by 1 since we don't need a 
         # global object like with pycares
+        Py_INCREF(fut)
+        return fut
+    
+    @cython.nonecheck(False)
+    cdef AresQuery __create_query(self, object callback):
+        cdef AresQuery fut = AresQuery()
+        self._running += 1
+
+        # handle removal of finished futures for debugging
+        fut.add_done_callback(self.__remove_future)
+
+        if callback is not None:
+            fut.add_done_callback(callback)    
+
         Py_INCREF(fut)
         return fut
 
     # _query is a lower-level C Function
     # query is the upper-end and is meant to assist in
     # being a theoretical drop in replacement for pycares in aiodns
-    cdef Future _query(self, object qname, object qtype, int qclass, object callback):
-        cdef int _qtype
+    cdef Future _query(self, object qname, ares_dns_rec_type_t qtype, ares_dns_class_t qclass, object callback):
         cdef Future fut 
         cdef Py_buffer view
-
-        if isinstance(qtype, str):
-            try:
-                _qtype = <int>self._query_lookups[qtype]
-            except KeyError:
-                raise ValueError("invalid query type specified")
-        else:
-            _qtype = <int>qtype
-   
-        if cyares_check_qclasses(qclass) < 0:
-            raise 
+        cdef ares_status_t status
 
         if cyares_get_domain_name_buffer(qname, &view) < 0:
             raise
 
         fut = self.__create_future(callback)
-        if _qtype == T_A:
-            ares_query(
-                self.channel,
-                <char*>view.buf,
-                qclass,
-                T_A,
-                __callback_query_on_a, # type: ignore
-                <void*>fut
-            )
-            
-        elif _qtype == T_AAAA:
-            ares_query(
-                self.channel,
-                <char*>view.buf,
-                qclass,
-                T_AAAA,               
-                __callback_query_on_aaaa, # type: ignore
-                <void*>fut
-            )
         
-        elif _qtype == T_CAA:
-            ares_query(
-                self.channel,
-                <char*>view.buf,
-                qclass,
-                T_CAA,                
-                __callback_query_on_caa, # type: ignore
-                <void*>fut
-            )
-        
-        elif _qtype == T_CNAME:
-            ares_query(
-                self.channel,
-                <char*>view.buf,
-                qclass,
-                T_CNAME,
-                __callback_query_on_cname, # type: ignore
-                <void*>fut
-            )
-        
-        elif _qtype == T_MX:
-            ares_query(
-                self.channel,
-                <char*>view.buf,
-                qclass,
-                T_MX,
-                __callback_query_on_mx, # type: ignore
-                <void*>fut
-            )
+        # TODO: Reexpand _qtype and callbacks again in another update...
+        status = ares_query_dnsrec(
+            self.channel,
+            <char*>view.buf,
+            qclass,
+            qtype,
+            __callback_dns_rec__any, # type: ignore
+            <void*>fut,
+            NULL, # Passing NULL here will work SEE: ares_query.c 
+        )
+        if status != ARES_SUCCESS:
+            Py_DECREF(fut)
+            raise AresError(status)
+        else:
+            return fut
 
-        elif _qtype == T_NAPTR:
-            ares_query(
-                self.channel,
-                <char*>view.buf,
-                qclass,
-                T_NAPTR, 
-                __callback_query_on_naptr, # type: ignore
-                <void*>fut
-            )
+    # TODO: wrap query under deprecated_params
+    def query(self, object name, object query_type, object callback = None , int query_class = ARES_CLASS_IN):
+        cdef ares_dns_rec_type_t _query_type
+        if callback is not None and not callable(callback):
+            raise TypeError('callback must be callable if passed')
 
-        elif _qtype == T_NS:
-            ares_query(
-                self.channel,
-                <char*>view.buf,
-                qclass,
-                T_NS,
-                __callback_query_on_ns, # type: ignore
-                <void*>fut
-            )
-
-        elif _qtype == T_PTR:
-            ares_query(
-                self.channel,
-                <char*>view.buf,
-                qclass,
-                T_PTR,
-                __callback_query_on_ptr, # type: ignore
-                <void*>fut
-            )
-
-        elif _qtype == T_SOA:
-            ares_query(
-                self.channel,
-                <char*>view.buf,
-                qclass,
-                T_SOA,
-                __callback_query_on_soa, # type: ignore
-                <void*>fut
-            )
-
-        elif _qtype == T_SRV:
-            ares_query(
-                self.channel,
-                <char*>view.buf,
-                qclass,
-                T_SRV,
-                __callback_query_on_srv, # type: ignore
-                <void*>fut
-            )
-        
-        elif _qtype == T_TXT:
-            ares_query(
-                self.channel,
-                <char*>view.buf,
-                qclass,
-                T_TXT,
-                __callback_query_on_txt, # type: ignore
-                <void*>fut
-            )
-        
-        elif _qtype == T_ANY:
-            ares_query_dnsrec(
-                self.channel,
-                <char*>view.buf,
-                <ares_dns_class_t>qclass,
-                ARES_REC_TYPE_ANY,
-                __callback_dns_rec__any, # type: ignore
-                <void*>fut,
-                NULL, # Passing NULL here will work SEE: ares_query.c 
-            )
+        if isinstance(query_type, str):
+            try:
+                _query_type = <ares_dns_rec_type_t>self._query_lookups[query_type]
+            except KeyError:
+                raise ValueError("invalid query type specified")
 
         else:
-            Py_DECREF(fut)
-            raise ValueError("invalid query type specified")
+            if cyares_check_qtypes(<int>query_type) < 0:
+                raise
+            _query_type = <ares_dns_rec_type_t>query_type
+       
+        if cyares_check_qclasses(query_class) < 0:
+            raise
 
-        return fut
-
-    def query(self, object name, object query_type, object callback = None , object query_class = None):
-        return self._query(name, query_type, C_IN if query_class is None else <int>query_class, callback)
-    
-    cdef Future _search(self, object qname, object qtype, int qclass, object callback):
+        return self._query(name, _query_type, <ares_dns_class_t>query_class, callback)
+     
+    cdef Future _search(self, object name , int query_type, int query_class , object callback):
         cdef int _qtype
         cdef Future fut = self.__create_future(callback)
         cdef Py_buffer view
 
-        # TODO: use match ...: cases when cython releases match support 
-        if isinstance(qtype, str):
-            try:
-                _qtype = <int>self._query_lookups[qtype]
-            except KeyError:
-                raise ValueError("invalid query type specified")
-        else:
-            _qtype = <int>qtype
-   
-        if cyares_check_qclasses(qclass) < 0:
-            raise 
-
-        if cyares_get_domain_name_buffer(qname, &view) < 0:
+        if cyares_get_domain_name_buffer(name, &view) < 0:
+            Py_DECREF(fut)
             raise
 
+        # Create a DNS record for the search query
+        # Set RD (Recursion Desired) flag unless ARES_FLAG_NORECURSE is set
+        dns_flags = 0 if (self._flags & ARES_FLAG_NORECURSE) else ARES_FLAG_RD
 
-        if _qtype == T_A:
-            ares_search(
-                self.channel,
-                <char*>view.buf,
-                qclass,
-                T_A,
-                __callback_query_on_a, # type: ignore
-                <void*>fut
-            )
-            
-        elif _qtype == T_AAAA:
-            ares_search(
-                self.channel,
-                <char*>view.buf,
-                qclass,
-                T_AAAA,               
-                __callback_query_on_aaaa, # type: ignore
-                <void*>fut
-            )
-        
-        elif _qtype == T_CAA:
-            ares_search(
-                self.channel,
-                <char*>view.buf,
-                qclass,
-                T_CAA,                
-                __callback_query_on_caa, # type: ignore
-                <void*>fut
-            )
-        
-        elif _qtype == T_CNAME:
-            ares_search(
-                self.channel,
-                <char*>view.buf,
-                qclass,
-                T_CNAME,
-                __callback_query_on_cname, # type: ignore
-                <void*>fut
-            )
-        
-        elif _qtype == T_MX:
-            ares_search(
-                self.channel,
-                <char*>view.buf,
-                qclass,
-                T_MX,
-                __callback_query_on_mx, # type: ignore
-                <void*>fut
-            )
+        cdef ares_dns_record_t *dnsrec_p
+        cdef ares_status_t status = ares_dns_record_create(
+            &dnsrec_p,
+            0,  # id (will be set by c-ares)
+            dns_flags,  # flags - include RD for recursive queries
+            ARES_OPCODE_QUERY,
+            ARES_RCODE_NOERROR
+        )
+        if status != ARES_SUCCESS:
+            Py_DECREF(fut)
+            raise AresError(status)
 
-        elif _qtype == T_NAPTR:
-            ares_search(
-                self.channel,
-                <char*>view.buf,
-                qclass,
-                T_NAPTR, 
-                __callback_query_on_naptr, # type: ignore
-                <void*>fut
-            )
+        cdef _dns_record dns_record = _dns_record.from_ptr(dnsrec_p)
 
-        elif _qtype == T_NS:
-            ares_search(
-                self.channel,
-                <char*>view.buf,
-                qclass,
-                T_NS,
-                __callback_query_on_ns, # type: ignore
-                <void*>fut
-            )
 
-        elif _qtype == T_PTR:
-            ares_search(
-                self.channel,
-                <char*>view.buf,
-                qclass,
-                T_PTR,
-                __callback_query_on_ptr, # type: ignore
-                <void*>fut
-            )
+        # Add the query to the DNS record
+        status = ares_dns_record_query_add(
+            dnsrec_p,
+            <char*>view.buf,
+            <ares_dns_rec_type_t>query_type,
+            <ares_dns_class_t>query_class
+        )
+        if status != ARES_SUCCESS:
+            ares_dns_record_destroy(dnsrec_p)
+            del dns_record
+            Py_DECREF(fut)
+            raise AresError(status)
 
-        elif _qtype == T_SOA:
-            ares_search(
-                self.channel,
-                <char*>view.buf,
-                qclass,
-                T_SOA,
-                __callback_query_on_soa, # type: ignore
-                <void*>fut
-            )
+        # TODO: (Vizonex) Py_INCREF Py_DECREF if dns_record doesn't live long enough...
 
-        elif _qtype == T_SRV:
-            ares_search(
-                self.channel,
-                <char*>view.buf,
-                qclass,
-                T_SRV,
-                __callback_query_on_srv, # type: ignore
-                <void*>fut
-            )
-        
-        elif _qtype == T_TXT:
-            ares_search(
-                self.channel,
-                <char*>view.buf,
-                qclass,
-                T_TXT,
-                __callback_query_on_txt, # type: ignore
-                <void*>fut
-            )
+        # Wrap callback to destroy DNS record after it's called
+        fut.add_done_callback(dns_record.callback)
 
-        # On my todolist but we need to figure out a way to reimplement 
-        # ares_search.c lines 431 - 470 
-        # elif _qtype == T_ANY:
-        #     ares_search_dnsrec(
-        #         self.channel, 
-        #     )
+        # Perform the search with the created DNS record
 
-        else:
-            raise ValueError("invalid query type specified")
+        status = ares_search_dnsrec(
+            self.channel,
+            dnsrec_p,
+            __callback_dns_rec__any,
+            <void*>fut
+        )
+        if status != ARES_SUCCESS:
+            Py_DECREF(fut)
+            raise AresError(status)
 
         return fut
 
-    def search(self, object name, object query_type, object callback = None , object query_class = None):
-        return self._search(name, query_type, C_IN if query_class is None else <int>query_class, callback)
- 
+    def search(self, object name, object query_type, object callback = None , *, int query_class = QUERY_CLASS_IN):
+        cdef ares_dns_rec_type_t _query_type
+
+        if callback is not None and not callable(callback):
+            raise TypeError('callback must be callable if passed')
+
+        if isinstance(query_type, str):
+            try:
+                _query_type = <ares_dns_rec_type_t>self._query_lookups[query_type]
+            except KeyError:
+                raise ValueError("invalid query type specified")
+
+        else:
+            if cyares_check_qtypes(<int>query_type) < 0:
+                raise
+            _query_type = <ares_dns_rec_type_t>query_type
+       
+        if cyares_check_qclasses(query_class) < 0:
+            raise
+        
+        return self._search(name, _query_type, query_class, callback)
+
+
     def process_fd(self, int read_fd, int write_fd):
         ares_process_fd(self.channel, <ares_socket_t>read_fd, <ares_socket_t>write_fd)
 
-    # === Custom === 
-    # NOTE: I'll make a pull-request to pycares to maybe implement this as well...
-
+   
     def process_read_fd(self, int read_fd):
         """
         processes readable file-descriptor instead of needing to remember 
@@ -743,6 +693,9 @@ cdef class Channel:
 
         ares_process_fd(self.channel, ARES_SOCKET_BAD, <ares_socket_t>write_fd)
 
+    def process_no_fds(self):
+        ares_process_fd(self.channel, ARES_SOCKET_BAD, ARES_SOCKET_BAD)
+        
 
     def timeout(self, double t = 0):
         cdef timeval maxtv
@@ -780,6 +733,10 @@ cdef class Channel:
         cdef Py_buffer view, service_data
         cdef bint buffer_carried = 0
         cdef ares_addrinfo_hints hints
+
+        if callback is not None and not callable(callback):
+            raise TypeError('callback must be callable if passed')
+
 
         cdef object fut = self.__create_future(callback)
 
@@ -824,6 +781,10 @@ cdef class Channel:
         cdef sockaddr_in6 sa6
         cdef object fut
         cdef Py_buffer view
+
+        if callback is not None and not callable(callback):
+            raise TypeError('callback must be callable if passed')
+
         if len(address) == 2:
             ip, port = address
             cyares_get_buffer(ip, &view)
@@ -867,33 +828,14 @@ cdef class Channel:
 
         return fut
 
-    def gethostbyname(
-        self, 
-        object name, 
-        int family, 
-        object callback = None
-    ):
-        
-        cdef Py_buffer view
-        cdef object fut = self.__create_future(callback)
-
-        cyares_get_domain_name_buffer(name, &view)
-        ares_gethostbyname(
-            self.channel, 
-            <char*>view.buf, 
-            family, 
-            __callback_gethostbyname, # type: ignore
-            <void*>fut
-        )
-        cyares_release_buffer(&view)
-        return fut
-        
-
     def gethostbyaddr(self, object addr, object callback = None) -> None:
         cdef in_addr addr4
         cdef ares_in6_addr addr6
         cdef Py_buffer view
         cdef object fut
+
+        if callback is not None and not callable(callback):
+            raise TypeError('callback must be callable if passed')
 
         cyares_get_buffer(addr, &view)
 
@@ -927,9 +869,6 @@ cdef class Channel:
         cyares_release_buffer(&view)
         return fut
 
-    
-        
-
     def set_local_dev(self, object dev):
         cdef Py_buffer view
         cyares_get_buffer(dev, &view)
@@ -951,28 +890,27 @@ cdef class Channel:
         finally:
             cyares_release_buffer(&view)
     
-    def getsock(self):
-        cdef list rfds = []
-        cdef list wfds = []
-        cdef ares_socket_t[16] socks
-        # NOTE: ARES_GETSOCK_MAXNUM SHOULD BE 16 reason for predefining
-        # above was so that cython wouldn't screw with me.
-        cdef int bitmask = ares_getsock(self.channel, socks, ARES_GETSOCK_MAXNUM)
-        cdef int i
-        
-        for i in range(ARES_GETSOCK_MAXNUM):
-            if ARES_GETSOCK_READABLE(bitmask, i):
-                rfds.append(<object>socks[i])
-            if ARES_GETSOCK_WRITABLE(bitmask, i):
-                wfds.append(<object>socks[i])
-        
-        return rfds, wfds
-
+    # Removed getsock in 3.0 since pycares stopped using it...
 
     cdef ares_status_t __wait(self, int timeout_ms):
         return ares_queue_wait_empty(self.channel, timeout_ms)
 
     def wait(self, object timeout = None):
+        """
+        Waits for all queries to close using `ares_queue_wait_emtpy`
+        This function blocks until notified that the timeout expired or
+        that all pending queries have been cancelled or completed.
+
+        :param timeout: A timeout in seconds as a float or integer object
+            this object will be rounded to milliseconds
+
+        :raises TypeError: if object is not None or an `int` or `float`
+        :raises ValueError: if the timeout is less than 0, default runs until 
+            all cancelled or closed
+        :type timeout: float | int | None
+        :return: Description
+        :rtype: bool
+        """
         cdef ares_status_t status
         cdef int ms
 
@@ -994,8 +932,15 @@ cdef class Channel:
     
     @property
     def running_queries(self):
-        """obtains a number of actively running queries 
-        NOTE: this property is immutable by the end user"""
+        """
+        obtains active number of queries that are currently 
+        running. This property is immutable.
+
+        :return: the current number of active queries called 
+            from `ares_queue_active_queries` 
+        :rtype: int
+        :raises ValueError: if value is attempted to be set
+        """
         return ares_queue_active_queries(self.channel)
 
     @running_queries.setter

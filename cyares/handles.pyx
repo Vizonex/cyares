@@ -34,6 +34,7 @@ cdef extern from "Python.h":
 LOGGER = logging.getLogger("cyares.handles")
 
 
+# TODO: Move to C...
 cdef str _STATE_TO_DESCRIPTION_MAP(fut_states state):
     if state == PENDING: 
         return "pending"
@@ -542,137 +543,23 @@ cdef class Future:
 
 
 
-# === ASYNCIO ===
-
-# TODO: Might be able to get away with a custom Future Object for Winloop
-# based on these observations...
-
-
-# NOT READY!!!
-
-# cpdef bint isfuture(object obj):
-#     """Check for a Future.
-
-#     This returns True when obj is a Future instance or is advertising
-#     itself as duck-type compatible by setting _asyncio_future_blocking.
-#     See comment in Future for more details.
-#     """
-#     return (hasattr(obj.__class__, '_asyncio_future_blocking') and
-#             getattr(obj, "_asyncio_future_blocking", None) is not None)
-
-
-# cpdef object _set_result_unless_cancelled(future_type fut, object result):
-#     """Helper setting the result only if the future was not cancelled."""
-#     if fut.cancelled():
-#         return
-#     fut.set_result(result)
-
-
-# cpdef object _convert_future_exc(BaseException exc):
-#     exc_class = type(exc)
-#     if exc_class is CancelledError:
-#         return CancelledError(*exc.args)
-#     elif exc_class is TimeoutError:
-#         return TimeoutError(*exc.args)
-#     elif exc_class is InvalidStateError:
-#         return InvalidStateError(*exc.args)
-#     else:
-#         return exc
-
-
-# cdef object _set_concurrent_future_state(Future concurrent, object source):
-#     """Copy state from a future to a concurrent.futures.Future."""
-#     assert source.done()
-#     if source.cancelled():
-#         concurrent.cancel()
-#     if not concurrent.set_running_or_notify_cancel():
-#         return
-#     exception = source.exception()
-#     if exception is not None:
-#         concurrent.set_exception(_convert_future_exc(exception))
-#     else:
-#         result = source.result()
-#         concurrent.set_result(result)
-
-# cpdef object _copy_future_state(future_type source, future_type dest):
-#     """Internal helper to copy state from another Future.
-
-#     The other Future may be a concurrent.futures.Future.
-#     """
-#     assert source.done()
-#     if dest.cancelled():
-#         return
-#     assert not dest.done()
-#     if source.cancelled():
-#         dest.cancel()
-#     else:
-#         exception = source.exception()
-#         if exception is not None:
-#             dest.set_exception(_convert_future_exc(exception))
-#         else:
-#             result = source.result()
-#             dest.set_result(result)
-
-# cpdef object _get_loop(object fut):
-#     # Tries to call Future.get_loop() if it's available.
-#     # Otherwise fallbacks to using the old '_loop' property.
-#     try:
-#         return <object>PyObject_CallMethodNoArgs(fut, "get_loop")
-#     except AttributeError:
-#         return getattr(fut, "_loop")
+cdef class AresQuery(Future):
+    """
+    Specialized subclass of Future that can carry 
+    a qid around with it. This subclass only applies to
+    `Channel.query(...)`
+    """
     
+    def __cinit__(self):
+        """Initializes the future. Should not be called by clients."""
+        self._condition = threading.Condition()
+        self._state = PENDING
+        self._result = None
+        self._exception = None
+        self._waiters = []
+        self._done_callbacks = []
+        # set to zero until set in cython 
+        # only cython can edit this variable...
+        self.qid = 0
 
-# cpdef object _set_state(future_type future, future_type other):
-#     if isfuture(future):
-#         _copy_future_state(other, future)
-#     else:
-#         _set_concurrent_future_state(future, other)
 
-
-# def _chain_future(Future source, object destination):
-#     """Chain two futures so that when one completes, so does the other.
-
-#     The result (or exception) of source will be copied to destination.
-#     If destination is cancelled, source gets cancelled too.
-#     Compatible with both asyncio.Future and Future.
-#     """
-#     if not isfuture(source) and not isinstance(source, Future):
-#         raise TypeError('A future is required for source argument')
-#     if not isfuture(destination) and not isinstance(destination, Future):
-#         raise TypeError('A future is required for destination argument')
-#     # source_loop = _get_loop(source) if isfuture(source) else None
-#     dest_loop = _get_loop(destination) if isfuture(destination) else None
-
-#     def _call_check_cancel(object destination):
-#         if destination.cancelled():
-#             source.cancel()
-#         # if destination.cancelled():
-#         #     if source_loop is None or source_loop is dest_loop:
-#         #         source.cancel()
-#         #     else:
-#         #         source_loop.call_soon_threadsafe(source.cancel)
-
-#     def _call_set_state(object source):
-#         if (destination.cancelled() and
-#                 dest_loop is not None and dest_loop.is_closed()):
-#             return
-#         if dest_loop is None:
-#             _set_state(destination, source)
-#         else:
-#             if dest_loop.is_closed():
-#                 return
-#             dest_loop.call_soon_threadsafe(_set_state, destination, source)
-
-#     destination.add_done_callback(_call_check_cancel)
-#     source.add_done_callback(_call_set_state)
-
-# cpdef object wrap_future(Future future, loop=None):
-#     """Wrap concurrent.futures.Future object."""
-#     cdef object new_future
-#     # if isfuture(future):
-#     #     return future
-#     # assert isinstance(future, Future), \
-#     #     f'Future is expected, got {future!r}'
-#     new_future = (loop or get_event_loop()).create_future()
-#     _chain_future(future, new_future)
-#     return new_future

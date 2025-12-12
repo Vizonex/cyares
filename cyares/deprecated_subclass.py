@@ -26,7 +26,7 @@ class deprecated_subclass:
             @deprecated("deprecated because I wanted to")
             __init_subclass__(cls):...
 
-    The following setup is better and lazier and makes your
+    The following setup is better, lazier and makes your
     code look less nasty::
 
         @deprecated_subclass("deprecated because I wanted to")

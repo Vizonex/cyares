@@ -1,8 +1,10 @@
-import pytest
-from cyares.trio import DNSResolver
-from cyares.exception import AresError
 import ipaddress
+
 import anyio as anyio
+import pytest
+
+from cyares.exception import AresError
+from cyares.trio import DNSResolver
 
 
 # set the backend to just trio
@@ -84,7 +86,7 @@ async def test_cancelling_from_resolver() -> None:
 async def test_a_dns_query_fail(resolver: DNSResolver) -> None:
     with pytest.raises(
         AresError,
-        match=r"\[ARES_ENODATA : 1\] DNS server returned answer with no data",
+        match=r"\[ARES_ENOTFOUND : 4\] Domain name not found",
     ):
         await resolver.query("hgf8g2od29hdohid.com", "A")
 

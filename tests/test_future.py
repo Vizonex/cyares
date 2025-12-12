@@ -1,10 +1,12 @@
-from cyares.handles import Future
-from cyares.aio import wrap_future
-from threading import Thread
-import time
-import sys
-import pytest
 import asyncio
+import sys
+import time
+from threading import Thread
+
+import pytest
+
+from cyares.aio import wrap_future
+from cyares.handles import Future
 
 uvloop = pytest.importorskip("winloop" if sys.platform == "win32" else "uvloop")
 

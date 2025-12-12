@@ -123,22 +123,12 @@ cdef class Future:
     cpdef object set_exception(self, object exception)
 
 
-# === ASYNCIO ===
 
-# TODO: Might be able to get away with a custom Future Object for Winloop
-# based on these observations...
-
-# NOT READY CAUSES UNWANTED DEADLOCKS
-# ctypedef fused future_type:
-#     object
-#     Future
-
-
-# cpdef bint isfuture(object obj)
-# cpdef object _set_result_unless_cancelled(future_type fut, object result)
-# cpdef object _convert_future_exc(BaseException exc)
-# cdef object _set_concurrent_future_state(Future concurrent, object source)
-# cpdef object _copy_future_state(future_type source, future_type dest)
-# cpdef object _get_loop(object fut)
-# cpdef object _set_state(future_type future, future_type other)
-# cpdef object wrap_future(Future future, loop=?)
+cdef class AresQuery(Future):
+    """
+    Specialized subclass of Future that can carry 
+    a qid around with it. This subclass only applies to
+    `Channel.query(...)`
+    """
+    cdef:
+        readonly unsigned short qid
