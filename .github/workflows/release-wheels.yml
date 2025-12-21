@@ -20,6 +20,17 @@ jobs:
   build_sdist:
     uses: ./.github/workflows/run-sdist.yml
 
+  upload_to_github:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Upload wheels as release assets
+        uses: softprops/action-gh-release@v2
+        if: ${{ github.event_name == 'release' && github.event.action == 'published' }}
+        with:
+          files: ./dist/*.whl
+          body: |
+            Automatically generated release with wheels for Python.
+  
   upload_pypi:
     needs: [build_wheels, build_sdist]
     if: github.event_name == 'release' && github.event.action == 'published'
