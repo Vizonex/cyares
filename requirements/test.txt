@@ -1,7 +1,7 @@
 anyio==4.12.0
 pytest
 # Stress-test winloop & uvloop as well since I maintain one of them.
-winloop==0.4.0; platform_system == "Windows"
+winloop==0.4.1; platform_system == "Windows"
 uvloop; platform_system != "Windows"
 # Utilize idna (although optional)
 idna>=2.1
