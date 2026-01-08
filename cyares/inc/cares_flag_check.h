@@ -31,6 +31,7 @@ static int cyares_check_qtypes(int qtype){
         case ARES_REC_TYPE_CAA: return 0;
         case ARES_REC_TYPE_URI: return 0;
         case ARES_REC_TYPE_ANY: return 0;
+        case ARES_REC_TYPE_HINFO: return 0;
         default: {
             goto FAIL;
         }

@@ -46,6 +46,7 @@ from .channel import (
     QUERY_TYPE_ANY,
     QUERY_TYPE_CAA,
     QUERY_TYPE_CNAME,
+    QUERY_TYPE_HINFO,
     QUERY_TYPE_HTTPS,
     QUERY_TYPE_MX,
     QUERY_TYPE_NAPTR,
@@ -68,6 +69,7 @@ from .resulttypes import (
     CNAMERecordData,
     DNSRecord,
     DNSResult,
+    HINFORecordData,
     HostResult,
     HTTPSRecordData,
     MXRecordData,
@@ -86,7 +88,7 @@ from .resulttypes import (
 )
 
 __author__ = "Vizonex"
-__version__ = "0.3.0"
+__version__ = "0.3.1"
 
 __all__ = (
     "AAAARecordData",
@@ -112,6 +114,7 @@ __all__ = (
     "Channel",
     "DNSRecord",
     "DNSResult",
+    "HINFORecordData",
     "HTTPSRecordData",
     "HostResult",
     "MXRecordData",
@@ -145,6 +148,7 @@ __all__ = (
     "QUERY_TYPE_ANY",
     "QUERY_TYPE_CAA",
     "QUERY_TYPE_CNAME",
+    "QUERY_TYPE_HINFO",
     "QUERY_TYPE_HTTPS",
     "QUERY_TYPE_MX",
     "QUERY_TYPE_NAPTR",

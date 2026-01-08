@@ -37,7 +37,8 @@ from .resulttypes cimport (
     SRVRecordData, 
     TLSARecordData,
     TXTRecordData, 
-    URIRecordData
+    URIRecordData,
+    HINFORecordData
 )
 from .socket_handle cimport SocketHandle, __socket_state_callback
 
@@ -271,8 +272,9 @@ cdef class Channel:
             "ANY":ARES_REC_TYPE_ANY,
             "OPT":ARES_REC_TYPE_OPT,
             "SIG": ARES_REC_TYPE_SIG,
-            "SVCB": ARES_REC_TYPE_SVCB
-        } 
+            "SVCB": ARES_REC_TYPE_SVCB,
+            "HINFO": ARES_REC_TYPE_HINFO
+        }
         self._closed = 0
         self._running = 0
 

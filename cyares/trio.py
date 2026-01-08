@@ -28,6 +28,7 @@ from .channel import (
     QUERY_TYPE_ANY,
     QUERY_TYPE_CAA,
     QUERY_TYPE_CNAME,
+    QUERY_TYPE_HINFO,
     QUERY_TYPE_HTTPS,
     QUERY_TYPE_MX,
     QUERY_TYPE_NAPTR,
@@ -110,8 +111,9 @@ query_type_map = {
     "SOA": QUERY_TYPE_SOA,
     "SRV": QUERY_TYPE_SRV,
     "TXT": QUERY_TYPE_TXT,
-    "HTTPS":QUERY_TYPE_HTTPS,
-    "TLSA": QUERY_TYPE_TLSA
+    "HTTPS": QUERY_TYPE_HTTPS,
+    "TLSA": QUERY_TYPE_TLSA,
+    "HINFO": QUERY_TYPE_HINFO
 }
 
 query_class_map = {

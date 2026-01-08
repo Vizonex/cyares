@@ -147,6 +147,15 @@ cdef class URIRecordData:
         public str target
 
 
+@cython.dataclasses.dataclass
+cdef class HINFORecordData:
+    """Data for HINFO (Host information)"""
+    cdef:
+        public str cpu
+        public str os
+        
+
+
 # TODO: (Ask Saghul (pycares owner) to consider making DNSRecord a Generic Type because of the data attribute)
 @cython.dataclasses.dataclass
 cdef class DNSRecord:

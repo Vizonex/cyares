@@ -176,10 +176,10 @@ typedef void* (*cyares_arealloc)(void *ptr, size_t size);
         # /* CNAME record */
         ARES_RR_CNAME_CNAME = 1
 
-        # /* SIG Record */
 
         # /* HINFO Record */
-
+        ARES_RR_HINFO_CPU = 1301
+        ARES_RR_HINFO_OS = 1302
 
         # /* SOA record */
         ARES_RR_SOA_MNAME = 1

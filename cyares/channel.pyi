@@ -19,30 +19,29 @@ CYARES_SOCKET_BAD: int = ...
 
 # Query types
 
-QUERY_TYPE_A     = 1      #/*!< Host address. */
-QUERY_TYPE_NS    = 2      #/*!< Authoritative server. */
-QUERY_TYPE_CNAME = 5      #/*!< Canonical name. */
-QUERY_TYPE_SOA   = 6      #/*!< Start of authority zone. */
-QUERY_TYPE_PTR   = 12     #/*!< Domain name pointer. */
-QUERY_TYPE_HINFO = 13     #/*!< Host information. */
-QUERY_TYPE_MX    = 15     #/*!< Mail routing information. */
-QUERY_TYPE_TXT   = 16     #/*!< Text strings. */
-QUERY_TYPE_SIG   = 24     #/*!< RFC 2535 / RFC 2931. SIG Record */
-QUERY_TYPE_AAAA  = 28     #/*!< RFC 3596. Ip6 Address. */
-QUERY_TYPE_SRV   = 33     #/*!< RFC 2782. Server Selection. */
-QUERY_TYPE_NAPTR = 35     #/*!< RFC 3403. Naming Authority Pointer */
-QUERY_TYPE_OPT   = 41     #/*!< RFC 6891. EDNS0 option (meta-RR) */
+QUERY_TYPE_A = 1  # /*!< Host address. */
+QUERY_TYPE_NS = 2  # /*!< Authoritative server. */
+QUERY_TYPE_CNAME = 5  # /*!< Canonical name. */
+QUERY_TYPE_SOA = 6  # /*!< Start of authority zone. */
+QUERY_TYPE_PTR = 12  # /*!< Domain name pointer. */
+QUERY_TYPE_HINFO = 13  # /*!< Host information. */
+QUERY_TYPE_MX = 15  # /*!< Mail routing information. */
+QUERY_TYPE_TXT = 16  # /*!< Text strings. */
+QUERY_TYPE_SIG = 24  # /*!< RFC 2535 / RFC 2931. SIG Record */
+QUERY_TYPE_AAAA = 28  # /*!< RFC 3596. Ip6 Address. */
+QUERY_TYPE_SRV = 33  # /*!< RFC 2782. Server Selection. */
+QUERY_TYPE_NAPTR = 35  # /*!< RFC 3403. Naming Authority Pointer */
+QUERY_TYPE_OPT = 41  # /*!< RFC 6891. EDNS0 option (meta-RR) */
 
-QUERY_TYPE_TLSA = 52      #/*!< RFC 6698. DNS-Based Authentication of Named
-                                     # *   Entities (DANE) Transport Layer Security
-                                     # *   (TLS) Protocol: TLSA */
-QUERY_TYPE_SVCB  = 64     #/*!< RFC 9460. General Purpose Service Binding */
-QUERY_TYPE_HTTPS = 65     #/*!< RFC 9460. Service Binding type for use with
-                                     # *   HTTPS */
-QUERY_TYPE_ANY = 255      #/*!< Wildcard match.  Not response RR. */
-QUERY_TYPE_URI = 256      #/*!< RFC 7553. Uniform Resource Identifier */
-QUERY_TYPE_CAA = 257      #/*!< RFC 6844. Certification Authority
-
+QUERY_TYPE_TLSA = 52  # /*!< RFC 6698. DNS-Based Authentication of Named
+# *   Entities (DANE) Transport Layer Security
+# *   (TLS) Protocol: TLSA */
+QUERY_TYPE_SVCB = 64  # /*!< RFC 9460. General Purpose Service Binding */
+QUERY_TYPE_HTTPS = 65  # /*!< RFC 9460. Service Binding type for use with
+# *   HTTPS */
+QUERY_TYPE_ANY = 255  # /*!< Wildcard match.  Not response RR. */
+QUERY_TYPE_URI = 256  # /*!< RFC 7553. Uniform Resource Identifier */
+QUERY_TYPE_CAA = 257  # /*!< RFC 6844. Certification Authority
 
 QUERY_TYPES_INT = Literal[
     1,
@@ -156,6 +155,7 @@ class Channel:
             5,
             6,
             12,
+            13,
             15,
             16,
             28,
@@ -181,6 +181,7 @@ class Channel:
             "CAA",
             "URI",
             "ANY",
+            "HINFO"
         ],
         callback: Callable[[Future[DNSResult]], None] | None = ...,
         query_class: str | int | None = ...,
@@ -271,7 +272,7 @@ class Channel:
 
     def process_no_fds(self) -> None:
         """
-        processes no file descriptors assuming both read-fd and write-fd 
+        processes no file descriptors assuming both read-fd and write-fd
         are `CYARES_SOCKET_BAD`
         """
 
