@@ -28,6 +28,7 @@ from .channel import (
     QUERY_TYPE_ANY,
     QUERY_TYPE_CAA,
     QUERY_TYPE_CNAME,
+    QUERY_TYPE_HINFO,
     QUERY_TYPE_HTTPS,
     QUERY_TYPE_MX,
     QUERY_TYPE_NAPTR,
@@ -37,7 +38,6 @@ from .channel import (
     QUERY_TYPE_SRV,
     QUERY_TYPE_TLSA,
     QUERY_TYPE_TXT,
-    QUERY_TYPE_HINFO
     Channel,
 )
 from .deprecated_subclass import deprecated_subclass
