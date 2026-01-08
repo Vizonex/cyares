@@ -26,8 +26,11 @@ jobs:
             os: windows-latest
           - name: Windows arm64
             os: windows-11-arm
-          - name: macOS x86_64
-            os: macos-14
+          # SEE: 
+          #  - https://github.com/scikit-tda/ripser.py/pull/213
+          #  - https://github.com/pypa/gh-action-pypi-publish/issues/215
+          # - name: macOS x86_64
+          #   os: macos-14
           - name: macOS arm64
             os: macos-latest
           - name: Linux
