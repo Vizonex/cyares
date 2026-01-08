@@ -94,11 +94,10 @@ class TLSARecordData:
     matching_type: int
     cert_association_data: bytes
 
-
-
 @dataclass
 class OPTRecordData:
     """Data for Opt Record - RFC 6891. EDNS0 option (meta-RR)"""
+
     udp_size: int
     version: int
     flags: int
@@ -107,6 +106,7 @@ class OPTRecordData:
 @dataclass
 class SIGRecordData:
     """Data for SIG Record - RFC 2535 / RFC 2931."""
+
     type_covered: int
     algorithm: int
     labels: int
@@ -119,10 +119,9 @@ class SIGRecordData:
 
 @dataclass
 class SVCBRecordData:
-    priority:int
-    target:str
+    priority: int
+    target: str
     options: list[tuple[int, str]]
-
 
 @dataclass
 class HTTPSRecordData:
@@ -139,6 +138,13 @@ class URIRecordData:
     priority: int
     weight: int
     target: str
+
+@dataclass
+class HINFORecordData:
+    """Data for HINFO (Host information)"""
+
+    cpu: str
+    os: str
 
 @dataclass
 class DNSRecord:
@@ -165,6 +171,7 @@ class DNSRecord:
         | URIRecordData
         | OPTRecordData
         | SIGRecordData
+        | HINFORecordData
     )
 
 @dataclass

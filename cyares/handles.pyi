@@ -212,7 +212,7 @@ class Future(Generic[_T]):
         ...
 
     __class_getitem__ = classmethod(GenericAlias)
-
+    
 # NOT READY: Reason: Unwanted deadlocks.
 # def isfuture(obj: object) -> bool:
 #     """Check for a Future.

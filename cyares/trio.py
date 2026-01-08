@@ -110,8 +110,8 @@ query_type_map = {
     "SOA": QUERY_TYPE_SOA,
     "SRV": QUERY_TYPE_SRV,
     "TXT": QUERY_TYPE_TXT,
-    "HTTPS":QUERY_TYPE_HTTPS,
-    "TLSA": QUERY_TYPE_TLSA
+    "HTTPS": QUERY_TYPE_HTTPS,
+    "TLSA": QUERY_TYPE_TLSA,
 }
 
 query_class_map = {

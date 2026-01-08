@@ -142,6 +142,15 @@ cdef class URIRecordData:
             f" weight={self.weight!r},"\
             f" target={self.target!r})"\
 
+@cython.dataclasses.dataclass
+cdef class HINFORecordData:
+    """Data for HINFO (Host information)"""
+    
+    def __repr__(self) -> str:
+        return f"{self.__class__.__name__}"\
+            f"(cpu={self.cpu!r},"\
+            f" os={self.os!r})"
+
 # These are currently missing from pycares
 @cython.dataclasses.dataclass
 cdef class OPTRecordData:
@@ -581,6 +590,12 @@ cdef URIRecordData parse_uri_record_data(const ares_dns_rr_t* rr):
         )
     )
 
+cdef HINFORecordData parse_hinfo_record_data(const ares_dns_rr_t* rr):
+    return HINFORecordData(
+        cpu=PyUnicode_FromString(ares_dns_rr_get_str(rr, ARES_RR_HINFO_CPU)),
+        os=PyUnicode_FromString(ares_dns_rr_get_str(rr, ARES_RR_HINFO_OS))
+    )
+
 # utilized as Fallback or when ANY is used...
 cdef object extract_record_data(const ares_dns_rr_t* rr, ares_dns_rec_type_t record_type):
     if record_type == ARES_REC_TYPE_A:
@@ -615,6 +630,8 @@ cdef object extract_record_data(const ares_dns_rr_t* rr, ares_dns_rec_type_t rec
         return parse_opt_record_data(rr)
     elif record_type == ARES_REC_TYPE_SIG:
         return parse_sig_record_data(rr)
+    elif record_type == ARES_REC_TYPE_HINFO:
+        return parse_hinfo_record_data(rr)
 
     raise ValueError(f"Unsupported DNS record type: {record_type}")
 

@@ -48,6 +48,17 @@ def wait(fut: Future[_T], timeout: int | float | None = None) -> _T:
     return fut.result(timeout)
 
 
+def test_query_any(channel: Channel):
+    # This should trigger a HINFO Type somehere with Something like this...
+    # DNSResult(answer=[DNSRecord(name='bfdi.tv', type=13,
+    # record_class=1, ttl=3789, data=HINFORecordData(cpu='RFC8482',
+    # os=''))], authority=[], additional=[DNSRecord(name='', type=41, record_class=1, 
+    # ttl=0, data=OPTRecordData(udp_size=512, flags=0, version=0 options=[], ))])
+
+    result = wait(channel.query("bfdi.tv"), cyares.QUERY_TYPE_HINFO).result()
+    assert any([isinstance(d.data, cyares.HINFORecordData) for d in result.answer])
+
+
 
 def test_query_a(channel: Channel):
     result = wait( channel.query("google.com", cyares.QUERY_TYPE_A))
