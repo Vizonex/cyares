@@ -37,6 +37,7 @@ from .channel import (
     QUERY_TYPE_SRV,
     QUERY_TYPE_TLSA,
     QUERY_TYPE_TXT,
+    QUERY_TYPE_HINFO
     Channel,
 )
 from .deprecated_subclass import deprecated_subclass
@@ -112,6 +113,7 @@ query_type_map = {
     "TXT": QUERY_TYPE_TXT,
     "HTTPS": QUERY_TYPE_HTTPS,
     "TLSA": QUERY_TYPE_TLSA,
+    "HINFO": QUERY_TYPE_HINFO
 }
 
 query_class_map = {
