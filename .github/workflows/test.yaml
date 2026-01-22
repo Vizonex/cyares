@@ -26,6 +26,9 @@ jobs:
             python-version: '3.9'
           - os: windows-11-arm  # setup-python action only supports 3.11+
             python-version: '3.10'
+          - os: windows-11-arm # -_- 3.14t is currently giving us the middle finger.
+            python-version: '3.14t'
+          
     steps:
     - uses: actions/checkout@v6
       with:
