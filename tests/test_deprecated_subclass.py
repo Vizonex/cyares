@@ -1,4 +1,3 @@
-
 import pytest
 
 from cyares.deprecated_subclass import deprecated_subclass

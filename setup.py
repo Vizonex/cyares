@@ -1,4 +1,5 @@
-# NOTE: many parts were borrowed from pycares so that we wouldn't need to reinvent the wheel.
+# NOTE: many parts were borrowed from pycares so that we wouldn't need to reinvent the
+# wheel.
 
 import os
 import select
@@ -235,7 +236,8 @@ class cares_build_ext(build_ext):
             c.create_static_lib(objects, output_libname="cares", output_dir="build")
             for e in self.extensions:
                 if e.name == "cyares.handles":
-                    # cyares.handles doesn't need c-ares it's only the others so exclude it.
+                    # cyares.handles doesn't need c-ares
+                    # it's only the others so exclude it.
                     continue
 
                 if "build/cares" not in e.libraries:
@@ -270,7 +272,7 @@ class cares_build_ext(build_ext):
             # imported Cython before setup_requires injected the
             # correct egg into sys.path.
             try:
-                import Cython
+                import Cython  # noqa: F401
             except ImportError:
                 raise RuntimeError(
                     "please install cython to compile cyares from source"

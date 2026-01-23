@@ -83,6 +83,8 @@ class CyAresResolver(AbstractResolver):
     ) -> list[ResolveResult]:
         """Return IP address for given hostname"""
         try:
+            # NOTE: Current implementation is bugged.
+            # I will fix in the future.
             resp = await self._resolver.getaddrinfo(
                 host=host,
                 port=port,

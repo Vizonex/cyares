@@ -23,26 +23,6 @@ from logging import getLogger
 from typing import Any, TypeVar
 
 from .channel import (
-    QUERY_CLASS_ANY,
-    QUERY_CLASS_CHAOS,
-    QUERY_CLASS_HS,
-    QUERY_CLASS_IN,
-    QUERY_CLASS_NONE,
-    QUERY_TYPE_A,
-    QUERY_TYPE_AAAA,
-    QUERY_TYPE_ANY,
-    QUERY_TYPE_CAA,
-    QUERY_TYPE_CNAME,
-    QUERY_TYPE_HINFO,
-    QUERY_TYPE_HTTPS,
-    QUERY_TYPE_MX,
-    QUERY_TYPE_NAPTR,
-    QUERY_TYPE_NS,
-    QUERY_TYPE_PTR,
-    QUERY_TYPE_SOA,
-    QUERY_TYPE_SRV,
-    QUERY_TYPE_TLSA,
-    QUERY_TYPE_TXT,
     Channel,
     cyares_threadsafety,
 )  # type: ignore  # noqa: F403
@@ -51,6 +31,7 @@ from .exception import AresError  # type: ignore
 from .handles import CancelledError, InvalidStateError
 from .handles import Future as cc_Future  # type: ignore
 from .resulttypes import *  # type: ignore  # noqa: F403
+from .typedefs import query_class_map, query_type_map
 
 _T = TypeVar("_T")
 
@@ -62,33 +43,6 @@ WINDOWS_SELECTOR_ERR_MSG = (
 )
 
 _LOGGER = getLogger(__name__)
-
-
-query_type_map = {
-    "A": QUERY_TYPE_A,
-    "AAAA": QUERY_TYPE_AAAA,
-    "ANY": QUERY_TYPE_ANY,
-    "CAA": QUERY_TYPE_CAA,
-    "CNAME": QUERY_TYPE_CNAME,
-    "HTTPS": QUERY_TYPE_HTTPS,
-    "MX": QUERY_TYPE_MX,
-    "NAPTR": QUERY_TYPE_NAPTR,
-    "NS": QUERY_TYPE_NS,
-    "PTR": QUERY_TYPE_PTR,
-    "SOA": QUERY_TYPE_SOA,
-    "SRV": QUERY_TYPE_SRV,
-    "TLSA": QUERY_TYPE_TLSA,
-    "TXT": QUERY_TYPE_TXT,
-    "HINFO": QUERY_TYPE_HINFO
-}
-
-query_class_map = {
-    "IN": QUERY_CLASS_IN,
-    "CHAOS": QUERY_CLASS_CHAOS,
-    "HS": QUERY_CLASS_HS,
-    "NONE": QUERY_CLASS_NONE,
-    "ANY": QUERY_CLASS_ANY,
-}
 
 
 # Mirrors asyncio this is to inject the faster Concurrent.future.Future
@@ -436,6 +390,7 @@ class DNSResolver:
     def query(
         self, host: str, qtype: str, qclass: str | None = None
     ) -> asyncio.Future[DNSResult]:
+        # self._check_open()
         try:
             qtype = query_type_map[qtype]
         except KeyError as e:
@@ -465,15 +420,18 @@ class DNSResolver:
         type: int = 0,
         flags: int = 0,
     ) -> asyncio.Future[AddrInfoResult]:
+        # self._check_open()
         return self._wrap_future(
             self._channel.getaddrinfo(
-                host, port, family=family, type=type, proto=proto, flags=flags
+                host, port, family=family, proto=proto, flags=flags,
+                socktype=type
             )
         )
 
     def gethostbyaddr(
         self, name: str | bytes | bytearray | memoryview[int]
     ) -> asyncio.Future[AddrInfoResult]:
+        # self._check_open()
         return self._wrap_future(self._channel.gethostbyaddr(name))
 
     async def close(self) -> None:
@@ -490,68 +448,8 @@ class DNSResolver:
         sockaddr: tuple[str, int] | tuple[str, int, int, int],
         flags: int = 0,
     ) -> asyncio.Future[NameInfoResult]:
+        # self._check_open()
         return self._wrap_future(self._channel.getnameinfo(sockaddr, flags))
-
-    # Still needs a little bit more work on...
-    # @overload
-    # def search(
-    #     self, host: str, qtype: Literal["A"], qclass: str | None = ...
-    # ) -> asyncio.Future[list[ares_query_a_result]]: ...
-    # @overload
-    # def search(
-    #     self, host: str, qtype: Literal["AAAA"], qclass: str | None = ...
-    # ) -> asyncio.Future[list[ares_query_aaaa_result]]: ...
-    # @overload
-    # def search(
-    #     self, host: str, qtype: Literal["CAA"], qclass: str | None = ...
-    # ) -> asyncio.Future[list[ares_query_caa_result]]: ...
-    # @overload
-    # def search(
-    #     self, host: str, qtype: Literal["CNAME"], qclass: str | None = ...
-    # ) -> asyncio.Future[ares_query_cname_result]: ...
-    # @overload
-    # def search(
-    #     self, host: str, qtype: Literal["MX"], qclass: str | None = ...
-    # ) -> asyncio.Future[list[ares_query_mx_result]]: ...
-    # @overload
-    # def search(
-    #     self, host: str, qtype: Literal["NAPTR"], qclass: str | None = ...
-    # ) -> asyncio.Future[list[ares_query_naptr_result]]: ...
-    # @overload
-    # def search(
-    #     self, host: str, qtype: Literal["NS"], qclass: str | None = ...
-    # ) -> asyncio.Future[list[ares_query_ns_result]]: ...
-    # @overload
-    # def search(
-    #     self, host: str, qtype: Literal["PTR"], qclass: str | None = ...
-    # ) -> asyncio.Future[list[ares_query_ptr_result]]: ...
-    # @overload
-    # def search(
-    #     self, host: str, qtype: Literal["SOA"], qclass: str | None = ...
-    # ) -> asyncio.Future[ares_query_soa_result]: ...
-    # @overload
-    # def search(
-    #     self, host: str, qtype: Literal["SRV"], qclass: str | None = ...
-    # ) -> asyncio.Future[list[ares_query_srv_result]]: ...
-    # @overload
-    # def search(
-    #     self, host: str, qtype: Literal["TXT"], qclass: str | None = ...
-    # ) -> asyncio.Future[list[ares_query_txt_result]]: ...
-
-    # def search(
-    #     self, host: str, qtype: str, qclass: str | None = None
-    # ) -> asyncio.Future[list[Any]] | asyncio.Future[Any]:
-    #     try:
-    #         qtype = query_type_map[qtype]
-    #     except KeyError as e:
-    #         raise ValueError(f"invalid query type: {qtype}") from e
-    #     if qclass is not None:
-    #         try:
-    #             qclass = query_class_map[qclass]
-    #         except KeyError as e:
-    #             raise ValueError(f"invalid query class: {qclass}") from e
-
-    #     return self._wrap_future(self._channel.query(host, qtype, qclass))
 
     async def __aenter__(self):
         return self
@@ -559,4 +457,12 @@ class DNSResolver:
     async def __aexit__(self, *args):
         await self.close()
 
-    # TODO: I will do the rest of the functionality a bit later...
+    # Coming soon.
+    # @property
+    # def is_closed(self):
+    #     """Checks if DNSResolver was closed"""
+    #     return self._closed
+
+    # def _check_open(self):
+    #     if self._closed:
+    #         raise ClosedResolverError("Cannot perform queries after being closed.")

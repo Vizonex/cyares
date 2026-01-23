@@ -4,11 +4,7 @@ import sys
 from typing import Callable, Literal, overload
 
 from .handles import Future
-from .resulttypes import (
-    AddrInfoResult,
-    DNSResult,
-    NameInfoResult,
-)
+from .resulttypes import AddrInfoResult, DNSResult, HostResult, NameInfoResult
 
 if sys.version_info < (3, 11):
     from typing_extensions import Self
@@ -84,11 +80,11 @@ QUERY_TYPES_INT = Literal[
 ]
 
 # Query classes
-ARES_CLASS_IN = 1
-ARES_CLASS_CHAOS = 3
-ARES_CLASS_HESOID = 4
-ARES_CLASS_NONE = 254
-ARES_CLASS_ANY = 255
+QUERY_CLASS_IN = 1
+QUERY_CLASS_CHAOS = 3
+QUERY_CLASS_HS = 4
+QUERY_CLASS_NONE = 254
+QUERY_CLASS_ANY = 255
 
 NI_NOFQDN: int
 NI_NUMERICHOST: int
@@ -181,7 +177,7 @@ class Channel:
             "CAA",
             "URI",
             "ANY",
-            "HINFO"
+            "HINFO",
         ],
         callback: Callable[[Future[DNSResult]], None] | None = ...,
         query_class: str | int | None = ...,
@@ -295,8 +291,8 @@ class Channel:
     def gethostbyaddr(
         self,
         name: str | bytes | bytearray | memoryview[int],
-        callback: Callable[[Future[AddrInfoResult]], None] | None = ...,
-    ) -> Future[AddrInfoResult]: ...
+        callback: Callable[[Future[HostResult]], None] | None = ...,
+    ) -> Future[HostResult]: ...
     def set_local_dev(self, dev: str | bytes | bytearray | memoryview[int]) -> None: ...
     def set_local_ip(self, ip: str | bytes | bytearray | memoryview[int]) -> None: ...
     @overload

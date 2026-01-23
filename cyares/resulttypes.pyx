@@ -361,7 +361,7 @@ cdef AddrInfoNode parse_addrinfo_node(ares_addrinfo_node* ares_node):
             addr = (PyUnicode_FromString(ip), cyares_ntohs(s_in6.sin6_port), s_in6.sin6_flowinfo, s_in6.sin6_scope_id)
     else:
         raise ValueError(f"invalid sockaddr family :{addr_struct.sa_family}")
-    
+
     return AddrInfoNode(ttl=ttl, flags=flags, family=family, socktype=socktype, protocol=protocol, addr=addr)
 
 cdef AddrInfoCname parse_addrinfo_cname(ares_addrinfo_cname* ares_cname):
