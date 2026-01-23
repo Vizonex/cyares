@@ -18,6 +18,11 @@ pip install cyares
 pip install cyares[trio]
 ```
 
+## How to install with anyio bundle
+```
+pip install cyares[anyio]
+```
+
 ## How to install with optional IDNA Plugin
 ```
 pip install cyares[idna]
@@ -87,9 +92,26 @@ if __name__ == "__main__":
     trio.run(test)
 ```
 
+## Anyio
+As of `0.4.0` anyio is now supported if you need use an anyio implementation
+```python
+from cyares.anyio import DNSResolver
+import anyio
+
+async def test():
+    async with DNSResolver(["8.8.8.8", "8.8.4.4"], rotate=True, event_thread=False) as dns:
+        result = await dns.query("google.com", "A")
+        print(result)
+
+if __name__ == "__main__":
+    anyio.run(test)
+```
 
 # Aiohttp
 ## Using Globally (Monkey Patch Method)
+
+>[!WARNING]
+> aiohttp implementation is still buggy. Use at your own risk.
 
 `install()` applies a monkeypatch globally
 Know that if you wanted to use different resolvers with
@@ -180,6 +202,7 @@ The idea was not to reinvent the wheel rather move parts of the library over in 
 If there was a deprecated function with an alternative & safer approch to use I felt using it would be a better move. For example, servers are now set with the csv functions rather than the original setup and because of that change you could now set dns servers in url formats and I might possibly look at adding in __yarl__ to be the cherry on top for those who might wish to get real creative about dns server urls. 
 
 Moving over the __ares_query__ function to use the dns recursion function is planned for the future (maybe after I do the first release of cyares). I still wanted to retain the original response data it gives so that migrating from __pycares__ to __cyares__ wouldn't be a pain to anyone who planned on moving and I also didn't want to take away from __pycares__ either if you prefer using __cffi__ over __cython__ the same way __curl-cffi__ and __cycurl__ were both done. I have my fingers crossed that __aiodns__ will adopt this library in the future or allow users to choose between __pycares__ and __cyares__.
+
 
 
 
