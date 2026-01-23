@@ -52,16 +52,15 @@ def test_query_any(channel: Channel):
     # This should trigger a HINFO Type somehere with Something like this...
     # DNSResult(answer=[DNSRecord(name='bfdi.tv', type=13,
     # record_class=1, ttl=3789, data=HINFORecordData(cpu='RFC8482',
-    # os=''))], authority=[], additional=[DNSRecord(name='', type=41, record_class=1, 
+    # os=''))], authority=[], additional=[DNSRecord(name='', type=41, record_class=1,
     # ttl=0, data=OPTRecordData(udp_size=512, flags=0, version=0 options=[], ))])
 
-    result = wait(channel.query("bfdi.tv"), cyares.QUERY_TYPE_HINFO).result()
+    result = wait(channel.query("bfdi.tv", cyares.QUERY_TYPE_ANY))
     assert any([isinstance(d.data, cyares.HINFORecordData) for d in result.answer])
 
 
-
 def test_query_a(channel: Channel):
-    result = wait( channel.query("google.com", cyares.QUERY_TYPE_A))
+    result = wait(channel.query("google.com", cyares.QUERY_TYPE_A))
 
     assert isinstance(result, cyares.DNSResult)
     assert len(result.answer) > 0
@@ -80,10 +79,8 @@ def test_query_a_bad(channel: Channel):
     # assert errorno, cyares.errno.ARES_ENOTFOUND
 
 
-
-
 def test_query_aaaa(channel: Channel):
-    result = wait( channel.query("ipv6.google.com", cyares.QUERY_TYPE_AAAA))
+    result = wait(channel.query("ipv6.google.com", cyares.QUERY_TYPE_AAAA))
 
     assert isinstance(result, cyares.DNSResult)
     assert len(result.answer) > 0
@@ -120,6 +117,7 @@ def test_query_mx(channel: Channel):
     for record in result.answer:
         assert isinstance(record.data, cyares.MXRecordData)
 
+
 def test_query_ns(channel: Channel):
     result = wait(channel.query("google.com", cyares.QUERY_TYPE_NS))
 
@@ -152,16 +150,22 @@ def test_query_txt_multiple_chunked(channel: Channel):
     result = wait(channel.query("google.com", cyares.QUERY_TYPE_TXT))
 
     # > dig -t txt google.com
-    # google.com.		3270	IN	TXT	"google-site-verification=TV9-DBe4R80X4v0M4U_bd_J9cpOJM0nikft0jAgjmsQ"
-    # google.com.		3270	IN	TXT	"atlassian-domain-verification=5YjTmWmjI92ewqkx2oXmBaD60Td9zWon9r6eakvHX6B77zzkFQto8PQ9QsKnbf4I"
+    # google.com.		3270	IN	TXT	"google-site-verification=TV9-DBe4R80X4v0M4U_bd_
+    # J9cpOJM0nikft0jAgjmsQ"
+    # google.com.		3270	IN	TXT	"atlassian-domain-verification=5YjTmWmjI92ewqkx2
+    # oXmBaD60Td9zWon9r6eakvHX6B77zzkFQto8PQ9QsKnbf4I"
     # google.com.		3270	IN	TXT	"docusign=05958488-4752-4ef2-95eb-aa7ba8a3bd0e"
-    # google.com.		3270	IN	TXT	"facebook-domain-verification=22rm551cu4k0ab0bxsw536tlds4h95"
-    # google.com.		3270	IN	TXT	"google-site-verification=wD8N7i1JTNTkezJ49swvWW48f8_9xveREV4oB-0Hf5o"
+    # google.com.		3270	IN	TXT	"facebook-domain-verification=22rm551cu4k0ab0bxs
+    # w536tlds4h95"
+    # google.com.		3270	IN	TXT	"google-site-verification=wD8N7i1JTNTkezJ49swvWW
+    # 48f8_9xveREV4oB-0Hf5o"
     # google.com.		3270	IN	TXT	"apple-domain-verification=30afIBcvSuDV2PLX"
-    # google.com.		3270	IN	TXT	"webexdomainverification.8YX6G=6e6922db-e3e6-4a36-904e-a805c28087fa"
+    # google.com.		3270	IN	TXT	"webexdomainverification.8YX6G=6e6922db-e3e6-4a3
+    # 6-904e-a805c28087fa"
     # google.com.		3270	IN	TXT	"MS=E4A68B9AB2BB9670BCE15412F62916164C0B20BB"
     # google.com.		3270	IN	TXT	"v=spf1 include:_spf.google.com ~all"
-    # google.com.		3270	IN	TXT	"globalsign-smime-dv=CDYX+XFHUw2wml6/Gb8+59BsH31KzUr6c1l2BPvqKX8="
+    # google.com.		3270	IN	TXT	"globalsign-smime-dv=CDYX+XFHUw2wml6/Gb8+59BsH31
+    # KzUr6c1l2BPvqKX8="
     # google.com.		3270	IN	TXT	"docusign=1b0a6754-49b1-4db5-8540-d2c12664b289"
     assert isinstance(result, cyares.DNSResult)
     assert len(result.answer) >= 10
@@ -187,7 +191,7 @@ def test_query_class_invalid(channel: Channel):
 
 
 def test_query_soa(channel: Channel):
-    result = wait( channel.query("google.com", cyares.QUERY_TYPE_SOA))
+    result = wait(channel.query("google.com", cyares.QUERY_TYPE_SOA))
 
     assert isinstance(result, cyares.DNSResult)
     assert len(result.answer)
@@ -243,8 +247,7 @@ def test_query_ptr_ipv6(channel: Channel):
 
 def test_query_tlsa(channel: Channel):
     # DANE-enabled domain with TLSA records
-    result = wait( channel.query("_25._tcp.mail.ietf.org", cyares.QUERY_TYPE_TLSA)
-    )
+    result = wait(channel.query("_25._tcp.mail.ietf.org", cyares.QUERY_TYPE_TLSA))
 
     assert isinstance(result, cyares.DNSResult)
     assert len(result.answer)
@@ -259,7 +262,7 @@ def test_query_tlsa(channel: Channel):
 
 def test_query_https(channel: Channel):
     # Cloudflare has HTTPS records
-    result = wait( channel.query("cloudflare.com", cyares.QUERY_TYPE_HTTPS))
+    result = wait(channel.query("cloudflare.com", cyares.QUERY_TYPE_HTTPS))
     assert isinstance(result, cyares.DNSResult)
     assert len(result.answer)
     for record in result.answer:
@@ -271,10 +274,10 @@ def test_query_https(channel: Channel):
 
 
 # @pytest.skip("ANY type does not work on Mac.")
-def test_query_any(channel: Channel):
-    result = wait( channel.query("google.com", cyares.QUERY_TYPE_ANY))
-    assert isinstance(result, cyares.DNSResult)
-    assert len(result.answer) >= 1
+# def test_query_any(channel: Channel):
+#     result = wait(channel.query("google.com", cyares.QUERY_TYPE_ANY))
+#     assert isinstance(result, cyares.DNSResult)
+#     assert len(result.answer) >= 1
 
 
 def test_query_cancelled(channel: Channel):
@@ -309,8 +312,7 @@ def test_close_from_different_thread_safe():
     thread.join()
 
     # Should complete without errors
-    assert (close_complete.is_set())
-
+    assert close_complete.is_set()
 
 
 # Since we do not have direct access to things anymore since the removal
@@ -318,6 +320,3 @@ def test_close_from_different_thread_safe():
 
 # IF I get around to it I might introduce a new class for processing
 # Cyares without an EventThread using the selectors library - Vizonex
-
-
-

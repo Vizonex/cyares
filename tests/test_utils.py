@@ -2,6 +2,10 @@ from socket import htonl, htons
 
 from cyares.channel import __htonl, __htons  # type: ignore
 
+# Ensures cyares shortcut for utilizing htons and htons works
+# please do not attempt to try using these publically outside
+# of pytest
+
 
 def test_cyares_htons() -> None:
     x = __htons(0xF4F5)

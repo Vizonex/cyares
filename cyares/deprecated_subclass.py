@@ -1,9 +1,32 @@
 """A External Module for the deprecation of subclassing a class
-this will be a seperate library soon if demand is seen for it."""
+this will be a seperate library soon if demand is seen for it.
+
+It wraps a Type Object to it's function `__init_subclass__`
+to mark that subclassing the object is deprecated without needing
+to tie __init_subclass__ all by yourself::
+
+    class DeprecatedSubclass:
+        @deprecated("deprecated because I wanted to")
+        __init_subclass__(cls):...
+
+The following setup is better, lazier and makes your
+code look more organized, putting the warning at the top of the class
+can also enhance it's readability and helps developers more easily find
+where the warning is located::
+
+    from cyares.deprecated_subclass import deprecated_subclass
+
+    @deprecated_subclass("deprecated because I wanted to")
+    class DeprecatedSubclass:
+        ...
+
+In the future cyares will no longer have a deprecated_subclass module
+and it will be moved into it's own pypi-package
+"""
 
 import functools
 import warnings
-from collections.abc import Sequence
+from collections.abc import Iterable, Sequence
 from types import MethodType
 from typing import TypeVar
 
@@ -13,7 +36,7 @@ from typing import TypeVar
 _T = TypeVar("_T")
 
 
-def join_version_if_sequence(ver: str | Sequence[int]) -> str:
+def join_version_if_sequence(ver: str | Sequence[int] | Iterable[int]) -> str:
     return ".".join(map(str, ver)) if not isinstance(ver, str) else ver
 
 
@@ -79,7 +102,7 @@ class deprecated_subclass:
 
     def __call__(self, arg: _T, /) -> _T:
         """
-        Wraps a class type for deprecation of subclassing it.
+        Wraps a class type for deprecating the subclassing of it.
 
         :param self: Description
         :param arg: the class to wrap to

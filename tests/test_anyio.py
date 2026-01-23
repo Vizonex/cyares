@@ -2,18 +2,21 @@ import asyncio
 import ipaddress
 import sys
 
+import anyio as anyio
 import pytest
 
-from cyares.aio import DNSResolver
+from cyares.anyio import DNSResolver
 from cyares.exception import AresError
 
 uvloop = pytest.importorskip("winloop" if sys.platform == "win32" else "uvloop")
 
-PARAMS = [
+# TODO: (Vizonex) test rloop support on linux and Apple Operating systems
+PARAMS: list[str] = [
     pytest.param(
         ("asyncio", {"loop_factory": uvloop.new_event_loop}), id="asyncio[uvloop]"
     ),
     pytest.param(("asyncio", {"use_uvloop": False}), id="asyncio"),
+    pytest.param("trio"),
 ]
 
 if sys.platform == "win32":
@@ -25,24 +28,17 @@ if sys.platform == "win32":
     )
 
 
+# use all backends...
 @pytest.fixture(params=PARAMS)
-def anyio_backend(request: pytest.FixtureRequest):
+def anyio_backend(request: pytest.FixtureRequest) -> str:
     return request.param
 
 
-# TODO: Migrate this section over to anyio in 0.1.6 or sooner...
-
-
-# TODO: Parametize turning certain event_threads on and off in a future cyares update.
-@pytest.fixture(params=(True, False), ids=("event-thread", "socket-cb"))
-async def resolver(anyio_backend, request: pytest.FixtureRequest):
+@pytest.fixture(
+    params=(True, False), scope="function", ids=("event-thread", "socket-cb")
+)
+async def resolver(anyio_backend: str, request: pytest.FixtureRequest):
     # should be supported on all operating systems...
-    if request.param is False:
-        if (
-            sys.platform == "win32"
-            and type(asyncio.get_event_loop()) is asyncio.ProactorEventLoop
-        ):
-            pytest.skip(reason="ProactorEventLoop with socket-cb is impossible")
 
     async with DNSResolver(
         servers=[
@@ -146,7 +142,6 @@ async def test_query_soa(resolver: DNSResolver) -> None:
     assert await resolver.query("google.com", "SOA")
 
 
-@pytest.mark.skip("For unknown reasons this returns up as empty...")
 @pytest.mark.anyio
 async def test_query_srv(resolver: DNSResolver) -> None:
     assert await resolver.query("_xmpp-server._tcp.jabber.org", "SRV")
@@ -175,7 +170,7 @@ async def test_query_bad_class(resolver: DNSResolver) -> None:
     with pytest.raises(ValueError):
         await resolver.query("google.com", "A", qclass="INVALIDCLASS")
 
-# TODO: Coming soon...
+
 # @pytest.mark.anyio
 # async def test_premature_closing(resolver: DNSResolver):
 #     # test without closing
