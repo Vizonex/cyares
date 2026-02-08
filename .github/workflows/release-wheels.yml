@@ -20,6 +20,19 @@ jobs:
   build_sdist:
     uses: ./.github/workflows/run-sdist.yml
 
+  upload_to_github_release_page:
+    needs: [build_wheels, build_sdist]
+    if: github.event_name == 'release' && github.event.action == 'published'
+    runs-on: ubuntu-latest
+    steps:
+        - name: Upload wheels to github release page
+          uses: actions/upload-release-asset@v3
+          with:
+            upload_url: ${{ github.event.release.upload_url }}
+            asset_path: dist/*.whl
+            asset_name: wheels-*
+            asset_content_type: application/octet-stream
+  
   upload_pypi:
     needs: [build_wheels, build_sdist]
     if: github.event_name == 'release' && github.event.action == 'published'
