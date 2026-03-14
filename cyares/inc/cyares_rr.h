@@ -165,7 +165,7 @@ inline PyObject* cyares_rr_get_abin(const ares_dns_rr_t* rr, ares_dns_rr_key_t k
     return abin;
 }
 
-inline PyObject* cyares_rr_get_opt(const ares_dns_rr_t* rr, ares_dns_rr_key_t key){
+PyObject* cyares_rr_get_opt(const ares_dns_rr_t* rr, ares_dns_rr_key_t key){
     size_t opt_cnt;
     PyObject* params;
 
@@ -219,22 +219,22 @@ inline PyObject* cyares_rr_get_opt(const ares_dns_rr_t* rr, ares_dns_rr_key_t ke
 
 PyObject* cyares_dns_rr_get_addr(const ares_dns_rr_t* rr, ares_dns_rr_key_t key){
     char buf[23]; /* INET_ADDRSTRLEN is being dumb with me so will say it's number for now */
-    const in_addr* addr = ares_dns_rr_get_addr(rr, key);
-    if (addr == NULL){
+    const in_addr* py_addr = ares_dns_rr_get_addr(rr, key);
+    if (py_addr == NULL){
         PyErr_SetString(PyExc_ValueError, "Failed to parse in cyares_dns_rr_get_addr");
         return NULL;
     }
-    return PyUnicode_FromString(ares_inet_ntop(AF_INET, addr, buf, 23));
+    return PyUnicode_FromString(ares_inet_ntop(AF_INET, py_addr, buf, 23));
 }
 
 PyObject* cyares_dns_rr_get_addr6(const ares_dns_rr_t* rr, ares_dns_rr_key_t key){
     char buf[65];
-    const ares_in6_addr* addr = ares_dns_rr_get_addr6(rr, key);
-    if (addr == NULL){
+    const ares_in6_addr* py_addr = ares_dns_rr_get_addr6(rr, key);
+    if (py_addr == NULL){
         PyErr_SetString(PyExc_ValueError, "Failed to parse in cyares_dns_rr_get_addr6");
         return NULL;
     }
-    return PyUnicode_FromString(ares_inet_ntop(AF_INET6, addr, buf, 65));
+    return PyUnicode_FromString(ares_inet_ntop(AF_INET6, py_addr, buf, 65));
 }
 
 
