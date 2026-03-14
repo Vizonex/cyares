@@ -219,7 +219,7 @@ PyObject* cyares_rr_get_opt(const ares_dns_rr_t* rr, ares_dns_rr_key_t key){
 
 PyObject* cyares_dns_rr_get_addr(const ares_dns_rr_t* rr, ares_dns_rr_key_t key){
     char buf[23]; /* INET_ADDRSTRLEN is being dumb with me so will say it's number for now */
-    const in_addr* py_addr = ares_dns_rr_get_addr(rr, key);
+    const struct in_addr* py_addr = ares_dns_rr_get_addr(rr, key);
     if (py_addr == NULL){
         PyErr_SetString(PyExc_ValueError, "Failed to parse in cyares_dns_rr_get_addr");
         return NULL;
