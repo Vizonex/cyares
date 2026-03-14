@@ -9,6 +9,28 @@ from .inc cimport cyares_ntohs, cyares_unicode_from_uchar_and_size
 cimport cython
 
 
+cdef extern from "inc/cyares_rr.h":
+    str cyares_dns_rr_get_name(const ares_dns_rr_t* rr)
+    str cyares_dns_rr_get_str(
+        const ares_dns_rr_t* rr, ares_dns_rr_key_t key
+    )
+    str cyares_rr_get_bin_as_unicode(
+        const ares_dns_rr_t* rr, ares_dns_rr_key_t key
+    )
+    bytes cyares_rr_get_bin_as_bytes(
+        const ares_dns_rr_t* rr, ares_dns_rr_key_t key
+    )
+    bytes cyares_rr_get_abin(
+        const ares_dns_rr_t* rr, ares_dns_rr_key_t key
+    )
+
+    # returns list[tuple[int, str]]
+    list cyares_rr_get_opt(const ares_dns_rr_t* rr, ares_dns_rr_key_t key)
+
+    str cyares_dns_rr_get_addr(const ares_dns_rr_t *rr, ares_dns_rr_key_t key)
+    str cyares_dns_rr_get_addr6(const ares_dns_rr_t *rr, ares_dns_rr_key_t key)
+
+
 
 @cython.dataclasses.dataclass
 cdef class ARecordData:
@@ -238,70 +260,6 @@ cdef class AddrInfoResult:
             f"(cnames={self.cnames!r}, nodes={self.nodes!r})"
 
 
-# Technqiue for low level writing comes from yarl & aiohttp but
-# is made for writing utf-8 characters instead...
-
-cdef struct Writer:
-    char* buf
-    Py_ssize_t size
-    Py_ssize_t pos
-    bint heap
-
-cdef inline void _init_writer(Writer* writer, char* buf):
-    writer.buf = buf
-    writer.size = 8192
-    writer.pos = 0
-    writer.heap = 0
-
-cdef inline int _write_byte(Writer* writer, const uint8_t ch):
-    cdef char * buf
-    cdef Py_ssize_t size
-
-    if writer.pos == writer.size:
-        # reallocate
-        size = writer.size + 8192
-        if not writer.heap:
-            buf = <char*>PyMem_Malloc(size)
-            if buf == NULL:
-                PyErr_NoMemory()
-                return -1
-            memcpy(buf, writer.buf, writer.size)
-        else:
-            buf = <char*>PyMem_Realloc(writer.buf, size)
-            if buf == NULL:
-                PyErr_NoMemory()
-                return -1
-        writer.buf = buf
-        writer.size = size
-        writer.heap = 1
-    writer.buf[writer.pos] = <char>ch
-    writer.pos += 1
-    return 0
-
-
-cdef inline void _release_writer(Writer* writer):
-    if writer.heap:
-        PyMem_Free(writer.buf)
-
-
-cdef inline int _write_utf8(Writer* writer, const uint8_t utf):
-    if utf < 0x80:
-        return _write_byte(writer, utf)
-
-    # it can only go less than 256 from here so no need to 
-    # rip off all that aiohttp does :)
-
-    if _write_byte(writer, <uint8_t>(0xc0 | (utf >> 6))) < 0:
-        return -1
-    return _write_byte(writer,  <uint8_t>(0x80 | (utf & 0x3f)))
-
-cdef inline bytes _writer_finish(Writer* writer):
-    return PyBytes_FromStringAndSize(writer.buf, writer.pos)
-
-
-
-
-
 
 cdef HostResult parse_hostent(hostent_t* hostent_):
     cdef str name = PyUnicode_FromString(hostent_.h_name)
@@ -342,7 +300,7 @@ cdef AddrInfoNode parse_addrinfo_node(ares_addrinfo_node* ares_node):
     cdef tuple addr
     assert addr_struct.sa_family == ares_node.ai_family
 
-    cdef char ip[56]
+    cdef char ip[65]
     cdef int family
     cdef sockaddr_in* s_in
     cdef sockaddr_in6* s_in6
@@ -394,89 +352,58 @@ cdef AddrInfoResult parse_addrinfo( ares_addrinfo_t* addrinfo):
 # preformance and benchmarks however this is saved for a future
 # update for now parse_dnsrec_any is used...
 
+
 cdef ARecordData parse_a_record_data(const ares_dns_rr_t* rr):
-    cdef char buf[65]
-    cdef const in_addr* addr = ares_dns_rr_get_addr(rr, ARES_RR_A_ADDR)
-    ares_inet_ntop(AF_INET, addr, buf, INET6_ADDRSTRLEN)
-    return ARecordData(addr=PyUnicode_FromString(buf))
+    return ARecordData(
+        addr=cyares_dns_rr_get_addr(rr, ARES_RR_A_ADDR)
+    )
 
 cdef AAAARecordData parse_aaaa_record_data(const ares_dns_rr_t* rr):
-    cdef char buf[65]
-    cdef const ares_in6_addr* addr = ares_dns_rr_get_addr6(rr, ARES_RR_AAAA_ADDR)
-    ares_inet_ntop(AF_INET6, addr, buf, INET6_ADDRSTRLEN)
-    return AAAARecordData(addr=PyUnicode_FromString(buf))
+    return AAAARecordData(
+        addr=cyares_dns_rr_get_addr6(rr, ARES_RR_AAAA_ADDR)
+    )
 
 cdef MXRecordData parse_mx_record_data(const ares_dns_rr_t* rr):
-    cdef unsigned short priority = ares_dns_rr_get_u16(rr, ARES_RR_MX_PREFERENCE)
-    cdef const char* exchange = ares_dns_rr_get_str(rr, ARES_RR_MX_EXCHANGE)
-    return MXRecordData(priority=priority, exchange=PyUnicode_FromString(exchange))
-
-
-
+    return MXRecordData(
+        priority=ares_dns_rr_get_u16(rr, ARES_RR_MX_PREFERENCE), 
+        exchange=cyares_dns_rr_get_str(rr, ARES_RR_MX_EXCHANGE)
+    )
 
 cdef TXTRecordData parse_txt_record_data(const ares_dns_rr_t* rr):
-    cdef size_t cnt = ares_dns_rr_get_abin_cnt(rr, ARES_RR_TXT_DATA)
-    cdef size_t length, i, l
-    cdef char buf[8192]
-    cdef const unsigned char* data
-    cdef Writer writer
-
-    _init_writer(&writer, buf)
-    try:
-        for i in range(cnt):
-            data = ares_dns_rr_get_abin(rr, ARES_RR_TXT_DATA, i, &length)
-            if data != NULL:
-                for l in range(length):
-                    _write_utf8(&writer, data[l])
-
-        return TXTRecordData(_writer_finish(&writer))
-    finally:
-        _release_writer(&writer)
-
+    return TXTRecordData(cyares_rr_get_abin(rr, ARES_RR_TXT_DATA))
 
 cdef CAARecordData parse_caa_record_data(const ares_dns_rr_t* rr):
-    cdef size_t length
-    cdef const unsigned char* value
-    value = ares_dns_rr_get_bin(rr, ARES_RR_CAA_VALUE, &length)
     return CAARecordData(
         critical=ares_dns_rr_get_u8(rr,  ARES_RR_CAA_CRITICAL), 
-        tag=PyUnicode_FromString(ares_dns_rr_get_str(rr, ARES_RR_CAA_TAG)), 
-        value=PyUnicode_FromKindAndData(PyUnicode_1BYTE_KIND, value, <Py_ssize_t>length)
+        tag=cyares_dns_rr_get_str(rr, ARES_RR_CAA_TAG),
+        value=cyares_rr_get_bin_as_unicode(rr, ARES_RR_CAA_VALUE)
     )
 
 cdef CNAMERecordData parse_cname_record_data(const ares_dns_rr_t* rr):
-    return CNAMERecordData(cname=PyUnicode_FromString(
-        ares_dns_rr_get_str(rr, ARES_RR_CNAME_CNAME)
-    ))
+    return CNAMERecordData(cname=cyares_dns_rr_get_str(rr, ARES_RR_CNAME_CNAME))
 
 cdef NAPTRRecordData parse_naptr_record_data(const ares_dns_rr_t* rr):
-    cdef unsigned short order = ares_dns_rr_get_u16(rr, ARES_RR_NAPTR_ORDER)
-    cdef unsigned short preference = ares_dns_rr_get_u16(rr, ARES_RR_NAPTR_PREFERENCE)
-    cdef const char* flags = ares_dns_rr_get_str(rr, ARES_RR_NAPTR_FLAGS)
-    cdef const char* service = ares_dns_rr_get_str(rr, ARES_RR_NAPTR_SERVICES)
-    cdef const char* regexp = ares_dns_rr_get_str(rr, ARES_RR_NAPTR_REGEXP)
-    cdef const char* replacement = ares_dns_rr_get_str(rr, ARES_RR_NAPTR_REPLACEMENT)
     return NAPTRRecordData(
-        order=order,
-        preference=preference,
-        flags=PyUnicode_FromString(flags),
-        service=PyUnicode_FromString(service),
-        regexp=PyUnicode_FromString(regexp),
-        replacement=PyUnicode_FromString(replacement)
+        order=ares_dns_rr_get_u16(rr, ARES_RR_NAPTR_ORDER),
+        preference=ares_dns_rr_get_u16(rr, ARES_RR_NAPTR_PREFERENCE),
+        flags=cyares_dns_rr_get_str(rr, ARES_RR_NAPTR_FLAGS),
+        service=cyares_dns_rr_get_str(rr, ARES_RR_NAPTR_SERVICES),
+        regexp=cyares_dns_rr_get_str(rr, ARES_RR_NAPTR_REGEXP),
+        replacement=cyares_dns_rr_get_str(rr, ARES_RR_NAPTR_REPLACEMENT)
     )
 
 cdef NSRecordData parse_ns_record_data(const ares_dns_rr_t* rr):
-    return NSRecordData(nsdname=PyUnicode_FromString(ares_dns_rr_get_str(rr, ARES_RR_NS_NSDNAME)))
+    return NSRecordData(nsdname=cyares_dns_rr_get_str(rr, ARES_RR_NS_NSDNAME))
 
 cdef PTRRecordData parse_ptr_record_data(const ares_dns_rr_t* rr):
     return PTRRecordData(
-        dname=PyUnicode_FromString(ares_dns_rr_get_str(rr, ARES_RR_PTR_DNAME))
+        dname=cyares_dns_rr_get_str(rr, ARES_RR_PTR_DNAME)
     )
 
 cdef SOARecordData parse_soa_record_data(const ares_dns_rr_t* rr):
     return SOARecordData(
-        mname=PyUnicode_FromString(ares_dns_rr_get_str(rr, ARES_RR_SOA_MNAME)),
-        rname=PyUnicode_FromString(ares_dns_rr_get_str(rr, ARES_RR_SOA_RNAME)),
+        mname=cyares_dns_rr_get_str(rr, ARES_RR_SOA_MNAME),
+        rname=cyares_dns_rr_get_str(rr, ARES_RR_SOA_RNAME),
         serial=ares_dns_rr_get_u32(rr, ARES_RR_SOA_SERIAL),
         refresh=ares_dns_rr_get_u32(rr, ARES_RR_SOA_REFRESH),
         retry=ares_dns_rr_get_u32(rr, ARES_RR_SOA_RETRY),
@@ -489,57 +416,17 @@ cdef SRVRecordData parse_srv_record_data(const ares_dns_rr_t* rr):
         priority=ares_dns_rr_get_u16(rr, ARES_RR_SRV_PRIORITY),
         weight=ares_dns_rr_get_u16(rr, ARES_RR_SRV_WEIGHT),
         port=ares_dns_rr_get_u16(rr, ARES_RR_SRV_PORT),
-        target=PyUnicode_FromString(ares_dns_rr_get_str(rr, ARES_RR_SRV_TARGET))
+        target=cyares_dns_rr_get_str(rr, ARES_RR_SRV_TARGET)
     )
-
-cdef bytes write_uchar_as_bytes(const unsigned char* data, size_t size):
-    cdef Writer writer
-    cdef char buf[8192]
-    cdef size_t i 
-    _init_writer(&writer, buf)
-    try:
-        for i in range(size):
-            if _write_utf8(&writer, data[i]) < 0:
-                raise
-        return _writer_finish(&writer)
-    finally:
-        _release_writer(&writer)
-
 
 cdef TLSARecordData parse_tlsa_record_data(const ares_dns_rr_t* rr):
-    cdef size_t data_len
-    cdef const unsigned char* data_ptr
-    cert_usage = ares_dns_rr_get_u8(rr, ARES_RR_TLSA_CERT_USAGE)
-    selector = ares_dns_rr_get_u8(rr, ARES_RR_TLSA_SELECTOR)
-    matching_type = ares_dns_rr_get_u8(rr, ARES_RR_TLSA_MATCH)
-    data_ptr = ares_dns_rr_get_bin(rr, ARES_RR_TLSA_DATA, &data_len)
-
     return TLSARecordData(
-        cert_usage=cert_usage,
-        selector=selector,
-        matching_type=matching_type,
-        cert_association_data=write_uchar_as_bytes(data_ptr, data_len)
+        cert_usage=ares_dns_rr_get_u8(rr, ARES_RR_TLSA_CERT_USAGE),
+        selector=ares_dns_rr_get_u8(rr, ARES_RR_TLSA_SELECTOR),
+        matching_type=ares_dns_rr_get_u8(rr, ARES_RR_TLSA_MATCH),
+        cert_association_data=cyares_rr_get_bin_as_bytes(rr, ARES_RR_TLSA_DATA)
     )
 
-cdef list _extract_opt_params(const ares_dns_rr_t* rr, ares_dns_rr_key_t key):
-    # """Extract OPT params as list of (key, value) tuples for HTTPS/SVCB records."""
-    cdef const unsigned char* val_ptr
-    cdef str val
-    cdef size_t val_len
-    cdef size_t opt_cnt = ares_dns_rr_get_opt_cnt(rr, key)
-    if not opt_cnt:
-        return []
-    
-    # Collect all options as a list of (key, value) tuples
-    params = []
-    for i in range(opt_cnt):
-        opt_key = ares_dns_rr_get_opt(rr, key, i, &val_ptr, &val_len)
-        if val_ptr != NULL:
-            val = cyares_unicode_from_uchar_and_size(val_ptr, val_len)
-        else:
-            val = ''
-        params.append((opt_key, val))
-    return params
 
 
 cdef OPTRecordData parse_opt_record_data(const ares_dns_rr_t* rr):
@@ -547,12 +434,10 @@ cdef OPTRecordData parse_opt_record_data(const ares_dns_rr_t* rr):
         udp_size= ares_dns_rr_get_u16(rr, ARES_RR_OPT_UDP_SIZE),
         version= ares_dns_rr_get_u8(rr, ARES_RR_OPT_VERSION),
         flags=ares_dns_rr_get_u16(rr, ARES_RR_OPT_FLAGS),
-        options=_extract_opt_params(rr, ARES_RR_OPT_OPTIONS)
+        options=cyares_rr_get_opt(rr, ARES_RR_OPT_OPTIONS)
     )
 
 cdef SIGRecordData parse_sig_record_data(const ares_dns_rr_t* rr):
-    cdef size_t signature_len = 0
-    cdef const unsigned char* signature = ares_dns_rr_get_bin(rr, ARES_RR_SIG_SIGNATURE, &signature_len)
     return SIGRecordData(
         type_covered=ares_dns_rr_get_u16(rr, ARES_RR_SIG_TYPE_COVERED),
         algorithm=ares_dns_rr_get_u8(rr, ARES_RR_SIG_ALGORITHM),
@@ -561,39 +446,35 @@ cdef SIGRecordData parse_sig_record_data(const ares_dns_rr_t* rr):
         expiration=ares_dns_rr_get_u32(rr, ARES_RR_SIG_EXPIRATION),
         inception=ares_dns_rr_get_u32(rr, ARES_RR_SIG_INCEPTION),
         key_tag=ares_dns_rr_get_u16(rr, ARES_RR_SIG_KEY_TAG),
-        signers_name=PyUnicode_FromString(ares_dns_rr_get_str(rr, ARES_RR_SIG_SIGNERS_NAME)),
-        signature=cyares_unicode_from_uchar_and_size(signature, signature_len)
+        signers_name=cyares_dns_rr_get_str(rr, ARES_RR_SIG_SIGNERS_NAME),
+        signature=cyares_rr_get_bin_as_unicode(rr, ARES_RR_SIG_SIGNATURE)
     )
 
 cdef SVCBRecordData parse_svcb_record_data(const ares_dns_rr_t* rr):
     return SVCBRecordData(
         priority=ares_dns_rr_get_u16(rr, ARES_RR_SVCB_PRIORITY),
         target=PyUnicode_FromString(ares_dns_rr_get_str(rr, ARES_RR_SVCB_TARGET)),
-        params=_extract_opt_params(rr, ARES_RR_SVCB_PARAMS)
+        params=cyares_rr_get_opt(rr, ARES_RR_SVCB_PARAMS)
     )
 
 cdef HTTPSRecordData parse_https_record_data(const ares_dns_rr_t* rr):
-    priority = ares_dns_rr_get_u16(rr, ARES_RR_HTTPS_PRIORITY)
-    target = ares_dns_rr_get_str(rr, ARES_RR_HTTPS_TARGET)
     return HTTPSRecordData(
-        priority=priority,
-        target=PyUnicode_FromString(target),
-        params=_extract_opt_params(rr, ARES_RR_HTTPS_PARAMS)
+        priority=ares_dns_rr_get_u16(rr, ARES_RR_HTTPS_PRIORITY),
+        target=cyares_dns_rr_get_str(rr, ARES_RR_HTTPS_TARGET),
+        params=cyares_rr_get_opt(rr, ARES_RR_HTTPS_PARAMS)
     )
 
 cdef URIRecordData parse_uri_record_data(const ares_dns_rr_t* rr):
     return URIRecordData(
-        priority = ares_dns_rr_get_u16(rr, ARES_RR_URI_PRIORITY),
-        weight = ares_dns_rr_get_u16(rr, ARES_RR_URI_WEIGHT),
-        target=PyUnicode_FromString(
-            ares_dns_rr_get_str(rr, ARES_RR_URI_TARGET)
-        )
+        priority=ares_dns_rr_get_u16(rr, ARES_RR_URI_PRIORITY),
+        weight=ares_dns_rr_get_u16(rr, ARES_RR_URI_WEIGHT),
+        target=cyares_dns_rr_get_str(rr, ARES_RR_URI_TARGET)
     )
 
 cdef HINFORecordData parse_hinfo_record_data(const ares_dns_rr_t* rr):
     return HINFORecordData(
-        cpu=PyUnicode_FromString(ares_dns_rr_get_str(rr, ARES_RR_HINFO_CPU)),
-        os=PyUnicode_FromString(ares_dns_rr_get_str(rr, ARES_RR_HINFO_OS))
+        cpu=cyares_dns_rr_get_str(rr, ARES_RR_HINFO_CPU),
+        os=cyares_dns_rr_get_str(rr, ARES_RR_HINFO_OS)
     )
 
 # utilized as Fallback or when ANY is used...
@@ -642,10 +523,14 @@ cdef tuple parse_dnsrec_any(const ares_dns_record_t* dnsrec):
     cdef ares_dns_class_t rec_class
     cdef ares_dns_rec_type_t rec_type
     cdef const ares_dns_rr_t* rr
+    cdef object name
 
     if dnsrec == NULL:
         return None, ARES_EBADRESP
 
+    # TODO: If Parsing fails at any point 
+    # there should be an excpeiton object ready 
+    # so that errors can be properly handled.
     answer_records = []
     authority_records = []
     additional_records = []
@@ -655,11 +540,12 @@ cdef tuple parse_dnsrec_any(const ares_dns_record_t* dnsrec):
     for i in range(answer_count):
         rr = ares_dns_record_rr_get_const(dnsrec, ARES_SECTION_ANSWER, i)
         if rr != NULL:
-            name = PyUnicode_FromString(ares_dns_rr_get_name(rr))
+            name = cyares_dns_rr_get_name(rr)
             rec_type = ares_dns_rr_get_type(rr)
             rec_class = ares_dns_rr_get_class(rr)
             ttl = ares_dns_rr_get_ttl(rr)
 
+            
             # try:
             data = extract_record_data(rr, rec_type)
             answer_records.append(DNSRecord(
@@ -678,7 +564,7 @@ cdef tuple parse_dnsrec_any(const ares_dns_record_t* dnsrec):
     for i in range(authority_count):
         rr = ares_dns_record_rr_get_const(dnsrec, ARES_SECTION_AUTHORITY, i)
         if rr != NULL:
-            name = PyUnicode_FromString(ares_dns_rr_get_name(rr))
+            name = cyares_dns_rr_get_name(rr)
             rec_type = ares_dns_rr_get_type(rr)
             rec_class = ares_dns_rr_get_class(rr)
             ttl = ares_dns_rr_get_ttl(rr)
@@ -706,7 +592,6 @@ cdef tuple parse_dnsrec_any(const ares_dns_record_t* dnsrec):
             rec_class = ares_dns_rr_get_class(rr)
             ttl = ares_dns_rr_get_ttl(rr)
 
-            # try:
             data = extract_record_data(rr, rec_type)
             additional_records.append(DNSRecord(
                 name=name,
@@ -715,9 +600,6 @@ cdef tuple parse_dnsrec_any(const ares_dns_record_t* dnsrec):
                 ttl=ttl,
                 data=data
             ))
-            # except (ValueError, Exception):
-            #     # Skip unsupported record types
-            #     pass
 
     result = DNSResult(
         answer=answer_records,

@@ -7,6 +7,8 @@
 extern "C" {
 #endif /* __cplusplus */
 
+/* TODO: Migrate to using CMAKE instead since it can be used as a pypi package */
+
 #ifdef _WIN32
 #define CYARES_USE_WINDOWS 1
 #define WIN32_LEAN_AND_MEAN
