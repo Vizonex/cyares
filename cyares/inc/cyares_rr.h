@@ -229,7 +229,7 @@ PyObject* cyares_dns_rr_get_addr(const ares_dns_rr_t* rr, ares_dns_rr_key_t key)
 
 PyObject* cyares_dns_rr_get_addr6(const ares_dns_rr_t* rr, ares_dns_rr_key_t key){
     char buf[65];
-    const ares_in6_addr* py_addr = ares_dns_rr_get_addr6(rr, key);
+    const struct ares_in6_addr* py_addr = ares_dns_rr_get_addr6(rr, key);
     if (py_addr == NULL){
         PyErr_SetString(PyExc_ValueError, "Failed to parse in cyares_dns_rr_get_addr6");
         return NULL;
