@@ -7,7 +7,6 @@ few of the most repetative and quite annoying sections of this library.
 
 #include "cares_headers.h"
 #include "Python.h"
-#include "ares.h"
 #include "string.h"
 #include "stdint.h"
 
