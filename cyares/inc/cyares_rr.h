@@ -153,7 +153,7 @@ inline PyObject* cyares_rr_get_abin(const ares_dns_rr_t* rr, ares_dns_rr_key_t k
         if (data != NULL){
             for (size_t j = 0; j < length; j++)
             {
-                if (cyares_write_utf8(&w, data[i]) < 0){
+                if (cyares_write_utf8(&w, data[j]) < 0){
                     cyares_release_writer(&w);
                     return NULL;
                 }
