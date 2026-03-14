@@ -141,7 +141,7 @@ inline PyObject* cyares_rr_get_bin_as_bytes(
 /* Mostly for ARES_RR_TXT_DATA but incase anything else comes along it will be added to this... */
 inline PyObject* cyares_rr_get_abin(const ares_dns_rr_t* rr, ares_dns_rr_key_t key){
     size_t cnt = ares_dns_rr_get_abin_cnt(rr, key);
-    size_t length, i, j;
+    size_t length;
     writer_t w;
     PyObject* abin;
     const uint8_t* data;
