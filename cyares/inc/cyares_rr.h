@@ -20,7 +20,7 @@ typedef struct {
     uint8_t heap;
 } writer_t;
 
-inline void 
+static inline void 
 cyares_init_writer(writer_t* writer, char* buf, Py_ssize_t size){
     writer->buf = buf;
     writer->size = size;
@@ -28,7 +28,7 @@ cyares_init_writer(writer_t* writer, char* buf, Py_ssize_t size){
     writer->heap = 0;
 }
 
-inline int
+static inline int
 cyares_write_byte(writer_t* writer, const uint8_t ch){
     char* buf;
     Py_ssize_t size;
@@ -59,13 +59,13 @@ cyares_write_byte(writer_t* writer, const uint8_t ch){
     return 0;
 }
 
-inline void cyares_release_writer(writer_t* writer){
+static inline void cyares_release_writer(writer_t* writer){
     if (writer->heap){
         PyMem_Free(writer->buf);
     }
 }
 
-inline int cyares_write_utf8(writer_t* writer, const uint8_t utf){
+static inline int cyares_write_utf8(writer_t* writer, const uint8_t utf){
     if (utf < 0x80) {
         return cyares_write_byte(writer, utf);
     }
@@ -77,12 +77,12 @@ inline int cyares_write_utf8(writer_t* writer, const uint8_t utf){
     return cyares_write_byte(writer,  (uint8_t)(0x80 | (utf & 0x3f)));
 }
 
-inline PyObject* cyares_writer_finish(writer_t* writer) {
+static inline PyObject* cyares_writer_finish(writer_t* writer) {
     return PyBytes_FromStringAndSize(writer->buf, writer->pos);
 }
 
 /* encodes utf-8 values as bytes without needing to convert multiple times */
-inline PyObject* cyares_encode_bytes(const uint8_t* utf, const Py_ssize_t len){
+static inline PyObject* cyares_encode_bytes(const uint8_t* utf, const Py_ssize_t len){
     /* prevents us from needing to calculate each character's actual size */
     char buf[_CYARES_DEFAULT_BUF_SIZE];
     writer_t w;
@@ -107,11 +107,11 @@ inline PyObject* cyares_encode_bytes(const uint8_t* utf, const Py_ssize_t len){
 
 /* DNS RR Stuff */
 
-inline PyObject* cyares_dns_rr_get_name(const ares_dns_rr_t* rr){
+static inline PyObject* cyares_dns_rr_get_name(const ares_dns_rr_t* rr){
     return PyUnicode_FromString(ares_dns_rr_get_name(rr));
 }
 
-inline PyObject* cyares_dns_rr_get_str(
+static inline PyObject* cyares_dns_rr_get_str(
   const ares_dns_rr_t* rr, ares_dns_rr_key_t key
 ){
     return PyUnicode_FromString(ares_dns_rr_get_str(rr, key));
@@ -121,7 +121,7 @@ inline PyObject* cyares_dns_rr_get_str(
 for pycares to try https://github.com/saghul/pycares/pull/302 
 */
 
-inline PyObject* cyares_rr_get_bin_as_unicode(
+static inline PyObject* cyares_rr_get_bin_as_unicode(
     const ares_dns_rr_t* rr, ares_dns_rr_key_t key
 ){
     size_t bin_len;
@@ -129,7 +129,7 @@ inline PyObject* cyares_rr_get_bin_as_unicode(
     return PyUnicode_FromKindAndData(PyUnicode_1BYTE_KIND, bin, (Py_ssize_t)bin_len);
 }
 
-inline PyObject* cyares_rr_get_bin_as_bytes(
+static inline PyObject* cyares_rr_get_bin_as_bytes(
     const ares_dns_rr_t* rr, ares_dns_rr_key_t key
 ){
     size_t bin_len;
@@ -138,7 +138,7 @@ inline PyObject* cyares_rr_get_bin_as_bytes(
 }
 
 /* Mostly for ARES_RR_TXT_DATA but incase anything else comes along it will be added to this... */
-inline PyObject* cyares_rr_get_abin(const ares_dns_rr_t* rr, ares_dns_rr_key_t key){
+static inline PyObject* cyares_rr_get_abin(const ares_dns_rr_t* rr, ares_dns_rr_key_t key){
     size_t cnt = ares_dns_rr_get_abin_cnt(rr, key);
     size_t length;
     writer_t w;
@@ -165,7 +165,7 @@ inline PyObject* cyares_rr_get_abin(const ares_dns_rr_t* rr, ares_dns_rr_key_t k
     return abin;
 }
 
-PyObject* cyares_rr_get_opt(const ares_dns_rr_t* rr, ares_dns_rr_key_t key){
+static PyObject* cyares_rr_get_opt(const ares_dns_rr_t* rr, ares_dns_rr_key_t key){
     size_t opt_cnt;
     PyObject* params;
 
@@ -217,7 +217,7 @@ PyObject* cyares_rr_get_opt(const ares_dns_rr_t* rr, ares_dns_rr_key_t key){
     return params;
 }
 
-PyObject* cyares_dns_rr_get_addr(const ares_dns_rr_t* rr, ares_dns_rr_key_t key){
+static PyObject* cyares_dns_rr_get_addr(const ares_dns_rr_t* rr, ares_dns_rr_key_t key){
     char buf[23]; /* INET_ADDRSTRLEN is being dumb with me so will say it's number for now */
     const struct in_addr* py_addr = ares_dns_rr_get_addr(rr, key);
     if (py_addr == NULL){
@@ -227,7 +227,7 @@ PyObject* cyares_dns_rr_get_addr(const ares_dns_rr_t* rr, ares_dns_rr_key_t key)
     return PyUnicode_FromString(ares_inet_ntop(AF_INET, py_addr, buf, 23));
 }
 
-PyObject* cyares_dns_rr_get_addr6(const ares_dns_rr_t* rr, ares_dns_rr_key_t key){
+static PyObject* cyares_dns_rr_get_addr6(const ares_dns_rr_t* rr, ares_dns_rr_key_t key){
     char buf[65];
     const struct ares_in6_addr* py_addr = ares_dns_rr_get_addr6(rr, key);
     if (py_addr == NULL){
