@@ -37,7 +37,7 @@ except AttributeError:
 
 
 class Timer:
-    __slots__ = ("deadline", "cb", "_running", "_close_event")
+    __slots__ = ("clock", "deadline", "cb", "_running", "_close_event")
 
     # TODO
     #  - Seperate Library for deprecation of subclassing in a wrapper
