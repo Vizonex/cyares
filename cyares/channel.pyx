@@ -346,43 +346,46 @@ cdef class Channel:
             if strs == NULL:
                 raise MemoryError()
 
-            for idx, d in enumerate(domains):
-                # Encode unicode to bytes; bytes pass through unchanged.
-                # Hold the bytes in _keepalive so the pointer we store
-                # in strs[idx] remains valid until ares_init_options
-                # below copies it.
-                if isinstance(d, str):
-                    db = (<str>d).encode("ascii")
-                else:
-                    db = bytes(d)
-                _keepalive.append(db)
-                strs[idx] = <char*>(<bytes>db)
-
-            self.options.domains = strs
-            self.options.ndomains = <int>ndomains
-            optmask |= ARES_OPT_DOMAINS
-            
-
-        if rotate:
-            optmask |= ARES_OPT_ROTATE
-
-        if resolvconf_path:
-            optmask |= ARES_OPT_RESOLVCONF
-            cyares_get_buffer(resolvconf_path, &view)
-            self.options.resolvconf_path = <char*>view.buf
-            cyares_release_buffer(&view)
-
-        if local_ip:
-            self.set_local_ip(local_ip)
-
-        if local_dev:
-            self.set_local_dev(local_dev)
-
         # ares_init_options() copies anything it needs out of `strs`, so we
-        # can free it as soon as init returns. Use try/finally so the free
-        # also runs when init or the servers setter raises - otherwise the
-        # char** allocation is leaked on every failed Channel construction.
+        # can free it as soon as init returns. The try/finally must wrap
+        # everything after PyMem_Malloc - the domain encoding loop, the
+        # resolvconf_path/local_ip/local_dev setup, and finally
+        # ares_init_options + the servers setter - so that any exception
+        # along the way still frees the char** allocation.
         try:
+            if domains:
+                for idx, d in enumerate(domains):
+                    # Encode unicode to bytes; bytes pass through unchanged.
+                    # Hold the bytes in _keepalive so the pointer we store
+                    # in strs[idx] remains valid until ares_init_options
+                    # below copies it.
+                    if isinstance(d, str):
+                        db = (<str>d).encode("ascii")
+                    else:
+                        db = bytes(d)
+                    _keepalive.append(db)
+                    strs[idx] = <char*>(<bytes>db)
+
+                self.options.domains = strs
+                self.options.ndomains = <int>ndomains
+                optmask |= ARES_OPT_DOMAINS
+
+
+            if rotate:
+                optmask |= ARES_OPT_ROTATE
+
+            if resolvconf_path:
+                optmask |= ARES_OPT_RESOLVCONF
+                cyares_get_buffer(resolvconf_path, &view)
+                self.options.resolvconf_path = <char*>view.buf
+                cyares_release_buffer(&view)
+
+            if local_ip:
+                self.set_local_ip(local_ip)
+
+            if local_dev:
+                self.set_local_dev(local_dev)
+
             r = ares_init_options(&self.channel, &self.options, optmask)
             if r != ARES_SUCCESS:
                 raise AresError(r)
