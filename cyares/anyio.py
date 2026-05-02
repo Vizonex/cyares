@@ -6,10 +6,11 @@ from typing import Generic
 from anyio import (
     TASK_STATUS_IGNORED,
     BusyResourceError,
+    ClosedResourceError,
     Event,
     create_task_group,
     current_time,
-    from_thread,
+    notify_closing,
     wait_readable,
     wait_writable,
 )
@@ -101,6 +102,7 @@ class Future(Generic[_T]):
         "event",
         "_callbacks",
         "_token",
+        "_schedule",
         "_uses_thread",
     )
 
@@ -113,6 +115,17 @@ class Future(Generic[_T]):
         # Token will allow use to reach the homethread allowing for a seamless
         # transition
         self._token = current_token()
+        # Resolve the fire-and-forget cross-thread scheduler once. We cannot
+        # use anyio.from_thread.run_sync here because it blocks waiting for
+        # the result, which deadlocks against ares_cancel() (c-ares holds the
+        # channel lock for the duration of the done-callback). The two
+        # supported anyio backends expose different native primitives:
+        #   - trio:    TrioToken.run_sync_soon
+        #   - asyncio: AbstractEventLoop.call_soon_threadsafe
+        native = self._token.native_token
+        self._schedule = getattr(
+            native, "run_sync_soon", None
+        ) or native.call_soon_threadsafe
         # all we needed the other future for was preparing to chain it.
         fut.add_done_callback(self.__on_done)
         # determines if were in the Home Thread where the Cyares Channel is located
@@ -126,9 +139,8 @@ class Future(Generic[_T]):
         else:
             self._result = fut.result()
 
-        # We need to call everything else from the home-thread to prevent any errors...
         if self._uses_thread:
-            from_thread.run_sync(self.__handle_done, token=self._token)
+            self._schedule(self.__handle_done)
         else:
             self.__handle_done()
 
@@ -223,8 +235,12 @@ class DNSResolver:
         return self
 
     async def __aexit__(self, *args):
-        await self._group.__aexit__(*args)
+        # Tear down c-ares first so it closes its sockets and notifies the
+        # state callback (read/write False), which removes fds and wakes the
+        # _handle_read/_handle_write tasks. Otherwise the task group aexit
+        # below blocks forever on tasks still waiting on those fds.
         await self._cleanup()
+        await self._group.__aexit__(*args)
 
     async def _handle_read(
         self, fd: int, task_status: TaskStatus[None] = TASK_STATUS_IGNORED
@@ -233,11 +249,11 @@ class DNSResolver:
         while fd in self._read_fds:
             try:
                 await wait_readable(fd)
-                self._channel.process_read_fd(fd)
-            except (BusyResourceError, OSError):
-                if fd not in self._read_fds:
-                    break
-                raise
+            except (BusyResourceError, ClosedResourceError, OSError):
+                return
+            if fd not in self._read_fds:
+                return
+            self._channel.process_read_fd(fd)
 
     async def _handle_write(
         self, fd: int, task_status: TaskStatus[None] = TASK_STATUS_IGNORED
@@ -246,10 +262,11 @@ class DNSResolver:
         while fd in self._write_fds:
             try:
                 await wait_writable(fd)
-                self._channel.process_write_fd(fd)
-            except (BusyResourceError, OSError):
-                if fd not in self._write_fds:
-                    break
+            except (BusyResourceError, ClosedResourceError, OSError):
+                return
+            if fd not in self._write_fds:
+                return
+            self._channel.process_write_fd(fd)
 
     async def _timer_cb(
         self, task_status: TaskStatus[None] = TASK_STATUS_IGNORED
@@ -271,31 +288,27 @@ class DNSResolver:
         elif timeout == 0:
             timeout = 0.1
 
-        self._timer = Timer(self._timer_cb, self._group, self._backend, self._timeout)
+        self._timer = Timer(self._timer_cb, self._group, self._backend, timeout)
+        self._timer.start()
+
+    def _update_fd(self, fd: int, wanted: bool, fds: set, handler) -> None:
+        if wanted and fd not in fds:
+            fds.add(fd)
+            self._group.start_soon(handler, fd)
+        elif not wanted and fd in fds:
+            fds.discard(fd)
+            notify_closing(fd)
 
     def _socket_state_cb(self, fd: int, read: bool, write: bool) -> None:
-        if read or write:
-            if read:
-                self._read_fds.add(fd)
-                self._group.start_soon(self._handle_read, fd)
+        self._update_fd(fd, read, self._read_fds, self._handle_read)
+        self._update_fd(fd, write, self._write_fds, self._handle_write)
 
-            if write:
-                self._write_fds.add(fd)
-                self._group.start_soon(self._handle_write, fd)
-
+        if self._read_fds or self._write_fds:
             if self._timer is None or self._timer.cancelled():
                 self._start_timer()
-        else:
-            # socket is now closed
-            if fd in self._read_fds:
-                self._read_fds.discard(fd)
-
-            if fd in self._write_fds:
-                self._write_fds.discard(fd)
-
-            if not self._read_fds and not self._write_fds and self._timer is not None:
-                self._timer.cancel()
-                self._timer = None
+        elif self._timer is not None:
+            self._timer.cancel()
+            self._timer = None
 
     def _wrap_future(self, fut: _Future[_T]) -> Future[_T]:
         # use the event_thread readonly property to determine if we will be in the home
