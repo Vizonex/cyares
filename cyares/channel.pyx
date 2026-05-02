@@ -749,40 +749,48 @@ cdef class Channel:
         cdef char* service = NULL
         cdef Py_buffer view, service_data
         cdef bint buffer_carried = 0
+        cdef bint host_buffer_taken = 0
+        cdef object fut
         cdef ares_addrinfo_hints hints
 
         if callback is not None and not callable(callback):
             raise TypeError('callback must be callable if passed')
 
+        # Acquire all buffers BEFORE __create_future(). The future does a
+        # Py_INCREF that is only balanced by __callback_getaddrinfo, so a
+        # raise between create-future and ares_getaddrinfo() would leak
+        # both the future refcount and any already-acquired buffer.
+        try:
+            if port:
+                if isinstance(port, int):
+                    port = str(port).encode("ascii")
+                cyares_get_buffer(port, &service_data)
+                service = <char*>service_data.buf
+                buffer_carried = 1
 
-        cdef object fut = self.__create_future(callback)
+            cyares_get_domain_name_buffer(host, &view)
+            host_buffer_taken = 1
 
-        if port:
-            if isinstance(port, int):
-                port = str(port).encode("ascii")
-            cyares_get_buffer(port, &service_data)
-            service = <char*>service_data.buf
-            buffer_carried = 1
+            hints.ai_flags = flags
+            hints.ai_family = family
+            hints.ai_socktype = socktype
+            hints.ai_protocol = proto
 
-        cyares_get_domain_name_buffer(host, &view)
+            fut = self.__create_future(callback)
+            ares_getaddrinfo(
+                self.channel,
+                <char*>view.buf,
+                service,
+                &hints,
+                __callback_getaddrinfo, # type: ignore
+                <void*>fut
+            )
+        finally:
+            if host_buffer_taken:
+                cyares_release_buffer(&view)
+            if buffer_carried:
+                cyares_release_buffer(&service_data)
 
-        hints.ai_flags = flags
-        hints.ai_family = family
-        hints.ai_socktype = socktype
-        hints.ai_protocol = proto
-
-        ares_getaddrinfo(
-            self.channel,
-            <char*>view.buf,
-            service,
-            &hints,
-            __callback_getaddrinfo, # type: ignore
-            <void*>fut
-        )
-
-        cyares_release_buffer(&view)
-        if buffer_carried:
-            cyares_release_buffer(&service_data)
         return fut
 
     def getnameinfo(
