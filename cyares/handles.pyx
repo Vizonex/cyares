@@ -101,23 +101,24 @@ cdef class AsCompletedWaiter(Waiter):
 
     cdef int _add_result(self, Future future) except -1:
         with self.lock:
-            if super()._add_result(future) < 0:
+            if Waiter._add_result(self, future) < 0:
                 return -1
             self.event.set()
         return 0
 
     cdef int _add_exception(self, Future future) except -1:
         with self.lock:
-            if self._add_exception(future) < 0:
+            if Waiter._add_exception(self, future) < 0:
                 return -1
             self.event.set()
         return 0
 
     cdef int _add_cancelled(self, Future future) except -1:
         with self.lock:
-            if self._add_cancelled(future) < 0: 
+            if Waiter._add_cancelled(self, future) < 0:
                 return -1
             self.event.set()
+        return 0
 
 cdef class FirstCompletedWaiter(Waiter):
     """Used by wait(return_when=FIRST_COMPLETED)."""
@@ -192,8 +193,10 @@ def _create_and_install_waiters(set fs, str return_when):
     elif return_when == "FIRST_COMPLETED":
         waiter = FirstCompletedWaiter()
     else:
-        pending_count = sum(
-                (f._state != CANCELLED_AND_NOTIFIED or f._state != FINISHED) for f in fs)
+        pending_count = 0
+        for f in fs:
+            if f._state != CANCELLED_AND_NOTIFIED and f._state != FINISHED:
+                pending_count += 1
 
         if return_when == "FIRST_EXCEPTION":
             waiter = AllCompletedWaiter(pending_count, stop_on_exception=True)
@@ -332,18 +335,20 @@ cdef class Future:
         Returns True if the future was cancelled, False otherwise. A future
         cannot be cancelled if it is running or has already completed.
         """
-        PyObject_CallMethodNoArgs(self._condition, "__enter__")
+        cdef bint invoke_callbacks = False
+        cdef bint result
+        with self._condition:
+            if self._state == RUNNING or self._state == FINISHED:
+                return False
 
-        if self._state == RUNNING or self._state == FINISHED:
-            return False
-        
-        if self._state == CANCELLED or self._state == CANCELLED_AND_NOTIFIED:
-            return True
+            if self._state == CANCELLED or self._state == CANCELLED_AND_NOTIFIED:
+                return True
 
-        self._state = CANCELLED
-        PyObject_CallMethodNoArgs(self._condition, "notify_all")
-        PyObject_CallMethodOneArg(self._condition, "__exit__", (None, None, None))
-        self._invoke_callbacks()
+            self._state = CANCELLED
+            PyObject_CallMethodNoArgs(self._condition, "notify_all")
+            invoke_callbacks = True
+        if invoke_callbacks:
+            self._invoke_callbacks()
         return True
 
     cpdef bint cancelled(self):
@@ -383,7 +388,7 @@ cdef class Future:
                 callables are called in the order that they were added.
         """
         with self._condition:
-            if self._state != CANCELLED or self._state != CANCELLED_AND_NOTIFIED or self._state != FINISHED:
+            if self._state != CANCELLED and self._state != CANCELLED_AND_NOTIFIED and self._state != FINISHED:
                 self._done_callbacks.append(fn)
                 return
         try:

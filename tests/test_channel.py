@@ -271,6 +271,13 @@ def test_query_https(channel: Channel):
         assert isinstance(record.data.priority, int)
         assert isinstance(record.data.target, str)
         assert isinstance(record.data.params, list)
+        # Each SvcParam must be a (key, value) tuple - no NULL slots from
+        # a doubled-list bug, and iteration must not crash.
+        for param in record.data.params:
+            assert isinstance(param, tuple)
+            assert len(param) == 2
+            assert isinstance(param[0], int)
+            assert isinstance(param[1], str)
 
 
 # @pytest.skip("ANY type does not work on Mac.")

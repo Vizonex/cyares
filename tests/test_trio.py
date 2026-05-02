@@ -4,7 +4,7 @@ import anyio as anyio
 import pytest
 
 from cyares.exception import AresError
-from cyares.trio import DNSResolver
+from cyares.trio import DNSResolver, Timer
 
 
 # set the backend to just trio
@@ -148,3 +148,14 @@ async def test_query_bad_type(resolver: DNSResolver) -> None:
 async def test_query_bad_class(resolver: DNSResolver) -> None:
     with pytest.raises(ValueError):
         await resolver.query("google.com", "A", qclass="INVALIDCLASS")
+
+
+@pytest.mark.anyio
+async def test_timer_can_be_constructed(anyio_backend: str) -> None:
+    # Timer.__init__ assigns self.clock; if "clock" is missing from the
+    # __slots__ tuple this raises AttributeError. The error is otherwise
+    # silently swallowed by the SocketHandle callback wrapper, which would
+    # leave c-ares periodic timeout processing disabled in socket-callback
+    # mode without any visible test failure.
+    timer = Timer(lambda: None, timeout=0.1)
+    assert timer.clock is not None
