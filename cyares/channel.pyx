@@ -377,17 +377,21 @@ cdef class Channel:
 
         if local_dev:
             self.set_local_dev(local_dev)
-        
-        r = ares_init_options(&self.channel, &self.options, optmask)
-        if r != ARES_SUCCESS:
-            raise AresError(r)
 
-        if servers:
-            self.servers = servers
+        # ares_init_options() copies anything it needs out of `strs`, so we
+        # can free it as soon as init returns. Use try/finally so the free
+        # also runs when init or the servers setter raises - otherwise the
+        # char** allocation is leaked on every failed Channel construction.
+        try:
+            r = ares_init_options(&self.channel, &self.options, optmask)
+            if r != ARES_SUCCESS:
+                raise AresError(r)
 
-        if strs != NULL:
-            # be sure to throw an issue on github if this becomes a future problem
-            PyMem_Free(strs)
+            if servers:
+                self.servers = servers
+        finally:
+            if strs != NULL:
+                PyMem_Free(strs)
         
     
     # TODO (Vizonex): Separate Server into a Seperate class and incorperate support for yarl
