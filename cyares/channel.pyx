@@ -620,10 +620,11 @@ cdef class Channel:
 
             dns_record = _dns_record.from_ptr(dnsrec_p)
 
-            if cyares_get_domain_name_buffer(name, &view) < 0:
-                ares_dns_record_destroy(dnsrec_p)
-                del dns_record
-                raise
+            # cyares_get_domain_name_buffer is declared `except -1`, so a
+            # failure here propagates directly via Cython's exception
+            # machinery; dns_record's __dealloc__ then destroys dnsrec_p
+            # exactly once when the local scope ends.
+            cyares_get_domain_name_buffer(name, &view)
 
             # ares_dns_record_query_add copies the name into the record, so
             # the buffer reference is no longer needed after this call.
@@ -638,8 +639,11 @@ cdef class Channel:
                 cyares_release_buffer(&view)
 
             if status != ARES_SUCCESS:
-                ares_dns_record_destroy(dnsrec_p)
-                del dns_record
+                # Do NOT call ares_dns_record_destroy(dnsrec_p) here:
+                # dns_record's __dealloc__ will free it exactly once when
+                # the local goes out of scope as we unwind. Calling destroy
+                # explicitly leaves dns_record.ptr dangling and would
+                # double-free on dealloc.
                 raise AresError(status)
 
             # TODO: (Vizonex) Py_INCREF Py_DECREF if dns_record doesn't live long enough...
