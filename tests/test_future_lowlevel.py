@@ -112,3 +112,65 @@ def test_add_done_callback_fires_immediately_when_cancelled():
     called = []
     fut.add_done_callback(lambda f: called.append("cb"))
     assert called == ["cb"]
+
+
+def test_as_completed_waiter_add_exception_does_not_recurse():
+    """AsCompletedWaiter._add_exception called itself instead of super(),
+    causing self-deadlock on the non-reentrant lock."""
+    from cyares.handles import AsCompletedWaiter
+
+    waiter = AsCompletedWaiter()
+    fut: Future[int] = Future()
+    fut.set_exception(ValueError("boom"))
+
+    done = threading.Event()
+
+    def worker():
+        waiter.add_exception(fut)
+        done.set()
+
+    t = threading.Thread(target=worker, daemon=True)
+    t.start()
+    assert done.wait(2.0), "AsCompletedWaiter.add_exception deadlocked"
+
+
+
+def test_as_completed_waiter_add_cancelled_does_not_recurse():
+    """Same bug in _add_cancelled."""
+    from cyares.handles import AsCompletedWaiter
+
+    waiter = AsCompletedWaiter()
+    fut: Future[int] = Future()
+    fut.cancel()
+
+    done = threading.Event()
+
+    def worker():
+        waiter.add_cancelled(fut)
+        done.set()
+
+    t = threading.Thread(target=worker, daemon=True)
+    t.start()
+    assert done.wait(2.0), "AsCompletedWaiter.add_cancelled deadlocked"
+
+
+
+def test_as_completed_waiter_add_result_works():
+    """super() does not work in cdef methods - the original code raised
+    RuntimeError as soon as add_result was actually called."""
+    from cyares.handles import AsCompletedWaiter
+
+    waiter = AsCompletedWaiter()
+    fut: Future[int] = Future()
+    fut.set_result(99)
+
+    done = threading.Event()
+
+    def worker():
+        waiter.add_result(fut)
+        done.set()
+
+    t = threading.Thread(target=worker, daemon=True)
+    t.start()
+    assert done.wait(2.0)
+

@@ -101,23 +101,24 @@ cdef class AsCompletedWaiter(Waiter):
 
     cdef int _add_result(self, Future future) except -1:
         with self.lock:
-            if super()._add_result(future) < 0:
+            if Waiter._add_result(self, future) < 0:
                 return -1
             self.event.set()
         return 0
 
     cdef int _add_exception(self, Future future) except -1:
         with self.lock:
-            if self._add_exception(future) < 0:
+            if Waiter._add_exception(self, future) < 0:
                 return -1
             self.event.set()
         return 0
 
     cdef int _add_cancelled(self, Future future) except -1:
         with self.lock:
-            if self._add_cancelled(future) < 0: 
+            if Waiter._add_cancelled(self, future) < 0:
                 return -1
             self.event.set()
+        return 0
 
 cdef class FirstCompletedWaiter(Waiter):
     """Used by wait(return_when=FIRST_COMPLETED)."""
