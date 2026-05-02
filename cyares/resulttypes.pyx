@@ -279,7 +279,7 @@ cdef HostResult parse_hostent(hostent_t* hostent_):
             hostent_.h_addr_list[i],
             buf,
             INET6_ADDRSTRLEN) != NULL:
-            aliases.append(PyUnicode_FromString(buf))
+            addresses.append(PyUnicode_FromString(buf))
         memset(buf, 0, 65)
         i += 1
 

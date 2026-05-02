@@ -32,3 +32,14 @@ def test_getaddrinfo_returns_ipv6_node():
     assert node.addr[0] == "::1"
     assert node.addr[1] == 80
     ch.cancel()
+
+
+def test_gethostbyaddr_returns_addresses_not_aliases():
+    """parse_hostent appended IP addresses to the `aliases` list instead
+    of `addresses`. The HostResult.addresses list was always empty and
+    real CNAME aliases were polluted with stringified IP addresses."""
+    ch = cyares.Channel(event_thread=True)
+    res = ch.gethostbyaddr("127.0.0.1").result(timeout=5)
+    assert "127.0.0.1" in res.addresses
+    assert "127.0.0.1" not in res.aliases
+    ch.cancel()
