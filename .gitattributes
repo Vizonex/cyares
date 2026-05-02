@@ -1,0 +1,15 @@
+# Force LF line endings on all source files in this package, regardless
+# of the developer's local platform. This avoids spurious whitespace
+# noise in diffs (CR-at-eol shows up as trailing whitespace).
+*.py    text eol=lf
+*.pyx   text eol=lf
+*.pxd   text eol=lf
+*.h     text eol=lf
+*.c     text eol=lf
+*.cpp   text eol=lf
+*.md    text eol=lf
+*.toml  text eol=lf
+*.cfg   text eol=lf
+*.ini   text eol=lf
+*.yml   text eol=lf
+*.yaml  text eol=lf
