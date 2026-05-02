@@ -332,18 +332,20 @@ cdef class Future:
         Returns True if the future was cancelled, False otherwise. A future
         cannot be cancelled if it is running or has already completed.
         """
-        PyObject_CallMethodNoArgs(self._condition, "__enter__")
+        cdef bint invoke_callbacks = False
+        cdef bint result
+        with self._condition:
+            if self._state == RUNNING or self._state == FINISHED:
+                return False
 
-        if self._state == RUNNING or self._state == FINISHED:
-            return False
-        
-        if self._state == CANCELLED or self._state == CANCELLED_AND_NOTIFIED:
-            return True
+            if self._state == CANCELLED or self._state == CANCELLED_AND_NOTIFIED:
+                return True
 
-        self._state = CANCELLED
-        PyObject_CallMethodNoArgs(self._condition, "notify_all")
-        PyObject_CallMethodOneArg(self._condition, "__exit__", (None, None, None))
-        self._invoke_callbacks()
+            self._state = CANCELLED
+            PyObject_CallMethodNoArgs(self._condition, "notify_all")
+            invoke_callbacks = True
+        if invoke_callbacks:
+            self._invoke_callbacks()
         return True
 
     cpdef bint cancelled(self):
