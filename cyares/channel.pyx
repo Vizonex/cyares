@@ -535,30 +535,33 @@ cdef class Channel:
     # query is the upper-end and is meant to assist in
     # being a theoretical drop in replacement for pycares in aiodns
     cdef Future _query(self, object qname, ares_dns_rec_type_t qtype, ares_dns_class_t qclass, object callback):
-        cdef Future fut 
+        cdef Future fut
         cdef Py_buffer view
         cdef ares_status_t status
 
         if cyares_get_domain_name_buffer(qname, &view) < 0:
             raise
 
-        fut = self.__create_future(callback)
-        
-        # TODO: Reexpand _qtype and callbacks again in another update...
-        status = ares_query_dnsrec(
-            self.channel,
-            <char*>view.buf,
-            qclass,
-            qtype,
-            __callback_dns_rec__any, # type: ignore
-            <void*>fut,
-            NULL, # Passing NULL here will work SEE: ares_query.c 
-        )
+        # ares_query_dnsrec copies the name synchronously, so the buffer
+        # reference may be released as soon as the call returns. The
+        # try/finally ensures we release on any error path too.
+        try:
+            fut = self.__create_future(callback)
+            status = ares_query_dnsrec(
+                self.channel,
+                <char*>view.buf,
+                qclass,
+                qtype,
+                __callback_dns_rec__any, # type: ignore
+                <void*>fut,
+                NULL, # Passing NULL here will work SEE: ares_query.c
+            )
+        finally:
+            cyares_release_buffer(&view)
         if status != ARES_SUCCESS:
             Py_DECREF(fut)
             raise AresError(status)
-        else:
-            return fut
+        return fut
 
     # TODO: wrap query under deprecated_params
     def query(self, object name, object query_type, object callback = None , int query_class = ARES_CLASS_IN):
@@ -586,59 +589,66 @@ cdef class Channel:
         cdef int _qtype
         cdef Future fut = self.__create_future(callback)
         cdef Py_buffer view
+        cdef ares_dns_record_t *dnsrec_p
+        cdef ares_status_t status
+        cdef _dns_record dns_record
 
-        if cyares_get_domain_name_buffer(name, &view) < 0:
+        try:
+            # Set RD (Recursion Desired) flag unless ARES_FLAG_NORECURSE is set
+            dns_flags = 0 if (self._flags & ARES_FLAG_NORECURSE) else ARES_FLAG_RD
+
+            # Create a DNS record for the search query
+            status = ares_dns_record_create(
+                &dnsrec_p,
+                0,  # id (will be set by c-ares)
+                dns_flags,  # flags - include RD for recursive queries
+                ARES_OPCODE_QUERY,
+                ARES_RCODE_NOERROR
+            )
+            if status != ARES_SUCCESS:
+                raise AresError(status)
+
+            dns_record = _dns_record.from_ptr(dnsrec_p)
+
+            if cyares_get_domain_name_buffer(name, &view) < 0:
+                ares_dns_record_destroy(dnsrec_p)
+                del dns_record
+                raise
+
+            # ares_dns_record_query_add copies the name into the record, so
+            # the buffer reference is no longer needed after this call.
+            try:
+                status = ares_dns_record_query_add(
+                    dnsrec_p,
+                    <char*>view.buf,
+                    <ares_dns_rec_type_t>query_type,
+                    <ares_dns_class_t>query_class
+                )
+            finally:
+                cyares_release_buffer(&view)
+
+            if status != ARES_SUCCESS:
+                ares_dns_record_destroy(dnsrec_p)
+                del dns_record
+                raise AresError(status)
+
+            # TODO: (Vizonex) Py_INCREF Py_DECREF if dns_record doesn't live long enough...
+
+            # Wrap callback to destroy DNS record after it's called
+            fut.add_done_callback(dns_record.callback)
+
+            # Perform the search with the created DNS record
+            status = ares_search_dnsrec(
+                self.channel,
+                dnsrec_p,
+                __callback_dns_rec__any,
+                <void*>fut
+            )
+            if status != ARES_SUCCESS:
+                raise AresError(status)
+        except:
             Py_DECREF(fut)
             raise
-
-        # Create a DNS record for the search query
-        # Set RD (Recursion Desired) flag unless ARES_FLAG_NORECURSE is set
-        dns_flags = 0 if (self._flags & ARES_FLAG_NORECURSE) else ARES_FLAG_RD
-
-        cdef ares_dns_record_t *dnsrec_p
-        cdef ares_status_t status = ares_dns_record_create(
-            &dnsrec_p,
-            0,  # id (will be set by c-ares)
-            dns_flags,  # flags - include RD for recursive queries
-            ARES_OPCODE_QUERY,
-            ARES_RCODE_NOERROR
-        )
-        if status != ARES_SUCCESS:
-            Py_DECREF(fut)
-            raise AresError(status)
-
-        cdef _dns_record dns_record = _dns_record.from_ptr(dnsrec_p)
-
-
-        # Add the query to the DNS record
-        status = ares_dns_record_query_add(
-            dnsrec_p,
-            <char*>view.buf,
-            <ares_dns_rec_type_t>query_type,
-            <ares_dns_class_t>query_class
-        )
-        if status != ARES_SUCCESS:
-            ares_dns_record_destroy(dnsrec_p)
-            del dns_record
-            Py_DECREF(fut)
-            raise AresError(status)
-
-        # TODO: (Vizonex) Py_INCREF Py_DECREF if dns_record doesn't live long enough...
-
-        # Wrap callback to destroy DNS record after it's called
-        fut.add_done_callback(dns_record.callback)
-
-        # Perform the search with the created DNS record
-
-        status = ares_search_dnsrec(
-            self.channel,
-            dnsrec_p,
-            __callback_dns_rec__any,
-            <void*>fut
-        )
-        if status != ARES_SUCCESS:
-            Py_DECREF(fut)
-            raise AresError(status)
 
         return fut
 
