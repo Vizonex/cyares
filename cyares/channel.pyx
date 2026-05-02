@@ -793,8 +793,6 @@ cdef class Channel:
         cyares_release_buffer(&view)
         if buffer_carried:
             cyares_release_buffer(&service_data)
-        if callback:
-            fut.add_done_callback(callback)
         return fut
 
     def getnameinfo(

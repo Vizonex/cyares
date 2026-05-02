@@ -56,3 +56,16 @@ def test_getaddrinfo_accepts_int_port():
     assert result.nodes
     assert result.nodes[0].addr[1] == 80
     ch.cancel()
+
+
+def test_getaddrinfo_callback_fires_exactly_once():
+    """getaddrinfo() registered the user callback twice: once via
+    __create_future and again via an explicit add_done_callback at the
+    end of the function. Every callback fired twice for every lookup."""
+    ch = cyares.Channel()
+    calls = []
+    ch.getaddrinfo(
+        "127.0.0.1", "80", callback=lambda fut: calls.append(1), flags=AI_NUMERICHOST
+    ).result(timeout=2)
+    assert calls == [1], f"callback fired {len(calls)} times"
+    ch.cancel()
