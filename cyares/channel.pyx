@@ -595,7 +595,7 @@ cdef class Channel:
 
         try:
             # Set RD (Recursion Desired) flag unless ARES_FLAG_NORECURSE is set
-            dns_flags = 0 if (self._flags & ARES_FLAG_NORECURSE) else ARES_FLAG_RD
+            dns_flags = 0 if (self.options.flags & ARES_FLAG_NORECURSE) else ARES_FLAG_RD
 
             # Create a DNS record for the search query
             status = ares_dns_record_create(
