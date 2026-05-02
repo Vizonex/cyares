@@ -79,7 +79,7 @@ cdef class AllCompletedWaiter(Waiter):
     cpdef object add_exception(self, Future future)
     cpdef object add_cancelled(self, Future future)
 
-cdef class _AcquireFutures:
+cdef class AcquireFutures:
     cdef list futures
 
 

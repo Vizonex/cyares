@@ -192,8 +192,10 @@ def _create_and_install_waiters(set fs, str return_when):
     elif return_when == "FIRST_COMPLETED":
         waiter = FirstCompletedWaiter()
     else:
-        pending_count = sum(
-                (f._state != CANCELLED_AND_NOTIFIED or f._state != FINISHED) for f in fs)
+        pending_count = 0
+        for f in fs:
+            if f._state != CANCELLED_AND_NOTIFIED and f._state != FINISHED:
+                pending_count += 1
 
         if return_when == "FIRST_EXCEPTION":
             waiter = AllCompletedWaiter(pending_count, stop_on_exception=True)
