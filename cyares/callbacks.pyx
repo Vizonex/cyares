@@ -33,12 +33,16 @@ cdef bint __cancel_check(int status, Future fut) noexcept:
         Py_DECREF(fut)
         return 1
     else:
-        # supress exceptions and notify not to cacnel mid-way
+        # suppress exceptions and notify not to cancel mid-way
         try:
-            # we want the opposite effect.
-            # if state is cancelled then exit
-            # if state is running then continue
-            return 0 if <bint>fut.set_running_or_notify_cancel() else 1
+            if <bint>fut.set_running_or_notify_cancel():
+                return 0
+            # set_running_or_notify_cancel() returned False, meaning the
+            # future was concurrently cancelled between the cancelled()
+            # check above and this call. Balance the refcount the channel
+            # added before telling the caller to bail.
+            Py_DECREF(fut)
+            return 1
         except BaseException:
             return 0
 
