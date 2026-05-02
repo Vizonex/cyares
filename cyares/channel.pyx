@@ -110,19 +110,10 @@ cdef int cyares_get_domain_name_buffer(object obj, Py_buffer* view) except -1:
                     PyErr_SetObject(ValueError, "Domain names being idna decoded should not exceed a size of 255")
                     return -1
     
-                try:
-                    obj = idna_decode(obj)
-
-                except Exception as e:
-                    PyErr_SetObject(e, str(e))
-                    return -1
+                obj = idna_decode(obj)
             else:
                 # Python should have it's own backup
-                try:
-                    obj = obj.encode("idna")
-                except Exception as e:
-                    PyErr_SetObject(e, str(e))
-                    return -1
+                obj = obj.encode("idna")
     return cyares_get_buffer(obj, view)
     
 
