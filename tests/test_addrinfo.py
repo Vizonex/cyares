@@ -1,0 +1,34 @@
+"""Regression tests for resulttypes.parse_addrinfo_node."""
+
+import cyares
+
+
+# AI_NUMERICHOST on Linux/glibc is 4. Picking a numeric IP avoids any DNS
+# lookup: c-ares returns the result synchronously from inside
+# ares_getaddrinfo, so no event loop is required.
+AI_NUMERICHOST = 4
+
+
+def test_getaddrinfo_returns_ipv4_node():
+    """parse_addrinfo_node had a malformed if/if/else: the IPv4 branch
+    was followed by an unrelated `if AF_INET6:` whose `else` clause
+    fired for every IPv4 result, raising 'invalid sockaddr family :2'."""
+    ch = cyares.Channel()
+    fut = ch.getaddrinfo("127.0.0.1", "80", flags=AI_NUMERICHOST)
+    result = fut.result(timeout=2)
+    assert result.nodes, "expected at least one address node"
+    node = result.nodes[0]
+    assert node.addr[0] == "127.0.0.1"
+    assert node.addr[1] == 80
+    ch.cancel()
+
+
+def test_getaddrinfo_returns_ipv6_node():
+    ch = cyares.Channel()
+    fut = ch.getaddrinfo("::1", "80", flags=AI_NUMERICHOST)
+    result = fut.result(timeout=2)
+    assert result.nodes
+    node = result.nodes[0]
+    assert node.addr[0] == "::1"
+    assert node.addr[1] == 80
+    ch.cancel()
