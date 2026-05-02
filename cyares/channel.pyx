@@ -769,8 +769,7 @@ cdef class Channel:
 
         if port:
             if isinstance(port, int):
-                # TODO: itoa function?
-                port = bytes(port)
+                port = str(port).encode("ascii")
             cyares_get_buffer(port, &service_data)
             service = <char*>service_data.buf
             buffer_carried = 1

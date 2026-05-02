@@ -43,3 +43,16 @@ def test_gethostbyaddr_returns_addresses_not_aliases():
     assert "127.0.0.1" in res.addresses
     assert "127.0.0.1" not in res.aliases
     ch.cancel()
+
+
+def test_getaddrinfo_accepts_int_port():
+    """getaddrinfo() coerced an int port via bytes(port), which produces
+    a buffer of `port` NUL bytes (e.g. bytes(80) == b'\\x00' * 80) rather
+    than b'80'. The service argument was therefore garbage and the port
+    was never honoured."""
+    ch = cyares.Channel()
+    fut = ch.getaddrinfo("127.0.0.1", 80, flags=AI_NUMERICHOST)
+    result = fut.result(timeout=2)
+    assert result.nodes
+    assert result.nodes[0].addr[1] == 80
+    ch.cancel()
