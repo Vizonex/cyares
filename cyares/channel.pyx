@@ -727,24 +727,23 @@ cdef class Channel:
     def timeout(self, double t = 0):
         cdef timeval maxtv
         cdef timeval tv
+        cdef timeval* maxtv_p
+        cdef timeval* result
 
-        if t:
-            if t >= 0.0:
-                maxtv.tv_sec = <time_t>floor(t)
-                maxtv.tv_usec = <long>(fmod(t, 1.0) * 1000000)
-            else:
-                raise ValueError("timeout needs to be a positive number or 0.0")
+        if t > 0.0:
+            maxtv.tv_sec = <time_t>floor(t)
+            maxtv.tv_usec = <long>(fmod(t, 1.0) * 1000000)
+            maxtv_p = &maxtv
+        elif t < 0.0:
+            raise ValueError("timeout needs to be a positive number or 0.0")
         else:
-            # no segfaulting!
-            maxtv.tv_sec = 0
-            maxtv.tv_usec = 0
+            maxtv_p = NULL
 
-        ares_timeout(self.channel, &maxtv, &tv)
-
-        if not (tv.tv_sec and tv.tv_usec):
+        result = ares_timeout(self.channel, maxtv_p, &tv)
+        if result is NULL:
             return 0.0
 
-        return (tv.tv_sec + tv.tv_usec / 1000000.0)
+        return result.tv_sec + result.tv_usec / 1000000.0
 
     def getaddrinfo(
         self,
