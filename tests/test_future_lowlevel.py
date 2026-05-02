@@ -96,3 +96,19 @@ def test_wait_first_exception_with_some_already_done():
     result = wait([f1, f2], timeout=2.0, return_when="FIRST_EXCEPTION")
     assert len(result.done) == 2
     assert len(result.not_done) == 0
+
+
+def test_add_done_callback_fires_immediately_when_finished():
+    fut: Future[int] = Future()
+    fut.set_result(7)
+    called = []
+    fut.add_done_callback(lambda f: called.append(f.result()))
+    assert called == [7]
+
+
+def test_add_done_callback_fires_immediately_when_cancelled():
+    fut: Future[int] = Future()
+    assert fut.cancel() is True
+    called = []
+    fut.add_done_callback(lambda f: called.append("cb"))
+    assert called == ["cb"]

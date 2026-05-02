@@ -387,7 +387,7 @@ cdef class Future:
                 callables are called in the order that they were added.
         """
         with self._condition:
-            if self._state != CANCELLED or self._state != CANCELLED_AND_NOTIFIED or self._state != FINISHED:
+            if self._state != CANCELLED and self._state != CANCELLED_AND_NOTIFIED and self._state != FINISHED:
                 self._done_callbacks.append(fn)
                 return
         try:
