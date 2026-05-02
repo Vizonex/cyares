@@ -168,17 +168,15 @@ cdef void __callback_dns_rec__any(
     cdef const ares_dns_rr_t *rr = NULL
     cdef DNSResult records
     cdef Future handle = <Future>arg
-   
+
     if __cancel_check(status, handle):
         return
-    elif dnsrec == NULL:
-        # Clean reference to handle and close out assuming handle was cancelled.
-        if not handle.cancelled():
-            handle.cancel()
 
-        Py_DECREF(handle)
-        return
-
+    # NOTE: dnsrec may be NULL on non-cancel failures (ARES_ETIMEOUT,
+    # ARES_ENOMEM, ARES_EDESTRUCTION, ...). Don't silently cancel the
+    # future in that case - propagate the AresError so the caller can
+    # see the real reason. parse_dnsrec_any() already handles a NULL
+    # dnsrec on the success path by returning ARES_EBADRESP.
     try:
         if status != ARES_SUCCESS:
             handle.set_exception(AresError(status))
