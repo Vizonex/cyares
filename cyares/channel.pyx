@@ -910,8 +910,8 @@ cdef class Channel:
         try:
             if ares_inet_pton(AF_INET, <char*>view.buf, &addr4):
                 ares_set_local_ip4(self.channel, <unsigned int>cyares_htonl(addr4.s_addr))
-            elif ares_inet_pton(AF_INET, <char*>view.buf, &addr6):
-                ares_set_local_ip6(self.channel, <unsigned char*>view.buf)
+            elif ares_inet_pton(AF_INET6, <char*>view.buf, &addr6):
+                ares_set_local_ip6(self.channel, <unsigned char*>&addr6)
             else:
                 raise ValueError("invalid IP address")
         finally:
