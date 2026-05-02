@@ -334,18 +334,26 @@ cdef AddrInfoCname parse_addrinfo_cname(ares_addrinfo_cname* ares_cname):
 cdef AddrInfoResult parse_addrinfo( ares_addrinfo_t* addrinfo):
     cdef list cnames = []
     cdef list nodes = []
-    cdef ares_addrinfo_cname* cname_ptr = addrinfo.cnames
+    cdef ares_addrinfo_cname* cname_ptr
+    cdef ares_addrinfo_node* node_ptr
 
-    while cname_ptr != NULL:
-        cnames.append(parse_addrinfo_cname(cname_ptr))
-        cname_ptr = cname_ptr.next
+    # ares_freeaddrinfo() must run on every exit path. Without this,
+    # any exception raised by parse_addrinfo_cname/parse_addrinfo_node
+    # (e.g. an unknown sa_family or an inet_ntop failure) would leak
+    # the entire ares_addrinfo_t allocation.
+    try:
+        cname_ptr = addrinfo.cnames
+        while cname_ptr != NULL:
+            cnames.append(parse_addrinfo_cname(cname_ptr))
+            cname_ptr = cname_ptr.next
 
-    node_ptr = addrinfo.nodes
-    while node_ptr != NULL:
-        nodes.append(parse_addrinfo_node(node_ptr))
-        node_ptr = node_ptr.ai_next
+        node_ptr = addrinfo.nodes
+        while node_ptr != NULL:
+            nodes.append(parse_addrinfo_node(node_ptr))
+            node_ptr = node_ptr.ai_next
+    finally:
+        ares_freeaddrinfo(addrinfo)
 
-    ares_freeaddrinfo(addrinfo)
     return AddrInfoResult(cnames=cnames, nodes=nodes)
 
 
