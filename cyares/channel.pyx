@@ -79,9 +79,9 @@ cdef int cyares_seconds_to_milliseconds(object obj) except -1:
             return -1
 
         _d = <double>obj
-        return <int>floor(_d) + <int>(fmod(_d, 1.0) * 1000) 
-        
-    
+        return <int>(_d * 1000)
+
+
     elif isinstance(obj, int):
         if obj < 0:
             raise_negative_timeout_err(obj)
