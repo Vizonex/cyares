@@ -380,15 +380,19 @@ cdef class Channel:
                 self.options.resolvconf_path = <char*>view.buf
                 cyares_release_buffer(&view)
 
+            r = ares_init_options(&self.channel, &self.options, optmask)
+            if r != ARES_SUCCESS:
+                raise AresError(r)
+
+            # local_ip and local_dev have no slots in ares_options; they are
+            # applied via ares_set_local_ip4/ip6/ares_set_local_dev which
+            # silently no-op when channel == NULL. They must therefore run
+            # AFTER ares_init_options has populated self.channel.
             if local_ip:
                 self.set_local_ip(local_ip)
 
             if local_dev:
                 self.set_local_dev(local_dev)
-
-            r = ares_init_options(&self.channel, &self.options, optmask)
-            if r != ARES_SUCCESS:
-                raise AresError(r)
 
             if servers:
                 self.servers = servers
