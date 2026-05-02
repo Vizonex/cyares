@@ -244,8 +244,13 @@ cdef class Channel:
     ):
         cdef Py_buffer view
         cdef int optmask = 0
-        cdef char** strs = NULL 
-        cdef object i
+        cdef char** strs = NULL
+        cdef Py_ssize_t idx
+        cdef Py_ssize_t ndomains
+        # Keep alive every Python object that backs a pointer we hand to
+        # ares_init_options. ares strdups them internally, so this list
+        # only needs to outlive the ares_init_options call below.
+        cdef list _keepalive = []
         self.event_thread = event_thread
         # New in Cyares 0.3.0 as a nod to pycares
 
@@ -345,15 +350,25 @@ cdef class Channel:
             cyares_release_buffer(&view)
 
         if domains:
-            strs = <char**>PyMem_Malloc(sizeof(char*) *  len(domains))
+            ndomains = len(domains)
+            strs = <char**>PyMem_Malloc(sizeof(char*) * ndomains)
+            if strs == NULL:
+                raise MemoryError()
 
-            for i in domains:
-                cyares_get_buffer(i, &view)
-                strs[i] = <char*>view.buf
-                cyares_release_buffer(&view)
+            for idx, d in enumerate(domains):
+                # Encode unicode to bytes; bytes pass through unchanged.
+                # Hold the bytes in _keepalive so the pointer we store
+                # in strs[idx] remains valid until ares_init_options
+                # below copies it.
+                if isinstance(d, str):
+                    db = (<str>d).encode("ascii")
+                else:
+                    db = bytes(d)
+                _keepalive.append(db)
+                strs[idx] = <char*>(<bytes>db)
 
             self.options.domains = strs
-            self.options.ndomains = len(domains)
+            self.options.ndomains = <int>ndomains
             optmask |= ARES_OPT_DOMAINS
             
 
