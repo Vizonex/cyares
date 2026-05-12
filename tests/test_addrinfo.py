@@ -1,7 +1,7 @@
 """Regression tests for resulttypes.parse_addrinfo_node."""
 
 import cyares
-
+import pytest
 
 # AI_NUMERICHOST on Linux/glibc is 4. Picking a numeric IP avoids any DNS
 # lookup: c-ares returns the result synchronously from inside
