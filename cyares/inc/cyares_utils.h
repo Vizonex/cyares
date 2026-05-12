@@ -6,7 +6,6 @@ buffer extraction of unicode characters into a python buffer...
 - Some functions and macros were re-named for the sake of being convienient.
 
 - (
-cyares_copy_memory,
 cyares_unicode_from_uchar,
 cyares_unicode_from_uchar_and_size
 cyares_htons
@@ -148,26 +147,6 @@ cyares_unicode_from_uchar(
 
 
 
-
-static int cyares_copy_memory(char** ptr_to, PyObject* ptr_from){
-    Py_buffer view;
-    if (cyares_get_buffer(ptr_from, &view) < 0) {
-        return -1;
-    }
-
-
-    char* s = (char*)PyMem_Malloc(sizeof(char) * view.len);
-    if (s == NULL){
-        PyErr_NoMemory();
-        return -1;
-    }
-
-    memcpy(s, ptr_from, sizeof(char) * view.len);
-    *ptr_to = s;
-
-    cyares_release_buffer(&view);
-    return 0;
-}
 
 /* To give some more performance benefits to cy-ares (which should be included globally accross all c-ares supported platforms)
     redefinitions of htons and htonl is used...

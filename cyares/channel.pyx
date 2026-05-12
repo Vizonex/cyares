@@ -79,9 +79,9 @@ cdef int cyares_seconds_to_milliseconds(object obj) except -1:
             return -1
 
         _d = <double>obj
-        return <int>floor(_d) + <int>(fmod(_d, 1.0) * 1000) 
-        
-    
+        return <int>(_d * 1000)
+
+
     elif isinstance(obj, int):
         if obj < 0:
             raise_negative_timeout_err(obj)
@@ -110,19 +110,10 @@ cdef int cyares_get_domain_name_buffer(object obj, Py_buffer* view) except -1:
                     PyErr_SetObject(ValueError, "Domain names being idna decoded should not exceed a size of 255")
                     return -1
     
-                try:
-                    obj = idna_decode(obj)
-
-                except Exception as e:
-                    PyErr_SetObject(e, str(e))
-                    return -1
+                obj = idna_decode(obj)
             else:
                 # Python should have it's own backup
-                try:
-                    obj = obj.encode("idna")
-                except Exception as e:
-                    PyErr_SetObject(e, str(e))
-                    return -1
+                obj = obj.encode("idna")
     return cyares_get_buffer(obj, view)
     
 
@@ -244,8 +235,13 @@ cdef class Channel:
     ):
         cdef Py_buffer view
         cdef int optmask = 0
-        cdef char** strs = NULL 
-        cdef object i
+        cdef char** strs = NULL
+        cdef Py_ssize_t idx
+        cdef Py_ssize_t ndomains
+        # Keep alive every Python object that backs a pointer we hand to
+        # ares_init_options. ares strdups them internally, so this list
+        # only needs to outlive the ares_init_options call below.
+        cdef list _keepalive = []
         self.event_thread = event_thread
         # New in Cyares 0.3.0 as a nod to pycares
 
@@ -345,43 +341,64 @@ cdef class Channel:
             cyares_release_buffer(&view)
 
         if domains:
-            strs = <char**>PyMem_Malloc(sizeof(char*) *  len(domains))
+            ndomains = len(domains)
+            strs = <char**>PyMem_Malloc(sizeof(char*) * ndomains)
+            if strs == NULL:
+                raise MemoryError()
 
-            for i in domains:
-                cyares_get_buffer(i, &view)
-                strs[i] = <char*>view.buf
+        # ares_init_options() copies anything it needs out of `strs`, so we
+        # can free it as soon as init returns. The try/finally must wrap
+        # everything after PyMem_Malloc - the domain encoding loop, the
+        # resolvconf_path/local_ip/local_dev setup, and finally
+        # ares_init_options + the servers setter - so that any exception
+        # along the way still frees the char** allocation.
+        try:
+            if domains:
+                for idx, d in enumerate(domains):
+                    # Encode unicode to bytes; bytes pass through unchanged.
+                    # Hold the bytes in _keepalive so the pointer we store
+                    # in strs[idx] remains valid until ares_init_options
+                    # below copies it.
+                    if isinstance(d, str):
+                        db = (<str>d).encode("ascii")
+                    else:
+                        db = bytes(d)
+                    _keepalive.append(db)
+                    strs[idx] = <char*>(<bytes>db)
+
+                self.options.domains = strs
+                self.options.ndomains = <int>ndomains
+                optmask |= ARES_OPT_DOMAINS
+
+
+            if rotate:
+                optmask |= ARES_OPT_ROTATE
+
+            if resolvconf_path:
+                optmask |= ARES_OPT_RESOLVCONF
+                cyares_get_buffer(resolvconf_path, &view)
+                self.options.resolvconf_path = <char*>view.buf
                 cyares_release_buffer(&view)
 
-            self.options.domains = strs
-            self.options.ndomains = len(domains)
-            optmask |= ARES_OPT_DOMAINS
-            
+            r = ares_init_options(&self.channel, &self.options, optmask)
+            if r != ARES_SUCCESS:
+                raise AresError(r)
 
-        if rotate:
-            optmask |= ARES_OPT_ROTATE
+            # local_ip and local_dev have no slots in ares_options; they are
+            # applied via ares_set_local_ip4/ip6/ares_set_local_dev which
+            # silently no-op when channel == NULL. They must therefore run
+            # AFTER ares_init_options has populated self.channel.
+            if local_ip:
+                self.set_local_ip(local_ip)
 
-        if resolvconf_path:
-            optmask |= ARES_OPT_RESOLVCONF
-            cyares_get_buffer(resolvconf_path, &view)
-            self.options.resolvconf_path = <char*>view.buf
-            cyares_release_buffer(&view)
+            if local_dev:
+                self.set_local_dev(local_dev)
 
-        if local_ip:
-            self.set_local_ip(local_ip)
-
-        if local_dev:
-            self.set_local_dev(local_dev)
-        
-        r = ares_init_options(&self.channel, &self.options, optmask)
-        if r != ARES_SUCCESS:
-            raise AresError(r)
-
-        if servers:
-            self.servers = servers
-
-        if strs != NULL:
-            # be sure to throw an issue on github if this becomes a future problem
-            PyMem_Free(strs)
+            if servers:
+                self.servers = servers
+        finally:
+            if strs != NULL:
+                PyMem_Free(strs)
         
     
     # TODO (Vizonex): Separate Server into a Seperate class and incorperate support for yarl
@@ -535,30 +552,33 @@ cdef class Channel:
     # query is the upper-end and is meant to assist in
     # being a theoretical drop in replacement for pycares in aiodns
     cdef Future _query(self, object qname, ares_dns_rec_type_t qtype, ares_dns_class_t qclass, object callback):
-        cdef Future fut 
+        cdef Future fut
         cdef Py_buffer view
         cdef ares_status_t status
 
         if cyares_get_domain_name_buffer(qname, &view) < 0:
             raise
 
-        fut = self.__create_future(callback)
-        
-        # TODO: Reexpand _qtype and callbacks again in another update...
-        status = ares_query_dnsrec(
-            self.channel,
-            <char*>view.buf,
-            qclass,
-            qtype,
-            __callback_dns_rec__any, # type: ignore
-            <void*>fut,
-            NULL, # Passing NULL here will work SEE: ares_query.c 
-        )
+        # ares_query_dnsrec copies the name synchronously, so the buffer
+        # reference may be released as soon as the call returns. The
+        # try/finally ensures we release on any error path too.
+        try:
+            fut = self.__create_future(callback)
+            status = ares_query_dnsrec(
+                self.channel,
+                <char*>view.buf,
+                qclass,
+                qtype,
+                __callback_dns_rec__any, # type: ignore
+                <void*>fut,
+                NULL, # Passing NULL here will work SEE: ares_query.c
+            )
+        finally:
+            cyares_release_buffer(&view)
         if status != ARES_SUCCESS:
             Py_DECREF(fut)
             raise AresError(status)
-        else:
-            return fut
+        return fut
 
     # TODO: wrap query under deprecated_params
     def query(self, object name, object query_type, object callback = None , int query_class = ARES_CLASS_IN):
@@ -586,59 +606,70 @@ cdef class Channel:
         cdef int _qtype
         cdef Future fut = self.__create_future(callback)
         cdef Py_buffer view
+        cdef ares_dns_record_t *dnsrec_p
+        cdef ares_status_t status
+        cdef _dns_record dns_record
 
-        if cyares_get_domain_name_buffer(name, &view) < 0:
+        try:
+            # Set RD (Recursion Desired) flag unless ARES_FLAG_NORECURSE is set
+            dns_flags = 0 if (self.options.flags & ARES_FLAG_NORECURSE) else ARES_FLAG_RD
+
+            # Create a DNS record for the search query
+            status = ares_dns_record_create(
+                &dnsrec_p,
+                0,  # id (will be set by c-ares)
+                dns_flags,  # flags - include RD for recursive queries
+                ARES_OPCODE_QUERY,
+                ARES_RCODE_NOERROR
+            )
+            if status != ARES_SUCCESS:
+                raise AresError(status)
+
+            dns_record = _dns_record.from_ptr(dnsrec_p)
+
+            # cyares_get_domain_name_buffer is declared `except -1`, so a
+            # failure here propagates directly via Cython's exception
+            # machinery; dns_record's __dealloc__ then destroys dnsrec_p
+            # exactly once when the local scope ends.
+            cyares_get_domain_name_buffer(name, &view)
+
+            # ares_dns_record_query_add copies the name into the record, so
+            # the buffer reference is no longer needed after this call.
+            try:
+                status = ares_dns_record_query_add(
+                    dnsrec_p,
+                    <char*>view.buf,
+                    <ares_dns_rec_type_t>query_type,
+                    <ares_dns_class_t>query_class
+                )
+            finally:
+                cyares_release_buffer(&view)
+
+            if status != ARES_SUCCESS:
+                # Do NOT call ares_dns_record_destroy(dnsrec_p) here:
+                # dns_record's __dealloc__ will free it exactly once when
+                # the local goes out of scope as we unwind. Calling destroy
+                # explicitly leaves dns_record.ptr dangling and would
+                # double-free on dealloc.
+                raise AresError(status)
+
+            # TODO: (Vizonex) Py_INCREF Py_DECREF if dns_record doesn't live long enough...
+
+            # Wrap callback to destroy DNS record after it's called
+            fut.add_done_callback(dns_record.callback)
+
+            # Perform the search with the created DNS record
+            status = ares_search_dnsrec(
+                self.channel,
+                dnsrec_p,
+                __callback_dns_rec__any,
+                <void*>fut
+            )
+            if status != ARES_SUCCESS:
+                raise AresError(status)
+        except:
             Py_DECREF(fut)
             raise
-
-        # Create a DNS record for the search query
-        # Set RD (Recursion Desired) flag unless ARES_FLAG_NORECURSE is set
-        dns_flags = 0 if (self._flags & ARES_FLAG_NORECURSE) else ARES_FLAG_RD
-
-        cdef ares_dns_record_t *dnsrec_p
-        cdef ares_status_t status = ares_dns_record_create(
-            &dnsrec_p,
-            0,  # id (will be set by c-ares)
-            dns_flags,  # flags - include RD for recursive queries
-            ARES_OPCODE_QUERY,
-            ARES_RCODE_NOERROR
-        )
-        if status != ARES_SUCCESS:
-            Py_DECREF(fut)
-            raise AresError(status)
-
-        cdef _dns_record dns_record = _dns_record.from_ptr(dnsrec_p)
-
-
-        # Add the query to the DNS record
-        status = ares_dns_record_query_add(
-            dnsrec_p,
-            <char*>view.buf,
-            <ares_dns_rec_type_t>query_type,
-            <ares_dns_class_t>query_class
-        )
-        if status != ARES_SUCCESS:
-            ares_dns_record_destroy(dnsrec_p)
-            del dns_record
-            Py_DECREF(fut)
-            raise AresError(status)
-
-        # TODO: (Vizonex) Py_INCREF Py_DECREF if dns_record doesn't live long enough...
-
-        # Wrap callback to destroy DNS record after it's called
-        fut.add_done_callback(dns_record.callback)
-
-        # Perform the search with the created DNS record
-
-        status = ares_search_dnsrec(
-            self.channel,
-            dnsrec_p,
-            __callback_dns_rec__any,
-            <void*>fut
-        )
-        if status != ARES_SUCCESS:
-            Py_DECREF(fut)
-            raise AresError(status)
 
         return fut
 
@@ -702,24 +733,23 @@ cdef class Channel:
     def timeout(self, double t = 0):
         cdef timeval maxtv
         cdef timeval tv
+        cdef timeval* maxtv_p
+        cdef timeval* result
 
-        if t:
-            if t >= 0.0:
-                maxtv.tv_sec = <time_t>floor(t)
-                maxtv.tv_usec = <long>(fmod(t, 1.0) * 1000000)
-            else:
-                raise ValueError("timeout needs to be a positive number or 0.0")
+        if t > 0.0:
+            maxtv.tv_sec = <time_t>floor(t)
+            maxtv.tv_usec = <long>(fmod(t, 1.0) * 1000000)
+            maxtv_p = &maxtv
+        elif t < 0.0:
+            raise ValueError("timeout needs to be a positive number or 0.0")
         else:
-            # no segfaulting!
-            maxtv.tv_sec = 0
-            maxtv.tv_usec = 0
+            maxtv_p = NULL
 
-        ares_timeout(self.channel, &maxtv, &tv)
-
-        if not (tv.tv_sec and tv.tv_usec):
+        result = ares_timeout(self.channel, maxtv_p, &tv)
+        if result is NULL:
             return 0.0
 
-        return (tv.tv_sec + tv.tv_usec / 1000000.0)
+        return result.tv_sec + result.tv_usec / 1000000.0
 
     def getaddrinfo(
         self,
@@ -734,43 +764,48 @@ cdef class Channel:
         cdef char* service = NULL
         cdef Py_buffer view, service_data
         cdef bint buffer_carried = 0
+        cdef bint host_buffer_taken = 0
+        cdef object fut
         cdef ares_addrinfo_hints hints
 
         if callback is not None and not callable(callback):
             raise TypeError('callback must be callable if passed')
 
+        # Acquire all buffers BEFORE __create_future(). The future does a
+        # Py_INCREF that is only balanced by __callback_getaddrinfo, so a
+        # raise between create-future and ares_getaddrinfo() would leak
+        # both the future refcount and any already-acquired buffer.
+        try:
+            if port:
+                if isinstance(port, int):
+                    port = str(port).encode("ascii")
+                cyares_get_buffer(port, &service_data)
+                service = <char*>service_data.buf
+                buffer_carried = 1
 
-        cdef object fut = self.__create_future(callback)
+            cyares_get_domain_name_buffer(host, &view)
+            host_buffer_taken = 1
 
-        if port:
-            if isinstance(port, int):
-                # TODO: itoa function?
-                port = bytes(port)
-            cyares_get_buffer(port, &service_data)
-            service = <char*>service_data.buf
-            buffer_carried = 1
+            hints.ai_flags = flags
+            hints.ai_family = family
+            hints.ai_socktype = socktype
+            hints.ai_protocol = proto
 
-        cyares_get_domain_name_buffer(host, &view)
+            fut = self.__create_future(callback)
+            ares_getaddrinfo(
+                self.channel,
+                <char*>view.buf,
+                service,
+                &hints,
+                __callback_getaddrinfo, # type: ignore
+                <void*>fut
+            )
+        finally:
+            if host_buffer_taken:
+                cyares_release_buffer(&view)
+            if buffer_carried:
+                cyares_release_buffer(&service_data)
 
-        hints.ai_flags = flags
-        hints.ai_family = family
-        hints.ai_socktype = socktype
-        hints.ai_protocol = proto
-
-        ares_getaddrinfo(
-            self.channel,
-            <char*>view.buf,
-            service,
-            &hints,
-            __callback_getaddrinfo, # type: ignore
-            <void*>fut
-        )
-
-        cyares_release_buffer(&view)
-        if buffer_carried:
-            cyares_release_buffer(&service_data)
-        if callback:
-            fut.add_done_callback(callback)
         return fut
 
     def getnameinfo(
@@ -885,8 +920,8 @@ cdef class Channel:
         try:
             if ares_inet_pton(AF_INET, <char*>view.buf, &addr4):
                 ares_set_local_ip4(self.channel, <unsigned int>cyares_htonl(addr4.s_addr))
-            elif ares_inet_pton(AF_INET, <char*>view.buf, &addr6):
-                ares_set_local_ip6(self.channel, <unsigned char*>view.buf)
+            elif ares_inet_pton(AF_INET6, <char*>view.buf, &addr6):
+                ares_set_local_ip6(self.channel, <unsigned char*>&addr6)
             else:
                 raise ValueError("invalid IP address")
         finally:

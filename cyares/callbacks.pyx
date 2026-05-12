@@ -33,12 +33,16 @@ cdef bint __cancel_check(int status, Future fut) noexcept:
         Py_DECREF(fut)
         return 1
     else:
-        # supress exceptions and notify not to cacnel mid-way
+        # suppress exceptions and notify not to cancel mid-way
         try:
-            # we want the opposite effect.
-            # if state is cancelled then exit
-            # if state is running then continue
-            return 0 if <bint>fut.set_running_or_notify_cancel() else 1
+            if <bint>fut.set_running_or_notify_cancel():
+                return 0
+            # set_running_or_notify_cancel() returned False, meaning the
+            # future was concurrently cancelled between the cancelled()
+            # check above and this call. Balance the refcount the channel
+            # added before telling the caller to bail.
+            Py_DECREF(fut)
+            return 1
         except BaseException:
             return 0
 
@@ -164,17 +168,15 @@ cdef void __callback_dns_rec__any(
     cdef const ares_dns_rr_t *rr = NULL
     cdef DNSResult records
     cdef Future handle = <Future>arg
-   
+
     if __cancel_check(status, handle):
         return
-    elif dnsrec == NULL:
-        # Clean reference to handle and close out assuming handle was cancelled.
-        if not handle.cancelled():
-            handle.cancel()
 
-        Py_DECREF(handle)
-        return
-
+    # NOTE: dnsrec may be NULL on non-cancel failures (ARES_ETIMEOUT,
+    # ARES_ENOMEM, ARES_EDESTRUCTION, ...). Don't silently cancel the
+    # future in that case - propagate the AresError so the caller can
+    # see the real reason. parse_dnsrec_any() already handles a NULL
+    # dnsrec on the success path by returning ARES_EBADRESP.
     try:
         if status != ARES_SUCCESS:
             handle.set_exception(AresError(status))

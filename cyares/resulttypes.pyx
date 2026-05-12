@@ -279,7 +279,7 @@ cdef HostResult parse_hostent(hostent_t* hostent_):
             hostent_.h_addr_list[i],
             buf,
             INET6_ADDRSTRLEN) != NULL:
-            aliases.append(PyUnicode_FromString(buf))
+            addresses.append(PyUnicode_FromString(buf))
         memset(buf, 0, 65)
         i += 1
 
@@ -312,11 +312,13 @@ cdef AddrInfoNode parse_addrinfo_node(ares_addrinfo_node* ares_node):
             addr = (PyUnicode_FromString(ip), cyares_ntohs(s_in.sin_port))
         else:
             raise ValueError("failed to convert IPv4 address")
-    if addr_struct.sa_family == AF_INET6:
+    elif addr_struct.sa_family == AF_INET6:
         family = AF_INET6
         s_in6 = <sockaddr_in6*>addr_struct
         if ares_inet_ntop(s_in6.sin6_family, &s_in6.sin6_addr, ip, INET6_ADDRSTRLEN):
             addr = (PyUnicode_FromString(ip), cyares_ntohs(s_in6.sin6_port), s_in6.sin6_flowinfo, s_in6.sin6_scope_id)
+        else:
+            raise ValueError("failed to convert IPv6 address")
     else:
         raise ValueError(f"invalid sockaddr family :{addr_struct.sa_family}")
 
@@ -332,18 +334,26 @@ cdef AddrInfoCname parse_addrinfo_cname(ares_addrinfo_cname* ares_cname):
 cdef AddrInfoResult parse_addrinfo( ares_addrinfo_t* addrinfo):
     cdef list cnames = []
     cdef list nodes = []
-    cdef ares_addrinfo_cname* cname_ptr = addrinfo.cnames
+    cdef ares_addrinfo_cname* cname_ptr
+    cdef ares_addrinfo_node* node_ptr
 
-    while cname_ptr != NULL:
-        cnames.append(parse_addrinfo_cname(cname_ptr))
-        cname_ptr = cname_ptr.next
+    # ares_freeaddrinfo() must run on every exit path. Without this,
+    # any exception raised by parse_addrinfo_cname/parse_addrinfo_node
+    # (e.g. an unknown sa_family or an inet_ntop failure) would leak
+    # the entire ares_addrinfo_t allocation.
+    try:
+        cname_ptr = addrinfo.cnames
+        while cname_ptr != NULL:
+            cnames.append(parse_addrinfo_cname(cname_ptr))
+            cname_ptr = cname_ptr.next
 
-    node_ptr = addrinfo.nodes
-    while node_ptr != NULL:
-        nodes.append(parse_addrinfo_node(node_ptr))
-        node_ptr = node_ptr.ai_next
+        node_ptr = addrinfo.nodes
+        while node_ptr != NULL:
+            nodes.append(parse_addrinfo_node(node_ptr))
+            node_ptr = node_ptr.ai_next
+    finally:
+        ares_freeaddrinfo(addrinfo)
 
-    ares_freeaddrinfo(addrinfo)
     return AddrInfoResult(cnames=cnames, nodes=nodes)
 
 

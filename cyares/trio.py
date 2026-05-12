@@ -37,7 +37,7 @@ except AttributeError:
 
 
 class Timer:
-    __slots__ = ("deadline", "cb", "_running", "_close_event")
+    __slots__ = ("clock", "deadline", "cb", "_running", "_close_event")
 
     # TODO
     #  - Seperate Library for deprecation of subclassing in a wrapper
@@ -117,7 +117,10 @@ class Future(Generic[_T]):
 
         # We need to call everything else from the home-thread to prevent any errors...
         if self._uses_thread:
-            trio.from_thread.run_sync(self.__handle_done, trio_token=self._token)
+            # Must be fire-and-forget: c-ares holds its channel lock for the
+            # duration of this callback, and a blocking call back into the
+            # trio loop will deadlock against any concurrent ares_cancel().
+            self._token.run_sync_soon(self.__handle_done)
         else:
             self.__handle_done()
 
@@ -198,28 +201,32 @@ class DNSResolver:
         return self
 
     async def __aexit__(self, *args):
-        await self._manager.__aexit__(*args)
+        # Tear down c-ares first so it closes its sockets and notifies the
+        # state callback (read/write False), which removes fds and wakes the
+        # _handle_read/_handle_write tasks. Otherwise the nursery aexit
+        # below blocks forever on tasks waiting on those fds.
         await self._cleanup()
+        await self._manager.__aexit__(*args)
 
     async def _handle_read(self, fd: int):
         while fd in self._read_fds:
             try:
                 await _wait_readable(fd)
-                self._channel.process_read_fd(fd)
-            except OSError:
-                if fd not in self._read_fds:
-                    break
-                raise
+            except (trio.ClosedResourceError, OSError):
+                return
+            if fd not in self._read_fds:
+                return
+            self._channel.process_read_fd(fd)
 
     async def _handle_write(self, fd: int):
         while fd in self._write_fds:
             try:
                 await _wait_writable(fd)
-                self._channel.process_write_fd(fd)
-            except OSError:
-                if fd not in self._write_fds:
-                    break
-                raise
+            except (trio.ClosedResourceError, OSError):
+                return
+            if fd not in self._write_fds:
+                return
+            self._channel.process_write_fd(fd)
 
     def _timer_cb(self) -> None:
         if self._read_fds or self._write_fds:
@@ -238,31 +245,27 @@ class DNSResolver:
         elif timeout == 0:
             timeout = 0.1
 
-        self._timer = Timer(self._timer_cb, self._timeout)
+        self._timer = Timer(self._timer_cb, timeout)
+        self._timer.start()
+
+    def _update_fd(self, fd: int, wanted: bool, fds: set[int], handler) -> None:
+        if wanted and fd not in fds:
+            fds.add(fd)
+            self._nursery.start_soon(handler, fd)
+        elif not wanted and fd in fds:
+            fds.discard(fd)
+            trio.lowlevel.notify_closing(fd)
 
     def _socket_state_cb(self, fd: int, read: bool, write: bool) -> None:
-        if read or write:
-            if read:
-                self._read_fds.add(fd)
-                self._nursery.start_soon(self._handle_read, fd)
+        self._update_fd(fd, read, self._read_fds, self._handle_read)
+        self._update_fd(fd, write, self._write_fds, self._handle_write)
 
-            if write:
-                self._write_fds.add(fd)
-                self._nursery.start_soon(self._handle_write, fd)
-
+        if self._read_fds or self._write_fds:
             if self._timer is None:
                 self._start_timer()
-        else:
-            # socket is now closed
-            if fd in self._read_fds:
-                self._read_fds.discard(fd)
-
-            if fd in self._write_fds:
-                self._write_fds.discard(fd)
-
-            if not self._read_fds and not self._write_fds and self._timer is not None:
-                self._timer.cancel()
-                self._timer = None
+        elif self._timer is not None:
+            self._timer.cancel()
+            self._timer = None
 
     @property
     def nameservers(self) -> Sequence[str]:

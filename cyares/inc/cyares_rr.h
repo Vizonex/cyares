@@ -161,7 +161,7 @@ static inline PyObject* cyares_rr_get_abin(const ares_dns_rr_t* rr, ares_dns_rr_
         }
     }
     abin = cyares_writer_finish(&w);
-    cyares_writer_finish(&w);
+    cyares_release_writer(&w);
     return abin;
 }
 
@@ -171,7 +171,7 @@ static PyObject* cyares_rr_get_opt(const ares_dns_rr_t* rr, ares_dns_rr_key_t ke
 
     opt_cnt = ares_dns_rr_get_opt_cnt(rr, key);
 
-    /* New list with as many NULL values as needed */
+    /* Pre-sized list; entries are filled in via PyList_SetItem below. */
     params = PyList_New((Py_ssize_t)(opt_cnt));
     if (params == NULL){
         return NULL;
@@ -182,35 +182,35 @@ static PyObject* cyares_rr_get_opt(const ares_dns_rr_t* rr, ares_dns_rr_key_t ke
         const uint8_t* ptr;
         size_t ptr_len;
         PyObject *opt_val, *opt_key, *opt;
-        
+
         opt_key = PyLong_FromLong(ares_dns_rr_get_opt(rr, key, i, &ptr, &ptr_len));
         if (opt_key == NULL){
-            Py_XDECREF(params);
+            Py_DECREF(params);
             return NULL;
         }
-        
+
         opt_val = PyUnicode_FromKindAndData(
             PyUnicode_1BYTE_KIND, (void*)ptr, ptr_len
         );
 
         if (opt_val == NULL){
-            Py_XDECREF(opt_key);
-            Py_XDECREF(params);
+            Py_DECREF(opt_key);
+            Py_DECREF(params);
             return NULL;
         }
 
+        /* PyTuple_Pack increments its arguments' refcounts, so we release
+         * our own references to opt_key/opt_val regardless of outcome. */
         opt = PyTuple_Pack(2, opt_key, opt_val);
+        Py_DECREF(opt_val);
+        Py_DECREF(opt_key);
         if (opt == NULL){
-            Py_XDECREF(opt_val);
-            Py_XDECREF(opt_key);
-            Py_XDECREF(params);
+            Py_DECREF(params);
             return NULL;
         }
-        if (PyList_Append(params, opt) < 0){
-            Py_XDECREF(opt);
-            Py_XDECREF(opt_val);
-            Py_XDECREF(opt_key);
-            Py_XDECREF(params);
+        /* PyList_SetItem steals our reference to opt on success. */
+        if (PyList_SetItem(params, (Py_ssize_t)i, opt) < 0){
+            Py_DECREF(params);
             return NULL;
         }
     }
