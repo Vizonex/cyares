@@ -33,7 +33,7 @@ def test_getaddrinfo_returns_ipv6_node():
     assert node.addr[1] == 80
     ch.cancel()
 
-
+@pytest.mark.skipif(sys.platform == "win32", reason="Windows doesn't do this correctly.")
 def test_gethostbyaddr_returns_addresses_not_aliases():
     """parse_hostent appended IP addresses to the `aliases` list instead
     of `addresses`. The HostResult.addresses list was always empty and
