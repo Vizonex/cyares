@@ -1,5 +1,5 @@
 """Regression tests for resulttypes.parse_addrinfo_node."""
-
+import sys
 import cyares
 import pytest
 
