@@ -140,7 +140,6 @@ class Channel:
         local_ip: str | bytes | bytearray | memoryview[int] | None = None,
         local_dev: str | bytes | bytearray | memoryview[int] | None = None,
         resolvconf_path: str | bytes | None = None,
-        event_thread: bool = False,
     ) -> None: ...
     def query(
         self,

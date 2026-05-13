@@ -295,7 +295,7 @@ class DNSResolver:
         if cyares_threadsafety():
             # CyAres is Threadsafe
             try:
-                return True, Channel(event_thread=True, timeout=self._timeout, **kwargs)
+                return True, Channel(timeout=self._timeout, **kwargs)
             except AresError as e:
                 if sys.platform == "linux":
                     _LOGGER.warning(

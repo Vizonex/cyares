@@ -38,7 +38,7 @@ def test_gethostbyaddr_returns_addresses_not_aliases():
     """parse_hostent appended IP addresses to the `aliases` list instead
     of `addresses`. The HostResult.addresses list was always empty and
     real CNAME aliases were polluted with stringified IP addresses."""
-    ch = cyares.Channel(event_thread=True)
+    ch = cyares.Channel()
     res = ch.gethostbyaddr("127.0.0.1").result(timeout=5)
     assert "127.0.0.1" in res.addresses
     assert "127.0.0.1" not in res.aliases

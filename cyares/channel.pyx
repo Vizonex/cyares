@@ -231,7 +231,6 @@ cdef class Channel:
         local_ip = None,
         local_dev = None,
         resolvconf_path = None,
-        bint event_thread = False
     ):
         cdef Py_buffer view
         cdef int optmask = 0
@@ -242,7 +241,7 @@ cdef class Channel:
         # ares_init_options. ares strdups them internally, so this list
         # only needs to outlive the ares_init_options call below.
         cdef list _keepalive = []
-        self.event_thread = event_thread
+        self.event_thread = sock_state_cb is None
         # New in Cyares 0.3.0 as a nod to pycares
 
         self.__qtypes__ = frozenset((ARES_REC_TYPE_A, ARES_REC_TYPE_AAAA, ARES_REC_TYPE_ANY, ARES_REC_TYPE_CAA, ARES_REC_TYPE_CNAME, ARES_REC_TYPE_HTTPS, ARES_REC_TYPE_MX, ARES_REC_TYPE_NAPTR, ARES_REC_TYPE_NS, ARES_REC_TYPE_PTR, ARES_REC_TYPE_SOA, ARES_REC_TYPE_SRV, ARES_REC_TYPE_TLSA, ARES_REC_TYPE_TXT, ARES_REC_TYPE_URI))
@@ -272,6 +271,7 @@ cdef class Channel:
         }
         self._closed = 0
         self._running = 0
+
 
         # TODO: (Had an idea for parsing Channel options that involves parsing these arguments 
         # out the CPython Way using PyArg_ParseTupleAndKeywords)
@@ -325,7 +325,7 @@ cdef class Channel:
         else:
             self.socket_handle = None
         
-        if event_thread:
+        if self.event_thread:
             if not ares_threadsafety():
                 raise RuntimeError("c-ares is not built with thread safety")
             if sock_state_cb:
@@ -461,10 +461,8 @@ cdef class Channel:
         # we can wait for the queries to complete
         # so that use-after-free never sees the 
         # light of day. 
-        if not self.socket_handle:
-            # instead of trying to wait forever which can deadlock
-            # try waiting the user's provided timeout.
-            ares_queue_wait_empty(self.channel, self.timeout())
+        
+        ares_queue_wait_empty(self.channel, -1)
         ares_destroy(self.channel)
 
     def __enter__(self):

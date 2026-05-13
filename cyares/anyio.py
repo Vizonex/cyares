@@ -205,7 +205,6 @@ class DNSResolver:
     ) -> None:
         self._channel = Channel(
             servers=servers,
-            event_thread=event_thread,
             sock_state_cb=self._socket_state_cb if not event_thread else None,
             flags=flags,
             tries=tries,

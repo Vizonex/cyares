@@ -37,7 +37,6 @@ def channel():
             "8.8.8.8",
             "8.8.4.4",
         ],
-        event_thread=True,
         tries=3,
         timeout=10,
     ) as channel:
@@ -307,7 +306,7 @@ def test_query_bad_type(channel: Channel):
 
 def test_close_from_different_thread_safe():
     # Test that close() can be safely called from different thread
-    channel = cyares.Channel(event_thread=True)
+    channel = cyares.Channel()
     close_complete = threading.Event()
 
     def close_in_thread():
@@ -321,6 +320,14 @@ def test_close_from_different_thread_safe():
     # Should complete without errors
     assert close_complete.is_set()
 
+def test_channl_default_event_thread_when_no_cb():
+    channel = Channel()
+    assert channel.event_thread
+
+    def cb(*args):
+        pass
+    channel = Channel(sock_state_cb=cb)
+    assert not channel.event_thread
 
 # Since we do not have direct access to things anymore since the removal
 # of getsock we have to try something different...
