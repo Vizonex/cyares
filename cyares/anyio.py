@@ -123,9 +123,9 @@ class Future(Generic[_T]):
         #   - trio:    TrioToken.run_sync_soon
         #   - asyncio: AbstractEventLoop.call_soon_threadsafe
         native = self._token.native_token
-        self._schedule = getattr(
-            native, "run_sync_soon", None
-        ) or native.call_soon_threadsafe
+        self._schedule = (
+            getattr(native, "run_sync_soon", None) or native.call_soon_threadsafe
+        )
         # all we needed the other future for was preparing to chain it.
         fut.add_done_callback(self.__on_done)
         # determines if were in the Home Thread where the Cyares Channel is located

@@ -1,5 +1,3 @@
-# Borrowing from pycares until unless we need to adapt to cython...
-
 on:
   workflow_call:
     inputs:
@@ -15,26 +13,45 @@ on:
         type: boolean
 
 jobs:
+  generate-wheels-matrix:
+    # Create a matrix of all architectures & versions to build.
+    # This enables the next step to run cibuildwheel in parallel.
+    # From https://iscinumpy.dev/post/cibuildwheel-2-10-0/#only-210
+    name: Generate wheels matrix
+    runs-on: ubuntu-latest
+    outputs:
+      include: ${{ steps.set-matrix.outputs.include }}
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install cibuildwheel
+      # Nb. keep cibuildwheel version pin consistent with job below
+        run: pipx install cibuildwheel==3.2.1
+      - id: set-matrix
+        run: |
+          MATRIX=$(
+            {
+              cibuildwheel --print-build-identifiers --platform linux \
+              | jq -nRc '{"only": inputs, "os": "ubuntu-latest"}' \
+              && cibuildwheel --print-build-identifiers --platform macos --archs arm64 \
+              | jq -nRc '{"only": inputs, "os": "macos-15"}' \
+              && cibuildwheel --print-build-identifiers --platform macos --archs x86_64 \
+              | jq -nRc '{"only": inputs, "os": "macos-15-intel"}' \
+              && cibuildwheel --print-build-identifiers --platform windows --archs AMD64 \
+              | jq -nRc '{"only": inputs, "os": "windows-latest"}' \
+              && cibuildwheel --print-build-identifiers --platform windows --archs ARM64 \
+              | jq -nRc '{"only": inputs, "os": "windows-11-arm"}'
+            } | jq -sc
+          )
+          echo "include=$MATRIX" >> $GITHUB_OUTPUT
+
   build_wheels:
-    name: Build wheels for ${{ matrix.name }}
+    name: Build wheels for ${{ matrix.only }}
     runs-on: ${{ matrix.os }}
+    needs: generate-wheels-matrix
     strategy:
       fail-fast: ${{ inputs.fail-fast }}
       matrix:
-        include:
-          - name: Windows
-            os: windows-latest
-          - name: Windows arm64
-            os: windows-11-arm
-          # SEE: 
-          #  - https://github.com/scikit-tda/ripser.py/pull/213
-          #  - https://github.com/pypa/gh-action-pypi-publish/issues/215
-          # - name: macOS x86_64
-          #   os: macos-14
-          - name: macOS arm64
-            os: macos-latest
-          - name: Linux
-            os: ubuntu-latest
+        include: ${{ fromJson(needs.generate-wheels-matrix.outputs.include) }}
     steps:
       - uses: actions/checkout@v6
         with:
@@ -50,8 +67,9 @@ jobs:
       - name: Build wheels
         uses: pypa/cibuildwheel@v3.4.1
         with:
+          only: ${{ matrix.only }}
           output-dir: dist
       - uses: actions/upload-artifact@v7
         with:
-          name: wheels-${{ matrix.os }}
+          name: wheels-${{ matrix.only }}
           path: dist/*.whl

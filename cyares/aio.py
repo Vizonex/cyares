@@ -227,7 +227,14 @@ class DNSResolver:
         self._closed = True
         self.loop = loop or asyncio.get_event_loop()
 
+
+        if timeout is None or timeout < 0 or timeout > 1:
+            timeout = 1
+        elif timeout == 0:
+            timeout = 0.1
+
         self._timeout = timeout
+
         # Internal (Using with pytest to help debug socket_cb handles)
         if event_thread:
             # Still in the process of trying to convince aiodns maintainers about why
@@ -321,13 +328,7 @@ class DNSResolver:
             self._timer = None
 
     def _start_timer(self) -> None:
-        timeout = self._timeout
-        if timeout is None or timeout < 0 or timeout > 1:
-            timeout = 1
-        elif timeout == 0:
-            timeout = 0.1
-
-        self._timer = self.loop.call_later(timeout, self._timer_cb)
+        self._timer = self.loop.call_later(self._timeout, self._timer_cb)
 
     def cancel(self) -> None:
         """Cancels all running futures queued by this dns resolver"""
@@ -423,8 +424,7 @@ class DNSResolver:
         # self._check_open()
         return self._wrap_future(
             self._channel.getaddrinfo(
-                host, port, family=family, proto=proto, flags=flags,
-                socktype=type
+                host, port, family=family, proto=proto, flags=flags, socktype=type
             )
         )
 
