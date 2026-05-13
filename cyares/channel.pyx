@@ -454,33 +454,16 @@ cdef class Channel:
     
     def __dealloc__(self):
         # Cleanup all active queries
-
-        # faster route first then try the slower route
-        if self._running or ares_queue_active_queries(self.channel):
-            # NOTE: I got rid of having to carry handles in the 1.5 update
-            #   here's why.
-            # - cancel will also cleanup all pending future objects and it 
-            #   will do it all from the main thread if were not the event-thread
-            #
-            # - if were on an event-thread the __wait(-1) function
-            #   will stop use-after-free situations 
-            #
-            # - I refuse to use a daemon setup that pycares does for cleanup it 
-            #   just feels wrong and it's not threadsafe to use globals 
-
-            self.cancel()
-
+        
         # If your not using an event_thread
         # cancel() will ensure cleanup already happens
         # otherwise we have to try the method below.
-
+        ares_cancel(self.channel)
         # To prevent the possibility of freezing
         # we can wait for the queries to complete
         # so that use-after-free never sees the 
         # light of day. 
-        if self.event_thread:
-            self.__wait(-1)
-        
+        ares_queue_wait_empty(self.channel, -1)
         ares_destroy(self.channel)
 
     def __enter__(self):
