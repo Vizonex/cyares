@@ -461,8 +461,8 @@ cdef class Channel:
         # we can wait for the queries to complete
         # so that use-after-free never sees the 
         # light of day. 
-        
-        ares_queue_wait_empty(self.channel, -1)
+        with ares_queue_active_queries(self.channel):
+            ares_queue_wait_empty(self.channel, -1)
         ares_destroy(self.channel)
 
     def __enter__(self):
