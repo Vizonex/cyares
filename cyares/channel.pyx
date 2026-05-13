@@ -417,7 +417,10 @@ cdef class Channel:
 
     @property
     def servers(self):
-        cdef char* data = ares_get_servers_csv(self.channel)
+        cdef char* data
+        cdef ares_channel_t* channel = self.channel
+        with nogil:
+            data = ares_get_servers_csv(channel)
         cdef bytes s = PyBytes_FromString(data)
         ares_free_string(data)
         cdef str servers = s.decode('utf-8')
@@ -432,8 +435,11 @@ cdef class Channel:
         
         cyares_get_buffer(csv_list, &view)
 
-        r = ares_set_servers_csv(self.channel, <const char*>view.buf)
-        
+        cdef ares_channel_t* channel = self.channel
+        cdef const char* buf = <const char*>view.buf
+        with nogil:
+            r = ares_set_servers_csv(channel, buf)
+
         cyares_release_buffer(&view)
 
         if r != ARES_SUCCESS:
@@ -454,7 +460,10 @@ cdef class Channel:
         self._cancelled = True
 
     def reinit(self):
-        cdef int r = ares_reinit(self.channel)
+        cdef int r
+        cdef ares_channel_t* channel = self.channel
+        with nogil:
+            r = ares_reinit(channel)
         if r != ARES_SUCCESS:
             raise AresError(r)
             
@@ -549,17 +558,21 @@ cdef class Channel:
         # ares_query_dnsrec copies the name synchronously, so the buffer
         # reference may be released as soon as the call returns. The
         # try/finally ensures we release on any error path too.
+        cdef ares_channel_t* channel = self.channel
+        cdef char* qname_buf
         try:
             fut = self.__create_future(callback)
-            status = ares_query_dnsrec(
-                self.channel,
-                <char*>view.buf,
-                qclass,
-                qtype,
-                __callback_dns_rec__any, # type: ignore
-                <void*>fut,
-                NULL, # Passing NULL here will work SEE: ares_query.c
-            )
+            qname_buf = <char*>view.buf
+            with nogil:
+                status = ares_query_dnsrec(
+                    channel,
+                    qname_buf,
+                    qclass,
+                    qtype,
+                    __callback_dns_rec__any, # type: ignore
+                    <void*>fut,
+                    NULL, # Passing NULL here will work SEE: ares_query.c
+                )
         finally:
             cyares_release_buffer(&view)
         if status != ARES_SUCCESS:
@@ -596,6 +609,7 @@ cdef class Channel:
         cdef ares_dns_record_t *dnsrec_p
         cdef ares_status_t status
         cdef _dns_record dns_record
+        cdef ares_channel_t* channel_p = self.channel
 
         try:
             # Set RD (Recursion Desired) flag unless ARES_FLAG_NORECURSE is set
@@ -646,12 +660,13 @@ cdef class Channel:
             fut.add_done_callback(dns_record.callback)
 
             # Perform the search with the created DNS record
-            status = ares_search_dnsrec(
-                self.channel,
-                dnsrec_p,
-                __callback_dns_rec__any,
-                <void*>fut
-            )
+            with nogil:
+                status = ares_search_dnsrec(
+                    channel_p,
+                    dnsrec_p,
+                    __callback_dns_rec__any,
+                    <void*>fut
+                )
             if status != ARES_SUCCESS:
                 raise AresError(status)
         except:
@@ -684,7 +699,9 @@ cdef class Channel:
 
 
     def process_fd(self, int read_fd, int write_fd):
-        ares_process_fd(self.channel, <ares_socket_t>read_fd, <ares_socket_t>write_fd)
+        cdef ares_channel_t* channel = self.channel
+        with nogil:
+            ares_process_fd(channel, <ares_socket_t>read_fd, <ares_socket_t>write_fd)
 
    
     def process_read_fd(self, int read_fd):
@@ -697,8 +714,9 @@ cdef class Channel:
 
         :param read_fd: the readable file descriptor
         """
-
-        ares_process_fd(self.channel, <ares_socket_t>read_fd, ARES_SOCKET_BAD)
+        cdef ares_channel_t* channel = self.channel
+        with nogil:
+            ares_process_fd(channel, <ares_socket_t>read_fd, ARES_SOCKET_BAD)
     
     def process_write_fd(self, int write_fd):
         """
@@ -710,11 +728,14 @@ cdef class Channel:
 
         :param write_fd: the readable file descriptor
         """
-
-        ares_process_fd(self.channel, ARES_SOCKET_BAD, <ares_socket_t>write_fd)
+        cdef ares_channel_t* channel = self.channel
+        with nogil:
+            ares_process_fd(channel, ARES_SOCKET_BAD, <ares_socket_t>write_fd)
 
     def process_no_fds(self):
-        ares_process_fd(self.channel, ARES_SOCKET_BAD, ARES_SOCKET_BAD)
+        cdef ares_channel_t* channel = self.channel
+        with nogil:
+            ares_process_fd(channel, ARES_SOCKET_BAD, ARES_SOCKET_BAD)
         
 
     def timeout(self, double t = 0):
@@ -732,7 +753,9 @@ cdef class Channel:
         else:
             maxtv_p = NULL
 
-        result = ares_timeout(self.channel, maxtv_p, &tv)
+        cdef ares_channel_t* channel = self.channel
+        with nogil:
+            result = ares_timeout(channel, maxtv_p, &tv)
         if result is NULL:
             return 0.0
 
@@ -754,6 +777,8 @@ cdef class Channel:
         cdef bint host_buffer_taken = 0
         cdef object fut
         cdef ares_addrinfo_hints hints
+        cdef ares_channel_t* channel_p
+        cdef char* host_buf
 
         if callback is not None and not callable(callback):
             raise TypeError('callback must be callable if passed')
@@ -779,14 +804,17 @@ cdef class Channel:
             hints.ai_protocol = proto
 
             fut = self.__create_future(callback)
-            ares_getaddrinfo(
-                self.channel,
-                <char*>view.buf,
-                service,
-                &hints,
-                __callback_getaddrinfo, # type: ignore
-                <void*>fut
-            )
+            channel_p = self.channel
+            host_buf = <char*>view.buf
+            with nogil:
+                ares_getaddrinfo(
+                    channel_p,
+                    host_buf,
+                    service,
+                    &hints,
+                    __callback_getaddrinfo, # type: ignore
+                    <void*>fut
+                )
         finally:
             if host_buffer_taken:
                 cyares_release_buffer(&view)
@@ -805,6 +833,7 @@ cdef class Channel:
         cdef sockaddr_in6 sa6
         cdef object fut
         cdef Py_buffer view
+        cdef ares_channel_t* channel_p = self.channel
 
         if callback is not None and not callable(callback):
             raise TypeError('callback must be callable if passed')
@@ -819,14 +848,15 @@ cdef class Channel:
             sa4.sin_port = cyares_htons(port)
             cyares_release_buffer(&view)
             fut = self.__create_future(callback)
-            ares_getnameinfo(
-                self.channel, 
-                <sockaddr*>&sa4, 
-                sizeof(sa4), 
-                flags, 
-                __callback_nameinfo, # type: ignore 
-                <void*>fut
-            )
+            with nogil:
+                ares_getnameinfo(
+                    channel_p,
+                    <sockaddr*>&sa4,
+                    sizeof(sa4),
+                    flags,
+                    __callback_nameinfo, # type: ignore 
+                    <void*>fut
+                )
         elif len(address) == 4:
             (ip, port, flowinfo, scope_id) = address
             cyares_get_buffer(ip, &view)
@@ -839,14 +869,15 @@ cdef class Channel:
             sa6.sin6_scope_id = scope_id # Pycares Comment: Yes, without htonl.
             cyares_release_buffer(&view)
             fut = self.__create_future(callback)
-            ares_getnameinfo(
-                self.channel, 
-                <sockaddr*>&sa6, 
-                sizeof(sa6), 
-                flags, 
-                __callback_nameinfo, # type: ignore 
-                <void*>fut
-            )
+            with nogil:
+                ares_getnameinfo(
+                    channel_p,
+                    <sockaddr*>&sa6,
+                    sizeof(sa6),
+                    flags,
+                    __callback_nameinfo, # type: ignore 
+                    <void*>fut
+                )
         else:
             raise ValueError("Invalid address argument")
 
@@ -857,6 +888,7 @@ cdef class Channel:
         cdef ares_in6_addr addr6
         cdef Py_buffer view
         cdef object fut
+        cdef ares_channel_t* channel_p = self.channel
 
         if callback is not None and not callable(callback):
             raise TypeError('callback must be callable if passed')
@@ -865,26 +897,28 @@ cdef class Channel:
 
         if ares_inet_pton(AF_INET, <char*>view.buf, &addr4):
             fut = self.__create_future(callback)
-            ares_gethostbyaddr(
-                self.channel, 
-                &addr4, 
-                sizeof(addr4), 
-                AF_INET, 
-                __callback_gethostbyaddr, # type: ignore  
-                <void*>fut
-            )
+            with nogil:
+                ares_gethostbyaddr(
+                    channel_p,
+                    &addr4,
+                    sizeof(addr4),
+                    AF_INET,
+                    __callback_gethostbyaddr, # type: ignore  
+                    <void*>fut
+                )
 
 
         elif ares_inet_pton(AF_INET6, <char*>view.buf, &addr6):
             fut = self.__create_future(callback)
-            ares_gethostbyaddr(
-                self.channel, 
-                &addr6, 
-                sizeof(addr6), 
-                AF_INET6, 
-                __callback_gethostbyaddr, # type: ignore  
-                <void*>fut
-            )
+            with nogil:
+                ares_gethostbyaddr(
+                    channel_p,
+                    &addr6,
+                    sizeof(addr6),
+                    AF_INET6,
+                    __callback_gethostbyaddr, # type: ignore  
+                    <void*>fut
+                )
 
         else:
             cyares_release_buffer(&view)
@@ -895,20 +929,29 @@ cdef class Channel:
 
     def set_local_dev(self, object dev):
         cdef Py_buffer view
+        cdef ares_channel_t* channel = self.channel
+        cdef char* buf
         cyares_get_buffer(dev, &view)
-        ares_set_local_dev(self.channel, <char*>view.buf)
+        buf = <char*>view.buf
+        with nogil:
+            ares_set_local_dev(channel, buf)
         cyares_release_buffer(&view)
 
     def set_local_ip(self, object ip):
         cdef in_addr addr4
         cdef ares_in6_addr addr6
         cdef Py_buffer view
+        cdef ares_channel_t* channel = self.channel
+        cdef unsigned int v4
         cyares_get_buffer(ip, &view)
         try:
             if ares_inet_pton(AF_INET, <char*>view.buf, &addr4):
-                ares_set_local_ip4(self.channel, <unsigned int>cyares_htonl(addr4.s_addr))
+                v4 = <unsigned int>cyares_htonl(addr4.s_addr)
+                with nogil:
+                    ares_set_local_ip4(channel, v4)
             elif ares_inet_pton(AF_INET6, <char*>view.buf, &addr6):
-                ares_set_local_ip6(self.channel, <unsigned char*>&addr6)
+                with nogil:
+                    ares_set_local_ip6(channel, <unsigned char*>&addr6)
             else:
                 raise ValueError("invalid IP address")
         finally:
@@ -975,7 +1018,11 @@ cdef class Channel:
         :rtype: int
         :raises ValueError: if value is attempted to be set
         """
-        return ares_queue_active_queries(self.channel)
+        cdef ares_channel_t* channel = self.channel
+        cdef size_t n
+        with nogil:
+            n = ares_queue_active_queries(channel)
+        return n
 
     @running_queries.setter
     def running_queries(self, object ignore):
