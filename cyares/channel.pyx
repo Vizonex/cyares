@@ -249,7 +249,6 @@ cdef class Channel:
         self.__qclasses__ = frozenset((ARES_CLASS_IN, ARES_CLASS_CHAOS, ARES_CLASS_HESOID, ARES_CLASS_NONE, ARES_CLASS_ANY))
 
 
-        self._cancelled = False
         self._query_lookups = {
             "A":ARES_REC_TYPE_A,
             "NS":ARES_REC_TYPE_NS,
@@ -444,7 +443,6 @@ cdef class Channel:
 
     cpdef void cancel(self) noexcept:
         ares_cancel(self.channel)
-        self._cancelled = True
 
     def reinit(self):
         cdef int r = ares_reinit(self.channel)
@@ -463,7 +461,8 @@ cdef class Channel:
         # we can wait for the queries to complete
         # so that use-after-free never sees the 
         # light of day. 
-        ares_queue_wait_empty(self.channel, -1)
+        if not self.socket_handle:
+            ares_queue_wait_empty(self.channel, -1)
         ares_destroy(self.channel)
 
     def __enter__(self):

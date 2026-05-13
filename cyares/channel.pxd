@@ -28,7 +28,6 @@ cdef class Channel:
         uint64_t _closed
 
         dict _query_lookups
-        bint _cancelled
         
         # Inspired by pycares but with a frozenset approch to prevent tampering with the objects...
         readonly frozenset __qtypes__ 
