@@ -462,7 +462,9 @@ cdef class Channel:
         # so that use-after-free never sees the 
         # light of day. 
         if not self.socket_handle:
-            ares_queue_wait_empty(self.channel, -1)
+            # instead of trying to wait forever which can deadlock
+            # try waiting the user's provided timeout.
+            ares_queue_wait_empty(self.channel, self.timeout())
         ares_destroy(self.channel)
 
     def __enter__(self):

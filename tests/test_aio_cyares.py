@@ -87,11 +87,11 @@ async def test_a_dns_query(resolver: DNSResolver) -> None:
 
 @pytest.mark.anyio
 async def test_cancelling() -> None:
-    async with DNSResolver(servers=["8.8.8.8", "8.8.4.4"]) as channel:
+    async with DNSResolver(servers=["8.8.8.8", "8.8.4.4"]) as resolver:
         for f in [
-            channel.query("google.com", "A"),
-            channel.query("llhttp.org", "A"),
-            channel.query("llparse.org", "A"),
+            resolver.query("google.com", "A"),
+            resolver.query("llhttp.org", "A"),
+            resolver.query("llparse.org", "A"),
         ]:
             f.cancel()
 
