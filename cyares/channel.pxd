@@ -1,5 +1,3 @@
-from libc.stdint cimport uint64_t
-
 from .ares cimport *
 from .callbacks cimport (__callback_dns_rec__any, __callback_getaddrinfo,
                          __callback_gethostbyaddr, __callback_nameinfo)
@@ -21,11 +19,6 @@ cdef class Channel:
         # ares will get to decide the fate of the channel pointer...
         ares_channel_t* channel
         ares_options options
-        # these have a very low chance of overflowing The reason 
-        # for adding them is to debug segfaults or ensure everyting 
-        # is exiting correctly...
-        uint64_t _running
-        uint64_t _closed
 
         dict _query_lookups
         bint _cancelled
