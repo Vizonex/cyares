@@ -443,7 +443,16 @@ cdef class Channel:
     
 
     cpdef void cancel(self) noexcept:
-        ares_cancel(self.channel)
+        # Release the GIL around ares_cancel: with event_thread=True,
+        # ares_cancel takes the channel lock, which the event thread
+        # may currently hold while it is itself waiting for the GIL to
+        # invoke a Python callback. Holding the GIL here would
+        # deadlock. The cancellation callbacks fired from inside
+        # ares_cancel are declared `with gil`, so they re-acquire the
+        # GIL on this thread as needed.
+        cdef ares_channel_t* channel = self.channel
+        with nogil:
+            ares_cancel(channel)
         self._cancelled = True
 
     def reinit(self):
@@ -458,13 +467,16 @@ cdef class Channel:
         # If your not using an event_thread
         # cancel() will ensure cleanup already happens
         # otherwise we have to try the method below.
-        ares_cancel(self.channel)
-        # To prevent the possibility of freezing
-        # we can wait for the queries to complete
-        # so that use-after-free never sees the 
-        # light of day. 
-        ares_queue_wait_empty(self.channel, -1)
-        ares_destroy(self.channel)
+        # Release the GIL throughout: with event_thread=True the c-ares
+        # event thread needs the GIL to invoke Python callbacks for the
+        # in-flight queries, and ares_cancel itself may need the channel
+        # lock that the event thread holds. Holding the GIL here would
+        # deadlock - the queue could never drain.
+        cdef ares_channel_t* channel = self.channel
+        with nogil:
+            ares_cancel(channel)
+            ares_queue_wait_empty(channel, -1)
+            ares_destroy(channel)
 
     def __enter__(self):
         return self
@@ -913,7 +925,17 @@ cdef class Channel:
     # Removed getsock in 3.0 since pycares stopped using it...
 
     cdef ares_status_t __wait(self, int timeout_ms):
-        return ares_queue_wait_empty(self.channel, timeout_ms)
+        cdef ares_status_t status
+        cdef ares_channel_t* channel = self.channel
+        # Release the GIL while waiting so that the c-ares event thread
+        # (when event_thread=True) can acquire it to invoke Python query
+        # callbacks and actually drain the queue. Otherwise this would
+        # deadlock: the event thread cannot run callbacks without the
+        # GIL, the queue never empties, and ares_queue_wait_empty never
+        # returns.
+        with nogil:
+            status = ares_queue_wait_empty(channel, timeout_ms)
+        return status
 
     def wait(self, object timeout = None):
         """
