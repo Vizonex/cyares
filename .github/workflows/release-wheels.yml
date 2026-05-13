@@ -1,5 +1,3 @@
-# Borrowed from pycares
-
 name: Release Wheels
 
 on:
@@ -7,9 +5,9 @@ on:
     types:
       - published
 
-permissions:
-  contents: read
-  id-token: write
+permissions:                            
+  id-token: write  
+  contents: write
 
 jobs:
   build_wheels:
@@ -19,6 +17,25 @@ jobs:
 
   build_sdist:
     uses: ./.github/workflows/run-sdist.yml
+
+  upload_github:
+    needs: [build_wheels, build_sdist]
+    if: github.event_name == 'release' && github.ref_type == 'tag'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          path: dist
+          merge-multiple: true
+      
+      # This will simply modify the given github release
+      # allowing for wheels to be uploaded to github's release
+      # page automatically.
+      - name: Upload Wheels To GitHub Release Page
+        uses: softprops/action-gh-release@v3
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          files: dist/*
 
   upload_pypi:
     needs: [build_wheels, build_sdist]
@@ -32,8 +49,3 @@ jobs:
       - run: ls -lR dist
       - name: Upload to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
-        # with:
-          # user: __token__
-          # NOTE: Changed to how I usually got about this. 
-          # I will remove after first release is taken care of...
-          # password: ${{ secrets.PYPI_API_TOKEN }}

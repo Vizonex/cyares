@@ -79,7 +79,7 @@ class Timer:
 
 
 @deprecated_subclass(
-    "subclassing this object for other purposes is discouraged", removed_in="0.5.0"
+    "subclassing this object for other purposes is discouraged", removed_in="0.6.0"
 )
 class Future(Generic[_T]):
     __class_getitem__ = classmethod(GenericAlias)

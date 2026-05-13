@@ -65,18 +65,53 @@ from .exception import AresError
 
 _NUMERIC_SOCKET_FLAGS = socket.AI_NUMERICHOST | socket.AI_NUMERICSERV
 _AI_ADDRCONFIG = socket.AI_ADDRCONFIG
+
 if hasattr(socket, "AI_MASK"):
     _AI_ADDRCONFIG &= socket.AI_MASK
 
 
 class CyAresResolver(AbstractResolver):
     def __init__(
-        self, loop: asyncio.AbstractEventLoop | None = None, *args, **kwargs
+        self,
+        loop: asyncio.AbstractEventLoop | None = None,
+        servers: list[str] | None = None,
+        event_thread: bool = True,
+        timeout: float | None = None,
+        flags: int | None = None,
+        tries: int | None = None,
+        ndots: object | None = None,
+        tcp_port: int | None = None,
+        udp_port: int | None = None,
+        domains: list[str] | None = None,
+        lookups: str | bytes | bytearray | memoryview[int] | None = None,
+        socket_send_buffer_size: int | None = None,
+        socket_receive_buffer_size: int | None = None,
+        rotate: bool = False,
+        local_ip: str | bytes | bytearray | memoryview[int] | None = None,
+        local_dev: str | bytes | bytearray | memoryview[int] | None = None,
     ) -> None:
         # we already have getaddrinfo implemented in our version so
         # no need to write more functions than the required ones
-        self._resolver = DNSResolver(loop=loop, *args, **kwargs)
-        self._loop = loop or asyncio.get_event_loop()
+        _loop = loop or asyncio.get_event_loop()
+        self._resolver = DNSResolver(
+            loop=_loop,
+            servers=servers,
+            flags=flags,
+            tries=tries,
+            ndots=ndots,
+            tcp_port=tcp_port,
+            udp_port=udp_port,
+            domains=domains,
+            lookups=lookups,
+            socket_send_buffer_size=socket_send_buffer_size,
+            socket_receive_buffer_size=socket_receive_buffer_size,
+            rotate=rotate,
+            local_ip=local_ip,
+            local_dev=local_dev,
+            event_thread=event_thread,
+            timeout=timeout,
+        )
+        self._loop = _loop
 
     async def resolve(
         self, host: str, port: int = 0, family=socket.AF_INET
@@ -101,26 +136,22 @@ class CyAresResolver(AbstractResolver):
             raise OSError(None, msg) from exc
         hosts: list[ResolveResult] = []
         for node in resp.nodes:
-            address: tuple[bytes, int] | tuple[bytes, int, int, int] = node.addr
-            family = node.family
-            if family == socket.AF_INET6:
-                # check scope ID to see if we need
-                # to recurse
-                if len(address) > 3 and address[3]:
-                    result = await self._resolver.getnameinfo(
-                        (address[0].decode("ascii"), *address[1:])
-                    )
-                    # XXX: Seems aiohttp forgot about
-                    # decoding ascii here Maybe a pull request on their end would fix
-                    # that?
-                    resolved_host = result.node.decode("ascii")
-                else:
-                    resolved_host = address[0].decode("ascii")
+            address: tuple[str, int] | tuple[str, int, int, int] = node.addr
+            match node.family:
+                case socket.AF_INET6:
+                    # check scope ID to see if we need
+                    # to recurse
+                    if len(address) > 3 and address[3]:
+                        result = await self._resolver.getnameinfo(
+                            (address[0], *address[1:])
+                        )
+                        resolved_host = result.node
+                    else:
+                        resolved_host = address[0]
+                        port = address[1]
+                case socket.AF_INET:
+                    resolved_host = address[0]
                     port = address[1]
-            else:
-                assert family == socket.AF_INET
-                resolved_host = address[0].decode("ascii")
-                port = address[1]
 
             hosts.append(
                 ResolveResult(
@@ -136,7 +167,6 @@ class CyAresResolver(AbstractResolver):
         # There were no results
         if not hosts:
             raise OSError(None, "DNS lookup failed")
-
         return hosts
 
     async def close(self) -> None:
