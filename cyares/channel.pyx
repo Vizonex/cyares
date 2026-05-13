@@ -271,8 +271,6 @@ cdef class Channel:
             "SVCB": ARES_REC_TYPE_SVCB,
             "HINFO": ARES_REC_TYPE_HINFO
         }
-        self._closed = 0
-        self._running = 0
 
         # TODO: (Had an idea for parsing Channel options that involves parsing these arguments 
         # out the CPython Way using PyArg_ParseTupleAndKeywords)
@@ -443,7 +441,16 @@ cdef class Channel:
     
 
     cpdef void cancel(self) noexcept:
-        ares_cancel(self.channel)
+        # Release the GIL around ares_cancel: with event_thread=True,
+        # ares_cancel takes the channel lock, which the event thread
+        # may currently hold while it is itself waiting for the GIL to
+        # invoke a Python callback. Holding the GIL here would
+        # deadlock. The cancellation callbacks fired from inside
+        # ares_cancel are declared `with gil`, so they re-acquire the
+        # GIL on this thread as needed.
+        cdef ares_channel_t* channel = self.channel
+        with nogil:
+            ares_cancel(channel)
         self._cancelled = True
 
     def reinit(self):
@@ -458,13 +465,16 @@ cdef class Channel:
         # If your not using an event_thread
         # cancel() will ensure cleanup already happens
         # otherwise we have to try the method below.
-        ares_cancel(self.channel)
-        # To prevent the possibility of freezing
-        # we can wait for the queries to complete
-        # so that use-after-free never sees the 
-        # light of day. 
-        ares_queue_wait_empty(self.channel, -1)
-        ares_destroy(self.channel)
+        # Release the GIL throughout: with event_thread=True the c-ares
+        # event thread needs the GIL to invoke Python callbacks for the
+        # in-flight queries, and ares_cancel itself may need the channel
+        # lock that the event thread holds. Holding the GIL here would
+        # deadlock - the queue could never drain.
+        cdef ares_channel_t* channel = self.channel
+        with nogil:
+            ares_cancel(channel)
+            ares_queue_wait_empty(channel, -1)
+            ares_destroy(channel)
 
     def __enter__(self):
         return self
@@ -483,34 +493,30 @@ cdef class Channel:
             PyErr_NoMemory()
         return memory
 
-    # Not public to .pyi, please do not use... - Vizonex 
-
-    # WARNING: _closed & _running might be scheduled for deprecation soon.
-    def __remove_future(self, *args, **kw):
-
-        self._closed += 1
-        self._running -= 1
-
     # there's a secret function
     # called debug() if you need to debug the handles however 
     # using such functions for non-development purposes is discouraged.
 
     def debug(self):
-        print('=== WARNING DEPRECATION IS PENDING MIGHT REMOVE IN A FUTURE UPDATE ===')
-        print('Running Handles: {}'.format(self._running))
         print('Running Queries: {}'.format(self.running_queries))
-        print('Closed Handles: {}'.format(self._closed))
-        
+
     @cython.nonecheck(False)
     cdef Future __create_future(self, object callback):
+        # IMPORTANT: do NOT register a Channel-bound method as a Future
+        # done-callback. A bound method holds a strong reference to
+        # Channel, which would let a pending Future be the last owner
+        # of its Channel. When the c-ares event thread fired the
+        # completion callback and Py_DECREF dropped the Future to zero
+        # refs, the Future's _done_callbacks teardown would chain into
+        # Channel.__dealloc__ on the event thread - which then calls
+        # ares_cancel/ares_destroy reentrantly into c-ares while it is
+        # still dispatching, causing a use-after-free. The Channel
+        # must always outlive its Futures, and its destruction must
+        # only ever happen on the thread that owns it.
         cdef Future fut = Future()
-        self._running += 1
-
-        # handle removal of finished futures for debugging
-        fut.add_done_callback(self.__remove_future)
 
         if callback is not None:
-            fut.add_done_callback(callback)    
+            fut.add_done_callback(callback)
 
         # Up the objects refcount by 1 since we don't need a 
         # global object like with pycares
@@ -519,14 +525,12 @@ cdef class Channel:
     
     @cython.nonecheck(False)
     cdef AresQuery __create_query(self, object callback):
+        # See __create_future for the rationale on not registering a
+        # Channel-bound done-callback.
         cdef AresQuery fut = AresQuery()
-        self._running += 1
-
-        # handle removal of finished futures for debugging
-        fut.add_done_callback(self.__remove_future)
 
         if callback is not None:
-            fut.add_done_callback(callback)    
+            fut.add_done_callback(callback)
 
         Py_INCREF(fut)
         return fut
@@ -913,7 +917,17 @@ cdef class Channel:
     # Removed getsock in 3.0 since pycares stopped using it...
 
     cdef ares_status_t __wait(self, int timeout_ms):
-        return ares_queue_wait_empty(self.channel, timeout_ms)
+        cdef ares_status_t status
+        cdef ares_channel_t* channel = self.channel
+        # Release the GIL while waiting so that the c-ares event thread
+        # (when event_thread=True) can acquire it to invoke Python query
+        # callbacks and actually drain the queue. Otherwise this would
+        # deadlock: the event thread cannot run callbacks without the
+        # GIL, the queue never empties, and ares_queue_wait_empty never
+        # returns.
+        with nogil:
+            status = ares_queue_wait_empty(channel, timeout_ms)
+        return status
 
     def wait(self, object timeout = None):
         """
