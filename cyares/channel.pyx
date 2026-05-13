@@ -452,17 +452,16 @@ cdef class Channel:
     
     def __dealloc__(self):
         # Cleanup all active queries
-        
+        with nogil:
         # If your not using an event_thread
         # cancel() will ensure cleanup already happens
         # otherwise we have to try the method below.
-        ares_cancel(self.channel)
+            ares_cancel(self.channel)
         # To prevent the possibility of freezing
         # we can wait for the queries to complete
         # so that use-after-free never sees the 
         # light of day. 
         # Will release the gil to prevent further deadlocking.
-        with nogil:
             ares_queue_wait_empty(self.channel, -1)
         ares_destroy(self.channel)
 
