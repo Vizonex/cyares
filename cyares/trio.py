@@ -18,7 +18,7 @@ import trio
 from trio.lowlevel import current_clock, current_trio_token
 
 from .channel import Channel
-from .deprecated_subclass import deprecated_subclass
+from deprecated_subclass import deprecated_subclass
 from .handles import Future as ccFuture
 from .resulttypes import AddrInfoResult, DNSResult, HostResult, NameInfoResult
 from .typedefs import (

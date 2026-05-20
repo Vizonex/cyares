@@ -26,7 +26,7 @@ from .channel import (
     Channel,
     cyares_threadsafety,
 )  # type: ignore  # noqa: F403
-from .deprecated_subclass import deprecated_subclass
+from deprecated_subclass import deprecated_subclass
 from .exception import AresError  # type: ignore
 from .handles import CancelledError, InvalidStateError
 from .handles import Future as cc_Future  # type: ignore
