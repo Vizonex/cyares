@@ -18,7 +18,7 @@ from anyio.abc import AsyncBackend, TaskGroup, TaskStatus
 from anyio.lowlevel import current_token, get_async_backend
 
 from .channel import Channel
-from .deprecated_subclass import deprecated_subclass
+from deprecated_subclass import deprecated_subclass
 from .handles import Future as _Future
 from .resulttypes import AddrInfoResult, DNSResult, HostResult, NameInfoResult
 from .typedefs import (
