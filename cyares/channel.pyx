@@ -1,11 +1,12 @@
 # cython: embed_signature=True
 cimport cython
-from cpython.bytes cimport PyBytes_FromString, PyBytes_FromStringAndSize
+from cpython.bool cimport PyBool_FromLong
+from cpython.bytes cimport PyBytes_FromString
 from cpython.exc cimport PyErr_NoMemory, PyErr_SetObject
 from cpython.mem cimport (PyMem_Free, PyMem_Malloc, PyMem_RawFree,
                           PyMem_RawMalloc, PyMem_RawRealloc)
 from cpython.ref cimport Py_DECREF, Py_INCREF
-from cpython.unicode cimport PyUnicode_Check, PyUnicode_GetLength
+from cpython.unicode cimport PyUnicode_Check, PyUnicode_GetLength, PyUnicode_FromString
 from libc.math cimport floor, fmod
 
 from .ares cimport *
@@ -182,6 +183,31 @@ QUERY_CLASS_HS = ARES_CLASS_HESOID
 QUERY_CLASS_NONE = ARES_CLASS_NONE
 QUERY_CLASS_ANY = ARES_CLASS_ANY
 
+cpdef enum:
+    SERVER_STATE_TCP = ARES_SERV_STATE_TCP
+
+cpdef enum:
+    SERVER_STATE_UDP = ARES_SERV_STATE_UDP
+
+
+cdef void __server_state_cb(
+    const char* server,
+    ares_bool_t success,
+    int flags,
+    void* data
+) noexcept nogil:
+    if data == NULL:
+        return
+    with gil:
+        cb = <object>data
+        try:
+            cb(
+                PyUnicode_FromString(server), 
+                PyBool_FromLong(success == 1), 
+                flags
+            )
+        except BaseException as e:
+            print(e)
 
 # used for helping establish and cleanup the dns_recurion pointer on callback
 # This is not meant to be used in public code outside of channel.pyx
@@ -397,7 +423,8 @@ cdef class Channel:
         finally:
             if strs != NULL:
                 PyMem_Free(strs)
-        
+
+        self.server_state_handle = None
     
     # TODO (Vizonex): Separate Server into a Seperate class and incorperate support for yarl
     # if you want to learn more about ares_get_servers_csv This should explain why
@@ -1028,7 +1055,20 @@ cdef class Channel:
     def running_queries(self, object ignore):
         raise ValueError("running_queries is an immutable property")
 
-
+    def set_server_state_callback(self, object callback):
+        """
+        sets a server state callback for monitoring successful or unsuccessful dns queries.
+        
+        :param callback: a callback to invoke
+        :raises TypeError: if callback isn't callable
+        """
+        if not callable(callback):
+            raise TypeError("callback must be callable")
+        self.server_state_handle = callback
+        with nogil:
+            ares_set_server_state_callback(self.channel, __server_state_cb, <void*>callback)
+        
+        
 
 
 def cyares_threadsafety():

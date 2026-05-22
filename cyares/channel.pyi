@@ -115,6 +115,10 @@ AI_IDN_USE_STD3_ASCII_RULES: int  # IDN_USE_STD3_ASCII_RULES
 AI_CANONIDN: int  # CANONIDN
 AI_MASK: int  # MASK
 
+SERVER_STATE_TCP: int # Sever state
+SERVER_STATE_UDP: int # Server state
+
+
 class Channel:
     event_thread: bool
     """Used for checking if event-thread is in use before using wait(...)
@@ -326,6 +330,16 @@ class Channel:
         :rtype: int
         :raises ValueError: if value is attempted to be set
         """
+
+    def set_server_state_callback(self, callback: Callable[[str, bool, int], None]) -> None:
+        """
+        sets a server state callback for monitoring successful or unsuccessful dns queries.
+
+        :param callback: a callback to invoke
+        :raises TypeError: if callback isn't callable
+        """
+
+    
 
 def cyares_threadsafety() -> bool:
     """
