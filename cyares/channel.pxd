@@ -31,6 +31,7 @@ cdef class Channel:
         # if checking before wait(...) is required...
         readonly bint event_thread
         SocketHandle socket_handle # if we have one
+        object server_state_handle
 
 
     cpdef void cancel(self) noexcept

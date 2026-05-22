@@ -766,3 +766,21 @@ typedef void* (*cyares_arealloc)(void *ptr, size_t size);
         cyares_afree afree,
         cyares_arealloc arealloc
     )
+
+
+    # Server state callbacks added in 0.7.0
+    ctypedef void (*ares_server_state_callback)(
+        const char *server_string ,
+        ares_bool_t success ,
+        int flags ,
+        void *data
+    ) noexcept nogil
+
+    void ares_set_server_state_callback(
+        ares_channel_t *channel,
+        ares_server_state_callback callback,
+        void *user_data
+    )
+    enum: ARES_SERV_STATE_UDP
+    enum: ARES_SERV_STATE_TCP
+
