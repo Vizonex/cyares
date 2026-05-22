@@ -209,6 +209,16 @@ cdef void __server_state_cb(
         except BaseException as e:
             print(e)
 
+cdef void __pending_write_cb(void * data) noexcept nogil:
+    if data == NULL:
+        return
+    with gil:
+        cb = <object>data
+        try:
+            cb()
+        except BaseException as e:
+            print(e)
+
 # used for helping establish and cleanup the dns_recurion pointer on callback
 # This is not meant to be used in public code outside of channel.pyx
 # copy and paste this code if you need it elsewhere... 
@@ -1067,8 +1077,46 @@ cdef class Channel:
         self.server_state_handle = callback
         with nogil:
             ares_set_server_state_callback(self.channel, __server_state_cb, <void*>callback)
-        
-        
+    
+    def set_pending_write_callback(self, object callback):
+        """
+        sets a callback function function when there is pending 
+        TCP data to be written. It helps with notifiying about 
+        large sums of data that may need to be written in one 
+        big buffer.
+
+        :param callback: the callback to invoke
+        :raises TypeError: if callback is not callable
+        :raises RuntimeError: if event-thread is 
+            being used which isn't compatable.
+        """
+        if self.event_thread:
+            raise RuntimeError(
+                "pending write callbacks cannot be used"
+                " when an event thread is enabled."
+            )
+        if not callable(callback):
+            raise TypeError("callback must be callable")
+        self.pending_write_handle = callback
+        with nogil:
+            ares_set_pending_write_cb(self.channel, __pending_write_cb, <void*>callback)
+    
+    def process_pending_write(self) -> None:
+        """
+        should be tied to using set_pending_write_callback.
+        This function should be called on queue of the eventloop
+        when TCP data needs sending in large chunks.
+
+        :raises RuntimeError: if the channel uses an event-thread.
+        """
+        if self.event_thread:
+            raise RuntimeError(
+                    "processing pending write callbacks cannot be used"
+                    " when an event thread is enabled."
+                )
+        with nogil:
+            ares_process_pending_write(self.channel)
+
 
 
 def cyares_threadsafety():

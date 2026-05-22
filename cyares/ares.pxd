@@ -784,3 +784,17 @@ typedef void* (*cyares_arealloc)(void *ptr, size_t size);
     enum: ARES_SERV_STATE_UDP
     enum: ARES_SERV_STATE_TCP
 
+    # added in 0.7.0
+    ctypedef void (*ares_pending_write_cb)(void *data) noexcept nogil
+
+    void ares_set_pending_write_cb(
+      ares_channel_t        *channel,
+      ares_pending_write_cb  callback,
+      void                  *user_data)
+
+    void ares_process_pending_write(ares_channel_t *channel)
+
+
+
+
+

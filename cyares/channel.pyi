@@ -339,7 +339,27 @@ class Channel:
         :raises TypeError: if callback isn't callable
         """
 
-    
+    def set_pending_write_callback(self, callback:Callable[[], None]):
+        """
+        sets a callback function function when there is pending
+        TCP data to be written. It helps with notifiying about
+        large sums of data that may need to be written in one
+        big buffer.
+
+        :param callback: the callback to invoke
+        :raises TypeError: if callback is not callable
+        :raises RuntimeError: if event-thread is
+            being used which isn't compatable.
+        """
+
+    def process_pending_write(self) -> None:
+        """
+        should be tied to using set_pending_write_callback.
+        This function should be called on queue of the eventloop
+        when TCP data needs sending in large chunks.
+
+        :raises RuntimeError: if the channel uses an event-thread.
+        """
 
 def cyares_threadsafety() -> bool:
     """

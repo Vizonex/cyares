@@ -16,9 +16,9 @@ from anyio import (
 )
 from anyio.abc import AsyncBackend, TaskGroup, TaskStatus
 from anyio.lowlevel import current_token, get_async_backend
+from deprecated_subclass import deprecated_subclass
 
 from .channel import Channel
-from deprecated_subclass import deprecated_subclass
 from .handles import Future as _Future
 from .resulttypes import AddrInfoResult, DNSResult, HostResult, NameInfoResult
 from .typedefs import (
@@ -229,6 +229,15 @@ class DNSResolver:
         self._timer = None
         self._token = current_token()
         self._closed = False
+
+        if not self._channel.event_thread:
+            self._channel.set_pending_write_callback(self.__process_pending_tcp_writes)
+
+    async def __process_tcp_writes(self):
+        self._channel.process_pending_write()
+
+    def __process_pending_tcp_writes(self):
+        self._group.start_soon(self.__process_tcp_writes)
 
     async def __aenter__(self):
         await self._group.__aenter__()

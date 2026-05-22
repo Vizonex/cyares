@@ -22,11 +22,12 @@ from collections.abc import Iterable, Sequence
 from logging import getLogger
 from typing import Any, TypeVar
 
+from deprecated_subclass import deprecated_subclass
+
 from .channel import (
     Channel,
     cyares_threadsafety,
 )  # type: ignore  # noqa: F403
-from deprecated_subclass import deprecated_subclass
 from .exception import AresError  # type: ignore
 from .handles import CancelledError, InvalidStateError
 from .handles import Future as cc_Future  # type: ignore
@@ -279,10 +280,17 @@ class DNSResolver:
 
         if servers:
             self.nameservers = servers
+        if not self._event_thread:
+            self._channel.set_pending_write_callback(
+                self._queue_pending_writes
+            )
         self._read_fds: set[int] = set()
         self._write_fds: set[int] = set()
         self._timer: asyncio.TimerHandle | None = None
         self._closed = False
+
+    def _queue_pending_writes(self):
+        self.loop.call_soon(self._channel.process_pending_write)
 
     def _raise_if_windows_proctor(self):
         if sys.platform == "win32" and type(self.loop) is asyncio.ProactorEventLoop:
@@ -376,7 +384,7 @@ class DNSResolver:
                 self._write_fds.discard(fd)
                 self.loop.remove_writer(fd)
 
-            if not self._read_fds and not self._write_fds and self._timer is not None:
+            if not (self._read_fds and self._write_fds) and (self._timer is not None):
                 self._timer.cancel()
                 self._timer = None
 
