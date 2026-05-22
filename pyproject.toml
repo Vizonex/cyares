@@ -12,7 +12,7 @@ requires-python = ">=3.10"
 dependencies = [
     # Self argument
     'typing-extensions; python_version<"3.11"',
-    'deprecated-subclass==0.1.0',
+    'deprecated-subclass==0.1.1',
     # yarl support is planned but not ready, 
     # I would like for yarl to have a cimport for URL objects first before
     # I start using it with this project so that maximum performance can
