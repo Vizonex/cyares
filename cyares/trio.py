@@ -15,10 +15,10 @@ from types import GenericAlias
 from typing import Generic
 
 import trio
+from deprecated_subclass import deprecated_subclass
 from trio.lowlevel import current_clock, current_trio_token
 
 from .channel import Channel
-from deprecated_subclass import deprecated_subclass
 from .handles import Future as ccFuture
 from .resulttypes import AddrInfoResult, DNSResult, HostResult, NameInfoResult
 from .typedefs import (
@@ -195,6 +195,17 @@ class DNSResolver:
         self._timer = None
         self._token = current_trio_token()
         self._closed = False
+
+        # This is a TCP Performance optimization
+        if not self._channel.event_thread:
+            self._channel.set_pending_write_callback(self.__process_pending_tcp_writes)
+
+    async def __process_tcp_writes(self):
+        self._channel.process_pending_write()
+
+    def __process_pending_tcp_writes(self):
+        self._nursery.start_soon(self.__process_tcp_writes)
+
 
     async def __aenter__(self):
         self._nursery = await self._manager.__aenter__()
