@@ -88,7 +88,7 @@ from .resulttypes import (
 )
 
 __author__ = "Vizonex"
-__version__ = "0.7.0"
+__version__ = "0.8.0dev"
 
 __all__ = (
     "AAAARecordData",
