@@ -1,4 +1,4 @@
-anyio==4.14.0
+anyio==4.14.1
 pytest
 # Stress-test winloop & uvloop as well since I maintain one of them.
 winloop==0.6.3; platform_system == "Windows"
