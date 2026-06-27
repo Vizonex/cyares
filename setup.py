@@ -317,8 +317,8 @@ if __name__ == "__main__":
                 # extra_compile_args=["-O2"]
             ),
             Extension(
-                "cyares.exception",
-                ["cyares/exception.pyx"],
+                "cyares.error",
+                ["cyares/error.pyx"],
                 # extra_compile_args=["-O2"]
             ),
             Extension(
