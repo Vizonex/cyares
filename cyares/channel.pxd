@@ -1,7 +1,7 @@
 from .ares cimport *
 from .callbacks cimport (__callback_dns_rec__any, __callback_getaddrinfo,
                          __callback_gethostbyaddr, __callback_nameinfo)
-from .exception cimport AresError
+from .error cimport AresError
 from .handles cimport Future, AresQuery
 from .resulttypes cimport (AAAARecordData, AddrInfoCname, AddrInfoNode,
                            AddrInfoResult, ARecordData, CAARecordData,
@@ -42,5 +42,10 @@ cdef class Channel:
     cdef Future __create_future(self, object callback)
     cdef AresQuery __create_query(self, object callback)
     cdef ares_status_t __wait(self, int milliseconds)
-
+    cdef int _process_fds(
+        self, 
+        const ares_fd_events_t* events, 
+        size_t nevents, 
+        unsigned int flags
+    ) except -1
 
