@@ -5,7 +5,7 @@ import sys
 import pytest
 
 from cyares.aio import DNSResolver
-from cyares.exception import AresError
+from cyares.error import AresError
 
 uvloop = pytest.importorskip("winloop" if sys.platform == "win32" else "uvloop")
 

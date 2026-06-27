@@ -61,7 +61,7 @@ import aiohttp
 from aiohttp.abc import AbstractResolver, ResolveResult
 
 from .aio import DNSResolver
-from .exception import AresError
+from .error import AresError
 
 _NUMERIC_SOCKET_FLAGS = socket.AI_NUMERICHOST | socket.AI_NUMERICSERV
 _AI_ADDRCONFIG = socket.AI_ADDRCONFIG

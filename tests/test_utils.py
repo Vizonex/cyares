@@ -1,6 +1,7 @@
 from socket import htonl, htons
 
 from cyares.channel import __htonl, __htons  # type: ignore
+from cyares.error import errorcode, strerror, ARES_ENOTFOUND
 
 # Ensures cyares shortcut for utilizing htons and htons works
 # please do not attempt to try using these publically outside
@@ -18,3 +19,7 @@ def test_cyares_htons() -> None:
 def test_cyares_htonl() -> None:
     assert __htonl(0xFEEDBEEF) == htonl(0xFEEDBEEF)
     assert __htonl(0x11663322) == htonl(0x11663322)
+
+def test_strerror():
+    assert errorcode[ARES_ENOTFOUND] == "ARES_ENOTFOUND"
+    assert strerror(ARES_ENOTFOUND) == "Domain name not found"

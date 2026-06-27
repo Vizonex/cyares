@@ -1,7 +1,7 @@
 from cpython.bytes cimport *
 from cpython.ref cimport Py_DECREF
 
-from .exception cimport AresError
+from .error cimport AresError
 from .handles cimport Future, CancelledError
 from .resulttypes cimport *
 

@@ -3,7 +3,7 @@ import ipaddress
 import anyio as anyio
 import pytest
 
-from cyares.exception import AresError
+from cyares.error import AresError
 from cyares.trio import DNSResolver, Timer
 
 

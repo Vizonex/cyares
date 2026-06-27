@@ -794,7 +794,23 @@ typedef void* (*cyares_arealloc)(void *ptr, size_t size);
 
     void ares_process_pending_write(ares_channel_t *channel)
 
+    ctypedef enum ares_process_flag_t:
+        ARES_PROCESS_FLAG_NONE,
+        ARES_PROCESS_FLAG_SKIP_NON_FD
+    
+    ctypedef struct ares_fd_events_t:
+        ares_socket_t fd     # File descriptor
+        unsigned int  events # Mask of ares_fd_eventflag_t
 
+    ares_status_t ares_process_fds(
+        ares_channel_t *channel, 
+        const ares_fd_events_t *events, 
+        size_t nevents, 
+        unsigned int flags
+    )
 
-
-
+    ctypedef enum ares_fd_eventflag_t:
+        ARES_FD_EVENT_NONE = 0,      # No events
+        ARES_FD_EVENT_READ = 1 << 0, # Read event (including disconnect/error)
+        ARES_FD_EVENT_WRITE = 1 << 1  # Write event
+    

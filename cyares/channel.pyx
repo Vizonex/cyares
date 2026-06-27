@@ -12,7 +12,7 @@ from libc.math cimport floor, fmod
 from .ares cimport *
 from .callbacks cimport (__callback_dns_rec__any, __callback_getaddrinfo,
                          __callback_gethostbyaddr, __callback_nameinfo)
-from .exception cimport AresError
+from .error cimport AresError
 from .handles cimport Future, AresQuery
 from .inc cimport (cyares_check_qclasses, cyares_check_qtypes,
                    cyares_get_buffer, cyares_htonl, cyares_htons,
@@ -53,7 +53,7 @@ cdef extern from "Python.h":
 try:
     # if someone would like to optimize or write a cython / c module that does this,
     # be my guest because I'll happily take it because otherwise we need to find a 
-    # C / Cython Library that is MIT License Compatable.
+    # C / Cython Library that is MIT/Appache 2.0 License Compatable.
     #  - Vizonex
 
     from idna import decode as idna_decode  # type: ignore (Silly cyright)
@@ -61,7 +61,8 @@ try:
 except ModuleNotFoundError:
     HAS_IDNA2008 = False
 
-# PYTEST PURPOSES ONLY, USING THESE IS DISCOURAGED!!!
+# PYTEST PURPOSES ONLY, USING THESE FOR OTHER PURPOSES 
+# IS DISCOURAGED!!!
 def __htons(unsigned short s):
     return cyares_htons(s)
 
@@ -1116,6 +1117,55 @@ cdef class Channel:
                 )
         with nogil:
             ares_process_pending_write(self.channel)
+
+    cdef int _process_fds(
+        self, 
+        const ares_fd_events_t* events, 
+        size_t nevents, 
+        unsigned int flags
+    ) except -1:
+        cdef ares_status_t status
+        with nogil:
+            status = ares_process_fds(self.channel, events, nevents, flags)
+        if status != ARES_SUCCESS:
+            if status == ARES_ENOMEM:
+                PyErr_NoMemory()
+            else:
+                PyErr_SetObject(AresError, status)
+            return -1
+        return 0
+
+    def process_read_and_write_fds(self, object read = [], object write = [], unsigned int flags = 0):
+        """
+        Processes off read and write fds in sorted formation.
+        """
+        cdef size_t nevents = len(read) + len(write)
+        cdef ares_socket_t fd
+        cdef size_t i = 0
+        if not nevents:
+            with nogil:
+                ares_process_fd(self.channel, ARES_SOCKET_BAD, ARES_SOCKET_BAD)
+            return
+        
+        cdef ares_fd_events_t* events = <ares_fd_events_t*>PyMem_Malloc(sizeof(ares_fd_events_t) * nevents)
+        if events == NULL:
+            raise MemoryError
+        try:
+            for fd in iter(read):
+                events[i].fd = fd
+                events[i].events = ARES_FD_EVENT_READ
+                i += 1
+
+            for fd in iter(write):
+                events[i].fd = fd
+                events[i].events = ARES_FD_EVENT_WRITE
+                i += 1
+
+            self._process_fds(events, nevents, flags)
+        finally:
+            PyMem_Free(events)
+
+
 
 
 

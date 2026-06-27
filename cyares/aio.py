@@ -28,7 +28,7 @@ from .channel import (
     Channel,
     cyares_threadsafety,
 )  # type: ignore  # noqa: F403
-from .exception import AresError  # type: ignore
+from .error import AresError  # type: ignore
 from .handles import CancelledError, InvalidStateError
 from .handles import Future as cc_Future  # type: ignore
 from .resulttypes import *  # type: ignore  # noqa: F403
