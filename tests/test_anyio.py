@@ -23,7 +23,7 @@ if sys.platform == "win32":
     )
 else:
     PARAMS.append(
-        pytest.param("asyncio", {"loop_factory": asyncio.new_event_loop}, id="asyncio")
+        pytest.param("asyncio", {"use_uvloop": False}, id="asyncio")
     )
 
 # NOTE: Extensions are optional now...
