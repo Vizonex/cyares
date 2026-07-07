@@ -22,7 +22,9 @@ if sys.platform == "win32":
         )
     )
 else:
-    PARAMS.append(pytest.param("asyncio", {}, id="asyncio"))
+    PARAMS.append(
+        pytest.param("asyncio", {"loop_factory": asyncio.new_event_loop}, id="asyncio")
+    )
 
 # NOTE: Extensions are optional now...
 if has_module("winloop" if sys.platform == "win32" else "uvloop"):
@@ -48,9 +50,8 @@ if sys.platform == "win32":
         )
 
 if has_module("trio"):
-    PARAMS.append(
-        pytest.param(("trio", {}), id="trio")
-    )
+    PARAMS.append(pytest.param(("trio", {}), id="trio"))
+
 
 # use all backends...
 @pytest.fixture(params=PARAMS)
