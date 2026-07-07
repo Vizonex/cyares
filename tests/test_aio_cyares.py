@@ -1,36 +1,49 @@
 import asyncio
 import ipaddress
 import sys
+from importlib.util import find_spec
 
 import pytest
 
 from cyares.aio import DNSResolver
 from cyares.error import AresError
 
-uvloop = pytest.importorskip("winloop" if sys.platform == "win32" else "uvloop")
 
-PARAMS = [
-    pytest.param(
-        ("asyncio", {"loop_factory": uvloop.new_event_loop}), id="asyncio[uvloop]"
-    ),
-    pytest.param(("asyncio", {"use_uvloop": False}), id="asyncio"),
-]
+def has_module(library: str):
+    "Finds out if library exists without executing any code for the library."
+    return find_spec(library) is not None
 
-if sys.platform == "win32":
+
+PARAMS = [pytest.param(("asyncio", {"use_uvloop": False}), id="asyncio")]
+
+# NOTE: Extensions are optional now...
+if has_module("winloop" if sys.platform == "win32" else "uvloop"):
+    PARAMS.append(pytest.param(("asyncio", {"use_uvloop": True}), id="asyncio[uvloop]"))
+
+if has_module("rsloop"):
+    import rsloop
+
     PARAMS.append(
         pytest.param(
-            ("asyncio", {"loop_factory": asyncio.SelectorEventLoop}),
-            id="asyncio[win32+selector]",
+            ("asyncio", {"loop_factory": rsloop.new_event_loop}), id="asyncio[rsloop]"
         )
     )
+if sys.platform == "win32":
+    if has_module("wepoll"):
+        import wepoll
+
+        PARAMS.append(
+            pytest.param(
+                ("asyncio", {"loop_factory": wepoll.new_event_loop}),
+                id="asyncio[wepoll]",
+            )
+        )
 
 
 @pytest.fixture(params=PARAMS)
 def anyio_backend(request: pytest.FixtureRequest):
     return request.param
 
-
-# TODO: Migrate this section over to anyio in 0.1.6 or sooner...
 
 
 # TODO: Parametize turning certain event_threads on and off in a future cyares update.
