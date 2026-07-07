@@ -41,7 +41,7 @@ anyio = ["anyio>=4.12.1"]
 
 [tool.cibuildwheel]
 build-frontend = "build"
-enable = ["cpython-freethreading"]
+# enable = ["cpython-freethreading"]
 
 
 [build-system]
