@@ -33,13 +33,13 @@ class Timer:
     """Implements a timer callback system"""
 
     __slots__ = (
-        "backend",
-        "deadline",
-        "cb",
-        "_running",
         "_close_event",
-        "_task",
         "_group",
+        "_running",
+        "_task",
+        "backend",
+        "cb",
+        "deadline",
     )
 
     def __init__(
@@ -96,14 +96,14 @@ class Future(Generic[_T]):
     __class_getitem__ = classmethod(GenericAlias)
     __slots__ = (
         "__weakref__",
+        "_callbacks",
+        "_cancelled",
         "_exc",
         "_result",
-        "_cancelled",
-        "event",
-        "_callbacks",
-        "_token",
         "_schedule",
+        "_token",
         "_uses_thread",
+        "event",
     )
 
     def __init__(self, fut: _Future[_T], uses_thread: bool = True):

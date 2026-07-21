@@ -41,6 +41,7 @@ def test_set_local_ip_accepts_ipv6():
 def test_set_local_ip_rejects_garbage():
     ch = cyares.Channel()
     import pytest
+
     with pytest.raises(ValueError):
         ch.set_local_ip("not an address")
     ch.cancel()

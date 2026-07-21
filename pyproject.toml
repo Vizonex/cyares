@@ -65,7 +65,8 @@ select = [
     "E",
     "W",
     "I",
-    "F"
+    "F",
+    "RUF"
 ]
 ignore = [
     "F405" # may be undefined, or defined from star imports (I Need these)

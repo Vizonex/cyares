@@ -5,42 +5,28 @@ from cpython.bytes cimport PyBytes_FromString
 from cpython.exc cimport PyErr_NoMemory, PyErr_SetObject
 from cpython.mem cimport (PyMem_Free, PyMem_Malloc, PyMem_RawFree,
                           PyMem_RawMalloc, PyMem_RawRealloc)
+from cpython.pycapsule cimport PyCapsule_New, PyCapsule_GetPointer
 from cpython.ref cimport Py_DECREF, Py_INCREF
-from cpython.unicode cimport PyUnicode_Check, PyUnicode_GetLength, PyUnicode_FromString
+from cpython.unicode cimport (PyUnicode_Check, PyUnicode_FromString,
+                              PyUnicode_GetLength)
 from libc.math cimport floor, fmod
 
 from .ares cimport *
 from .callbacks cimport (__callback_dns_rec__any, __callback_getaddrinfo,
                          __callback_gethostbyaddr, __callback_nameinfo)
 from .error cimport AresError
-from .handles cimport Future, AresQuery
+from .handles cimport AresQuery, Future
 from .inc cimport (cyares_check_qclasses, cyares_check_qtypes,
                    cyares_get_buffer, cyares_htonl, cyares_htons,
                    cyares_release_buffer)
-from .resulttypes cimport (
-    AAAARecordData, 
-    AddrInfoCname, 
-    AddrInfoNode,
-    AddrInfoResult, 
-    ARecordData, 
-    CAARecordData,
-    CNAMERecordData, 
-    DNSRecord, 
-    DNSResult, 
-    HostResult,
-    HTTPSRecordData, 
-    MXRecordData, 
-    NameInfoResult,
-    NAPTRRecordData, 
-    NSRecordData, 
-    PTRRecordData,
-    SOARecordData, 
-    SRVRecordData, 
-    TLSARecordData,
-    TXTRecordData, 
-    URIRecordData,
-    HINFORecordData
-)
+from .resulttypes cimport (AAAARecordData, AddrInfoCname, AddrInfoNode,
+                           AddrInfoResult, ARecordData, CAARecordData,
+                           CNAMERecordData, DNSRecord, DNSResult,
+                           HINFORecordData, HostResult, HTTPSRecordData,
+                           MXRecordData, NameInfoResult, NAPTRRecordData,
+                           NSRecordData, PTRRecordData, SOARecordData,
+                           SRVRecordData, TLSARecordData, TXTRecordData,
+                           URIRecordData)
 from .socket_handle cimport SocketHandle, __socket_state_callback
 
 
@@ -1165,7 +1151,33 @@ cdef class Channel:
         finally:
             PyMem_Free(events)
 
+    def get_ares_channel_pointer(self):
+        """
+        Obtains c-ares ares_channel_t* pointer for use with other extensions
+        normally you will not be utilizing this one unless under special 
+        conditions or pointer transportation.
 
+        It is wrapped as a Python C-API Capsule upon being sent.
+        """
+        return PyCapsule_New(<void*>self.channel, NULL, NULL)
+    
+
+# NOTE: Testing purposes only, do not use for normal use-cases
+def __test_unwrapping_pointer(ares_capsule):
+    cdef ares_channel_t* channel = <ares_channel_t*>PyCapsule_GetPointer(ares_capsule, NULL)
+    return channel != NULL
+
+
+
+def get_ares_version():
+    """Gets the version of c-ares being used as a string."""
+    return PyUnicode_FromString(ARES_VERSION_STR)
+
+
+
+CARES_VERSION_MAJOR = ARES_VERSION_MAJOR
+CARES_VERSION_MINOR = ARES_VERSION_MINOR
+CARES_VERSION_PATCH = ARES_VERSION_PATCH
 
 
 

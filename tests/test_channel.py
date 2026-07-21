@@ -321,22 +321,21 @@ def test_close_from_different_thread_safe():
     # Should complete without errors
     assert close_complete.is_set()
 
-def test_channel_server_state_cb() -> None:
-    channel = Channel(servers=["8.8.8.8"],event_thread=True)
 
-    def on_server_state(server: str, success: bool, flags:int):
+def test_channel_server_state_cb() -> None:
+    channel = Channel(servers=["8.8.8.8"], event_thread=True)
+
+    def on_server_state(server: str, success: bool, flags: int):
         assert server == "8.8.8.8:53"
         assert isinstance(success, bool)
         assert isinstance(flags, int)
 
-
     def noop(*args):
         return
+
     channel.set_server_state_callback(on_server_state)
-    channel.query("www.google.com", 'A', callback=noop)
+    channel.query("www.google.com", "A", callback=noop)
     channel.wait()
-
-
 
 
 # Since we do not have direct access to things anymore since the removal

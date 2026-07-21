@@ -113,7 +113,7 @@ class cares_build_ext(build_ext):
     ext_headers = os.path.join("cyares")
 
     # Brought over from winloop since these can be very useful.
-    user_options = build_ext.user_options + [
+    user_options = build_ext.user_options + [  # noqa: RUF005
         ("cython-always", None, "run cythonize() even if .c files are present"),
         (
             "cython-annotate",
@@ -252,7 +252,7 @@ class cares_build_ext(build_ext):
         for extension in self.distribution.ext_modules:
             for i, sfile in enumerate(extension.sources):
                 if sfile.endswith(".pyx"):
-                    prefix, ext = os.path.splitext(sfile)
+                    prefix, _ = os.path.splitext(sfile)
                     cfile = prefix + ".c"
 
                     if os.path.exists(cfile) and not self.cython_always:

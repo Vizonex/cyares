@@ -22,9 +22,7 @@ if sys.platform == "win32":
         )
     )
 else:
-    PARAMS.append(
-        pytest.param(("asyncio", {"use_uvloop": False}), id="asyncio")
-    )
+    PARAMS.append(pytest.param(("asyncio", {"use_uvloop": False}), id="asyncio"))
 
 # NOTE: Extensions are optional now...
 if has_module("winloop" if sys.platform == "win32" else "uvloop"):

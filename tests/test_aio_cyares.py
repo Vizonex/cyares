@@ -188,6 +188,7 @@ async def test_query_bad_class(resolver: DNSResolver) -> None:
     with pytest.raises(ValueError):
         await resolver.query("google.com", "A", qclass="INVALIDCLASS")
 
+
 # TODO: Coming soon...
 # @pytest.mark.anyio
 # async def test_premature_closing(resolver: DNSResolver):

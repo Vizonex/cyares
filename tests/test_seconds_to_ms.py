@@ -3,6 +3,7 @@
 Use a non-routable server (TEST-NET-1, 192.0.2.1) so a query stays
 pending and wait() actually has to honor the timeout.
 """
+
 import time
 
 import pytest
