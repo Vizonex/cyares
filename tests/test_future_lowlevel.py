@@ -1,4 +1,5 @@
 """Low-level tests for cyares.handles.Future that don't require uvloop."""
+
 import threading
 import time
 
@@ -134,7 +135,6 @@ def test_as_completed_waiter_add_exception_does_not_recurse():
     assert done.wait(2.0), "AsCompletedWaiter.add_exception deadlocked"
 
 
-
 def test_as_completed_waiter_add_cancelled_does_not_recurse():
     """Same bug in _add_cancelled."""
     from cyares.handles import AsCompletedWaiter
@@ -152,7 +152,6 @@ def test_as_completed_waiter_add_cancelled_does_not_recurse():
     t = threading.Thread(target=worker, daemon=True)
     t.start()
     assert done.wait(2.0), "AsCompletedWaiter.add_cancelled deadlocked"
-
 
 
 def test_as_completed_waiter_add_result_works():
@@ -173,4 +172,3 @@ def test_as_completed_waiter_add_result_works():
     t = threading.Thread(target=worker, daemon=True)
     t.start()
     assert done.wait(2.0)
-

@@ -37,7 +37,7 @@ except AttributeError:
 
 
 class Timer:
-    __slots__ = ("clock", "deadline", "cb", "_running", "_close_event")
+    __slots__ = ("_close_event", "_running", "cb", "clock", "deadline")
 
     # TODO
     #  - Seperate Library for deprecation of subclassing in a wrapper
@@ -205,7 +205,6 @@ class DNSResolver:
 
     def __process_pending_tcp_writes(self):
         self._nursery.start_soon(self.__process_tcp_writes)
-
 
     async def __aenter__(self):
         self._nursery = await self._manager.__aenter__()

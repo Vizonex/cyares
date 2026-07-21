@@ -47,6 +47,3 @@ class AresError(Exception):
     name: bytes
     def __init__(self, status: int) -> None: ...
     def __str__(self) -> str: ...
-
-
-

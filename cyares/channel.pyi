@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import sys
-from typing import Callable, Literal, overload
+from typing import Any, Callable, Literal, overload
 
 from .handles import Future
 from .resulttypes import AddrInfoResult, DNSResult, HostResult, NameInfoResult
@@ -115,9 +115,8 @@ AI_IDN_USE_STD3_ASCII_RULES: int  # IDN_USE_STD3_ASCII_RULES
 AI_CANONIDN: int  # CANONIDN
 AI_MASK: int  # MASK
 
-SERVER_STATE_TCP: int # Sever state
-SERVER_STATE_UDP: int # Server state
-
+SERVER_STATE_TCP: int  # Sever state
+SERVER_STATE_UDP: int  # Server state
 
 class Channel:
     event_thread: bool
@@ -137,7 +136,7 @@ class Channel:
         servers: list[str] | None = None,
         domains: list[str] | None = None,
         lookups: str | bytes | bytearray | memoryview[int] | None = None,
-        sock_state_cb: Callable[[int, bool, bool], None] = None,
+        sock_state_cb: Callable[[int, bool, bool], None] | None = None,
         socket_send_buffer_size: int | None = None,
         socket_receive_buffer_size: int | None = None,
         rotate: bool = False,
@@ -331,15 +330,18 @@ class Channel:
         :raises ValueError: if value is attempted to be set
         """
 
-    def set_server_state_callback(self, callback: Callable[[str, bool, int], None]) -> None:
+    def set_server_state_callback(
+        self, callback: Callable[[str, bool, int], None]
+    ) -> None:
         """
-        sets a server state callback for monitoring successful or unsuccessful dns queries.
+        sets a server state callback for monitoring successful or unsuccessful dns
+        queries.
 
         :param callback: a callback to invoke
         :raises TypeError: if callback isn't callable
         """
 
-    def set_pending_write_callback(self, callback:Callable[[], None]):
+    def set_pending_write_callback(self, callback: Callable[[], None]):
         """
         sets a callback function function when there is pending
         TCP data to be written. It helps with notifiying about
@@ -361,6 +363,15 @@ class Channel:
         :raises RuntimeError: if the channel uses an event-thread.
         """
 
+    def get_ares_channel_pointer(self) -> Any:
+        """
+        Obtains c-ares ares_channel_t* pointer for use with other extensions
+        normally you will not be utilizing this one unless under special
+        conditions or pointer transportation.
+
+        It is wrapped as a Python C-API Capsule upon being sent.
+        """
+
 def cyares_threadsafety() -> bool:
     """
     Check if c-ares was compiled with thread safety support.
@@ -368,3 +379,10 @@ def cyares_threadsafety() -> bool:
     :return: True if thread-safe, False otherwise.
     :rtype: bool
     """
+
+def get_ares_version() -> str:
+    """Gets the version of c-ares being used as a string."""
+
+CARES_VERSION_MAJOR: int
+CARES_VERSION_MINOR: int
+CARES_VERSION_PATCH: int

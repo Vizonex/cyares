@@ -71,6 +71,6 @@ query_class_map: dict[str, int] = {
 __all__ = (
     "_T",
     "CancelledError",
-    "query_type_map",
     "query_class_map",
+    "query_type_map",
 )

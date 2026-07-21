@@ -18,9 +18,8 @@ These tests run the c-ares call on a worker thread and use
 `thread.join(timeout=...)` to detect a deadlock without hanging the
 test runner.
 """
-import threading
 
-import pytest
+import threading
 
 from cyares.channel import Channel
 
@@ -32,6 +31,7 @@ def _busy_callback(callback_started, callback_finished, iters=20_000_000):
         for i in range(iters):
             n += i
         callback_finished.set()
+
     return cb
 
 

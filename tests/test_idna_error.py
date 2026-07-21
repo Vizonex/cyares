@@ -5,10 +5,12 @@ an instance. The buggy lines re-raise the caught exception as
 PyErr_SetObject(e, str(e)), which CPython rejects with
 "SystemError: exception <X> not a BaseException subclass".
 """
+
 import pytest
 
-idna = pytest.importorskip("idna")
 from cyares import Channel
+
+idna = pytest.importorskip("idna")
 
 
 def test_query_idna_failure_propagates_clean_exception():

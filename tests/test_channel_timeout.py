@@ -3,6 +3,7 @@
 The condition `not (tv.tv_sec and tv.tv_usec)` is True for any value
 where either field is zero, so e.g. {tv_sec=2, tv_usec=0} returns 0.0.
 """
+
 import pytest
 
 from cyares import Channel

@@ -27,7 +27,7 @@ from deprecated_subclass import deprecated_subclass
 from .channel import (
     Channel,
     cyares_threadsafety,
-)  # type: ignore  # noqa: F403
+)  # type: ignore
 from .error import AresError  # type: ignore
 from .handles import CancelledError, InvalidStateError
 from .handles import Future as cc_Future  # type: ignore
@@ -228,7 +228,6 @@ class DNSResolver:
         self._closed = True
         self.loop = loop or asyncio.get_event_loop()
 
-
         if timeout is None or timeout < 0 or timeout > 1:
             timeout = 1
         elif timeout == 0:
@@ -281,9 +280,7 @@ class DNSResolver:
         if servers:
             self.nameservers = servers
         if not self._event_thread:
-            self._channel.set_pending_write_callback(
-                self._queue_pending_writes
-            )
+            self._channel.set_pending_write_callback(self._queue_pending_writes)
         self._read_fds: set[int] = set()
         self._write_fds: set[int] = set()
         self._timer: asyncio.TimerHandle | None = None

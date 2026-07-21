@@ -18,6 +18,7 @@ Future and the Channel, then sleeps long enough for the event thread
 to deliver the response. Before the fix this crashed on the very
 first iteration; now it runs cleanly.
 """
+
 from __future__ import annotations
 
 import gc

@@ -45,7 +45,6 @@ def anyio_backend(request: pytest.FixtureRequest):
     return request.param
 
 
-
 # TODO: Parametize turning certain event_threads on and off in a future cyares update.
 @pytest.fixture(params=(True, False), ids=("event-thread", "socket-cb"))
 async def resolver(anyio_backend, request: pytest.FixtureRequest):
@@ -187,6 +186,7 @@ async def test_query_bad_type(resolver: DNSResolver) -> None:
 async def test_query_bad_class(resolver: DNSResolver) -> None:
     with pytest.raises(ValueError):
         await resolver.query("google.com", "A", qclass="INVALIDCLASS")
+
 
 # TODO: Coming soon...
 # @pytest.mark.anyio

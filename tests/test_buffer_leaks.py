@@ -11,8 +11,6 @@ reference to the input object.
 import gc
 import sys
 
-import pytest
-
 import cyares
 
 
