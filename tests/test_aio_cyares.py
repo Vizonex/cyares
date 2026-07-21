@@ -45,6 +45,7 @@ def anyio_backend(request: pytest.FixtureRequest):
     return request.param
 
 
+
 # TODO: Parametize turning certain event_threads on and off in a future cyares update.
 @pytest.fixture(params=(True, False), ids=("event-thread", "socket-cb"))
 async def resolver(anyio_backend, request: pytest.FixtureRequest):

@@ -1,4 +1,4 @@
-anyio==4.14.1
+anyio==4.14.2
 pytest
 # Stress-test winloop & uvloop as well since I maintain one of them.
 winloop==0.6.3; platform_system == "Windows"
@@ -13,4 +13,4 @@ pytest-codspeed==5.0.3
 pycares==5.0.1
 trio>=0.30.0
 wepoll==0.5.1; platform_system == "Windows"
-rsloop==0.1.21
+rsloop==0.1.26
