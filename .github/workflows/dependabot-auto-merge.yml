@@ -7,7 +7,13 @@ permissions:
   contents: write
 
 jobs:
+  test:
+    if: ${{ github.actor == 'dependabot[bot]' }}    
+    uses: ./.github/workflows/test.yml
+    with:
+      fail-fast: true
   dependabot:
+    needs: test
     runs-on: ubuntu-latest
     if: ${{ github.actor == 'dependabot[bot]' }}
     steps:
