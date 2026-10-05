@@ -14,3 +14,4 @@ pycares==5.0.1
 trio>=0.30.0
 wepoll==0.5.1; platform_system == "Windows"
 rsloop==0.1.53
+blazio==0.1.0; python_version >= "3.12"
