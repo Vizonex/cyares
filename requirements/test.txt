@@ -10,7 +10,7 @@ idna>=2.1
 dnslib==0.9.26
 # Benchmarking CyAres & Pycares
 pytest-codspeed==5.0.3
-pycares==5.0.1
+pycares==5.1.0
 trio>=0.30.0
 wepoll==0.5.1; platform_system == "Windows"
 rsloop==0.1.53
