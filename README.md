@@ -38,6 +38,27 @@ pip install cyares[aiohttp]
 pip install cyares[all]
 ```
 
+## Installing Locally & Contributing to Cyares
+
+While this library now requires cmake (same as pycares) to handle a heavy number of operating systems, it's not the end of the world as a pypi package exists for utilizing cmake incase you don't have cmake installed on your OS. Installing cmake globally is recommended as 41MB of diskspace is required.
+
+```shell
+pip install cmake
+```
+
+UV Package manager is recommended for virtual environment management when it comes to testing and running cyares.
+
+```shell
+uv venv
+```
+
+
+To test that cyares compiles correctly (after activtating the virtual enviornment of course) do this.
+
+```shell
+py setup.py build_ext --inplace --cython-always
+```
+
 
 # Small Examples of How to Use
 
@@ -45,15 +66,17 @@ pip install cyares[all]
 from cyares import Channel
 
 # NOTE: Dns Queries contain a Future object
-# This is a little bit different from pycares 
+# This is a little bit different from pycares
 # Handles were used to prevent new or unwanted vulnerabilities along
 # with easier control given to the user...
 # The Future object comes from the python concurrent.futures standard library
+
 
 def main():
     with Channel(servers=["8.8.8.8", "8.8.4.4"], event_thread=True) as channel:
         data = channel.query("google.com", "A").result()
     print(data)
+
 
 if __name__ == "__main__":
     main()
@@ -63,13 +86,15 @@ if __name__ == "__main__":
 There's a module for an **aiodns** version if aiodns were using cyares.
 
 ```python
-import winloop # or uvloop (asyncio will also work) 
+import winloop  # or uvloop (asyncio will also work)
 from cyares.aio import DNSResolver
+
 
 async def test():
     async with DNSResolver(["8.8.8.8", "8.8.4.4"]) as dns:
         data = await dns.query("google.com", "A")
     print(data)
+
 
 if __name__ == "__main__":
     winloop.run(test())
@@ -83,10 +108,14 @@ synchronous python or asyncio.
 from cyares.trio import DNSResolver
 import trio
 
+
 async def test():
-    async with DNSResolver(["8.8.8.8", "8.8.4.4"], rotate=True, event_thread=False) as dns:
+    async with DNSResolver(
+        ["8.8.8.8", "8.8.4.4"], rotate=True, event_thread=False
+    ) as dns:
         result = await dns.query("google.com", "A")
         print(result)
+
 
 if __name__ == "__main__":
     trio.run(test)
@@ -98,10 +127,14 @@ As of `0.4.0` anyio is now supported if you need use an anyio implementation
 from cyares.anyio import DNSResolver
 import anyio
 
+
 async def test():
-    async with DNSResolver(["8.8.8.8", "8.8.4.4"], rotate=True, event_thread=False) as dns:
+    async with DNSResolver(
+        ["8.8.8.8", "8.8.4.4"], rotate=True, event_thread=False
+    ) as dns:
         result = await dns.query("google.com", "A")
         print(result)
+
 
 if __name__ == "__main__":
     anyio.run(test)
@@ -125,13 +158,15 @@ from cyares.aiohttp import install
 from aiohttp import ClientSession
 import asyncio
 
+
 async def main():
-    # CyAres should be monkeypatched to be the default 
+    # CyAres should be monkeypatched to be the default
     # DNS Resolver for this http request
     async with ClientSession() as client:
         async with client.get("https://httpbin.org/ip") as result:
             data = await result.json()
-            print(f'YOUR IP ADDRESS IS: {data["origin"]}')
+            print(f"YOUR IP ADDRESS IS: {data['origin']}")
+
 
 if __name__ == "__main__":
     install()
@@ -152,7 +187,6 @@ yourself it's encouraged to use globally with `install()` or via
 monkeypatching aiohttp's default dns resolver in your own way.
 
 ```python
-
 from cyares.aiohttp import CyAresResolver
 from aiohttp import ClientSession, TCPConnector
 
@@ -160,13 +194,12 @@ from aiohttp import ClientSession, TCPConnector
 # Such as the ProxyConnector which is another connector type of it's
 # own
 
+
 async def main():
-    async with ClientSession(
-        connector=TCPConnector(CyAresResolver()
-    )) as client:
+    async with ClientSession(connector=TCPConnector(CyAresResolver())) as client:
         async with client.get("https://httpbin.org/ip") as result:
             data = await result.json()
-            print(f'YOUR IP ADDRESS IS: {data["origin"]}')
+            print(f"YOUR IP ADDRESS IS: {data['origin']}")
 ```
 
 ## In Cython
