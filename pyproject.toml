@@ -7,11 +7,9 @@ readme = "README.md"
 authors = [
     { name = "Vizonex", email = "VizonexBusiness@gmail.com" }
 ]
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 
 dependencies = [
-    # Self argument
-    'typing-extensions; python_version<"3.11"',
     'deprecated-subclass==0.1.1',
     # yarl support is planned but not ready, 
     # I would like for yarl to have a cimport for URL objects first before
@@ -69,7 +67,8 @@ select = [
     "W",
     "I",
     "F",
-    "RUF"
+    "RUF",
+    "UP"
 ]
 ignore = [
     "F405" # may be undefined, or defined from star imports (I Need these)
