@@ -147,10 +147,9 @@ class cares_build_ext(build_ext):
         # Set up include directories from the install directory
         # This includes all headers (original + generated like ares_build.h, ares_config.h)
         self.add_include_dir(os.path.join(install_dir, "include"), force=True)
-        # Also need internal headers from src/lib for some definitions
-        self.add_include_dir(os.path.join(cares_dir, "src", "lib"), force=True)
+        # # Also need internal headers from src/lib for some definitions
+        # self.add_include_dir(os.path.join(cares_dir, "src", "lib"), force=True)
         self.add_include_dir(os.path.join("cyares", "inc"))
-        self.add_include_dir(os.path.join(install_dir, "include"))
 
 
         # Set up the extension to link against the static library

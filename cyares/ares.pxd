@@ -4,19 +4,6 @@ from libc.time cimport time_t
 # NOTE: If needed We can always make a seperate
 # windows and unix branch
 
-# We need private.h otherwise were screwed
-cdef extern from  "ares_private.h" nogil:
-    ctypedef struct ares_channeldata:
-        pass
-    ctypedef struct ares_addr:
-        int family
-        # ...
-    ctypedef struct apattern:
-        ares_addr addr
-        unsigned char mask
-
-
-
 cdef extern from "inc/cares_headers.h" nogil:
     """
 
@@ -41,6 +28,16 @@ typedef void* (*cyares_arealloc)(void *ptr, size_t size);
     int ARES_VERSION_MINOR
     int ARES_VERSION_PATCH
     const char* ARES_VERSION_STR
+
+    ctypedef struct ares_channeldata:
+        pass
+
+    ctypedef struct ares_addr:
+        int family
+        # ...
+    ctypedef struct apattern:
+        ares_addr addr
+        unsigned char mask
 
     struct in_addr:
         uint32_t s_addr
