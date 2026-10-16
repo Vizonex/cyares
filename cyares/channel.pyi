@@ -139,6 +139,7 @@ class Channel:
         local_dev: str | bytes | bytearray | memoryview[int] | None = None,
         resolvconf_path: str | bytes | None = None,
         event_thread: bool = False,
+        qcache_max_ttl: int | None = None
     ) -> None: ...
     def query(
         self,
