@@ -2,7 +2,8 @@
 # wheel.
 
 import os
-import select
+import shutil
+import subprocess
 import sys
 
 from setuptools import Extension, setup
@@ -10,108 +11,7 @@ from setuptools.command.build_ext import build_ext
 
 use_system_lib = bool(int(os.environ.get("CYARES_USE_SYSTEM_LIB", 0)))
 
-cares_sources = [
-    "deps/c-ares/src/lib/ares_addrinfo_localhost.c",
-    "deps/c-ares/src/lib/ares_addrinfo2hostent.c",
-    "deps/c-ares/src/lib/ares_android.c",
-    "deps/c-ares/src/lib/ares_cancel.c",
-    "deps/c-ares/src/lib/ares_close_sockets.c",
-    "deps/c-ares/src/lib/ares_conn.c",
-    "deps/c-ares/src/lib/ares_cookie.c",
-    "deps/c-ares/src/lib/ares_data.c",
-    "deps/c-ares/src/lib/ares_destroy.c",
-    "deps/c-ares/src/lib/ares_free_hostent.c",
-    "deps/c-ares/src/lib/ares_free_string.c",
-    "deps/c-ares/src/lib/ares_freeaddrinfo.c",
-    "deps/c-ares/src/lib/ares_getaddrinfo.c",
-    "deps/c-ares/src/lib/ares_getenv.c",
-    "deps/c-ares/src/lib/ares_gethostbyaddr.c",
-    "deps/c-ares/src/lib/ares_gethostbyname.c",
-    "deps/c-ares/src/lib/ares_getnameinfo.c",
-    "deps/c-ares/src/lib/ares_hosts_file.c",
-    "deps/c-ares/src/lib/ares_init.c",
-    "deps/c-ares/src/lib/ares_library_init.c",
-    "deps/c-ares/src/lib/ares_metrics.c",
-    "deps/c-ares/src/lib/ares_options.c",
-    "deps/c-ares/src/lib/ares_parse_into_addrinfo.c",
-    "deps/c-ares/src/lib/ares_process.c",
-    "deps/c-ares/src/lib/ares_qcache.c",
-    "deps/c-ares/src/lib/ares_query.c",
-    "deps/c-ares/src/lib/ares_search.c",
-    "deps/c-ares/src/lib/ares_send.c",
-    "deps/c-ares/src/lib/ares_set_socket_functions.c",
-    "deps/c-ares/src/lib/ares_socket.c",
-    "deps/c-ares/src/lib/ares_sortaddrinfo.c",
-    "deps/c-ares/src/lib/ares_strerror.c",
-    "deps/c-ares/src/lib/ares_sysconfig_files.c",
-    "deps/c-ares/src/lib/ares_sysconfig.c",
-    "deps/c-ares/src/lib/ares_timeout.c",
-    "deps/c-ares/src/lib/ares_update_servers.c",
-    "deps/c-ares/src/lib/ares_version.c",
-    "deps/c-ares/src/lib/dsa/ares_array.c",
-    "deps/c-ares/src/lib/dsa/ares_htable_asvp.c",
-    "deps/c-ares/src/lib/dsa/ares_htable_dict.c",
-    "deps/c-ares/src/lib/dsa/ares_htable_strvp.c",
-    "deps/c-ares/src/lib/dsa/ares_htable_szvp.c",
-    "deps/c-ares/src/lib/dsa/ares_htable_vpstr.c",
-    "deps/c-ares/src/lib/dsa/ares_htable_vpvp.c",
-    "deps/c-ares/src/lib/dsa/ares_htable.c",
-    "deps/c-ares/src/lib/dsa/ares_llist.c",
-    "deps/c-ares/src/lib/dsa/ares_slist.c",
-    "deps/c-ares/src/lib/event/ares_event_configchg.c",
-    "deps/c-ares/src/lib/event/ares_event_thread.c",
-    "deps/c-ares/src/lib/event/ares_event_wake_pipe.c",
-    "deps/c-ares/src/lib/inet_net_pton.c",
-    "deps/c-ares/src/lib/inet_ntop.c",
-    "deps/c-ares/src/lib/legacy/ares_create_query.c",
-    "deps/c-ares/src/lib/legacy/ares_expand_name.c",
-    "deps/c-ares/src/lib/legacy/ares_expand_string.c",
-    "deps/c-ares/src/lib/legacy/ares_fds.c",
-    "deps/c-ares/src/lib/legacy/ares_getsock.c",
-    "deps/c-ares/src/lib/legacy/ares_parse_a_reply.c",
-    "deps/c-ares/src/lib/legacy/ares_parse_aaaa_reply.c",
-    "deps/c-ares/src/lib/legacy/ares_parse_caa_reply.c",
-    "deps/c-ares/src/lib/legacy/ares_parse_mx_reply.c",
-    "deps/c-ares/src/lib/legacy/ares_parse_naptr_reply.c",
-    "deps/c-ares/src/lib/legacy/ares_parse_ns_reply.c",
-    "deps/c-ares/src/lib/legacy/ares_parse_ptr_reply.c",
-    "deps/c-ares/src/lib/legacy/ares_parse_soa_reply.c",
-    "deps/c-ares/src/lib/legacy/ares_parse_srv_reply.c",
-    "deps/c-ares/src/lib/legacy/ares_parse_txt_reply.c",
-    "deps/c-ares/src/lib/legacy/ares_parse_uri_reply.c",
-    "deps/c-ares/src/lib/record/ares_dns_mapping.c",
-    "deps/c-ares/src/lib/record/ares_dns_multistring.c",
-    "deps/c-ares/src/lib/record/ares_dns_name.c",
-    "deps/c-ares/src/lib/record/ares_dns_parse.c",
-    "deps/c-ares/src/lib/record/ares_dns_record.c",
-    "deps/c-ares/src/lib/record/ares_dns_write.c",
-    "deps/c-ares/src/lib/str/ares_buf.c",
-    "deps/c-ares/src/lib/str/ares_str.c",
-    "deps/c-ares/src/lib/str/ares_strsplit.c",
-    "deps/c-ares/src/lib/util/ares_iface_ips.c",
-    "deps/c-ares/src/lib/util/ares_math.c",
-    "deps/c-ares/src/lib/util/ares_rand.c",
-    "deps/c-ares/src/lib/util/ares_threads.c",
-    "deps/c-ares/src/lib/util/ares_timeval.c",
-    "deps/c-ares/src/lib/util/ares_uri.c",
-]
-
-if sys.platform == "win32":
-    cares_sources += [
-        "deps/c-ares/src/lib/ares_sysconfig_win.c",
-        "deps/c-ares/src/lib/windows_port.c",
-        "deps/c-ares/src/lib/event/ares_event_win32.c",
-    ]
-
-if sys.platform == "darwin":
-    cares_sources += ["deps/c-ares/src/lib/ares_sysconfig_mac.c"]
-
-
 class cares_build_ext(build_ext):
-    cares_dir = os.path.join("deps", "c-ares")
-    build_config_dir = os.path.join("deps", "build-config")
-    ext_headers = os.path.join("cyares")
-
     # Brought over from winloop since these can be very useful.
     user_options = build_ext.user_options + [  # noqa: RUF005
         ("cython-always", None, "run cythonize() even if .c files are present"),
@@ -123,6 +23,170 @@ class cares_build_ext(build_ext):
         ("cython-directives=", None, "Cythion compiler directives"),
     ]
 
+    def add_include_dir(self, _dir, force=False):
+        if use_system_lib and not force:
+            return
+        dirs = self.compiler.include_dirs
+        if _dir not in dirs:
+            dirs = [_dir, *dirs]
+        self.compiler.set_include_dirs(dirs)
+
+    def build_extensions(self):
+        # Use system c-ares library if requested
+        if use_system_lib:
+            self.compiler.add_library("cares")
+            build_ext.build_extensions(self)
+            return
+
+        # Check for CMake availability
+        cmake_cmd = shutil.which("cmake")
+        if not cmake_cmd:
+            raise RuntimeError(
+                "CMake >= 3.5 is required to build pycares.\n"
+                "Please install CMake from https://cmake.org/ or through your system "
+                "package manager:\n"
+                "  **Lazy Route**: pip install cmake",
+                "  Ubuntu/Debian: apt-get install cmake\n"
+                "  RHEL/CentOS/Fedora: dnf install cmake\n"
+                "  macOS: brew install cmake\n"
+                "  Windows: Download from https://cmake.org/download/\n"
+                "  FreeBSD: pkg install cmake"
+            )
+
+        # Set up directories
+        cares_dir = os.path.join("deps", "c-ares")
+        build_temp = os.path.abspath(os.path.join(self.build_temp, "c-ares-build"))
+        install_dir = os.path.abspath(os.path.join(self.build_temp, "c-ares-install"))
+        os.makedirs(build_temp, exist_ok=True)
+        os.makedirs(install_dir, exist_ok=True)
+
+        # Configure c-ares with CMake
+        cmake_args = [
+            "-DCARES_STATIC=ON",
+            "-DCARES_SHARED=OFF",
+            "-DCARES_BUILD_TOOLS=OFF",
+            "-DCARES_BUILD_TESTS=OFF",
+            "-DCARES_INSTALL=ON",
+            "-DCARES_THREADS=ON",
+            "-DCARES_STATIC_PIC=ON",  # Position independent code for static lib
+            "-DCMAKE_BUILD_TYPE=Release",
+            "-DCMAKE_CONFIGURATION_TYPES=Release",  # For multi-config generators (VS, Xcode)
+            f"-DCMAKE_INSTALL_PREFIX={install_dir}",
+        ]
+
+        # Platform-specific configuration
+        if sys.platform == "darwin":
+            # Set minimum macOS deployment target
+            cmake_args.append("-DCMAKE_OSX_DEPLOYMENT_TARGET=10.12")
+        elif sys.platform == "win32":
+            # Windows-specific handling
+            if "mingw" in self.compiler.compiler_type:
+                cmake_args.extend(["-G", "MinGW Makefiles"])
+
+            # Handle static runtime if needed
+            if hasattr(self, "compiler") and hasattr(self.compiler, "compile_options"):
+                for flag in self.compiler.compile_options:
+                    if "/MT" in str(flag):
+                        cmake_args.append("-DCARES_MSVC_STATIC_RUNTIME=ON")
+                        break
+
+        # Run CMake configure
+        print(f"Configuring c-ares with CMake in {build_temp}")
+        subprocess.check_call(
+            [cmake_cmd, os.path.abspath(cares_dir), *cmake_args], cwd=build_temp
+        )
+
+        # Build c-ares
+        print("Building c-ares...")
+        build_args = ["--build", ".", "--config", "Release"]
+
+        # Use parallel build if available
+        if sys.platform != "win32":
+            try:
+                import multiprocessing
+
+                build_args.extend(["--parallel", str(multiprocessing.cpu_count())])
+            except (ImportError, NotImplementedError):
+                pass
+
+        subprocess.check_call([cmake_cmd, *build_args], cwd=build_temp)
+
+        # Install c-ares to temp directory
+        print(f"Installing c-ares to {install_dir}")
+        install_args = ["--install", ".", "--config", "Release"]
+        subprocess.check_call([cmake_cmd, *install_args], cwd=build_temp)
+
+        # Find the installed library
+        if sys.platform == "win32":
+            # Windows libraries
+            possible_paths = [
+                os.path.join(install_dir, "lib", "cares.lib"),
+                os.path.join(install_dir, "lib", "cares_static.lib"),
+                os.path.join(install_dir, "lib", "libcares.a"),  # MinGW
+            ]
+        else:
+            possible_paths = [
+                os.path.join(install_dir, "lib", "libcares.a"),
+                os.path.join(install_dir, "lib64", "libcares.a"),
+            ]
+
+        lib_path = None
+        for path in possible_paths:
+            if os.path.exists(path):
+                lib_path = path
+                break
+
+        if not lib_path:
+            raise RuntimeError(
+                f"Could not find installed c-ares library in {install_dir}.\n"
+                f"Checked: {', '.join(possible_paths)}"
+            )
+
+        print(f"Found c-ares library at: {lib_path}")
+
+        # Set up include directories from the install directory
+        # This includes all headers (original + generated like ares_build.h, ares_config.h)
+        self.add_include_dir(os.path.join(install_dir, "include"), force=True)
+        # # Also need internal headers from src/lib for some definitions
+        # self.add_include_dir(os.path.join(cares_dir, "src", "lib"), force=True)
+        self.add_include_dir(os.path.join("cyares", "inc"))
+
+
+        # Set up the extension to link against the static library
+
+        # NOTE: Unlike pycares we need this on all cython extensions
+        # these extra modules were done away with as an optimization.
+        for e in self.extensions:
+            e.extra_objects = [lib_path]
+
+        # Add platform-specific libraries and macros
+        if sys.platform == "win32":
+            self.compiler.add_library("ws2_32")
+            self.compiler.add_library("advapi32")
+            self.compiler.add_library("iphlpapi")
+            self.compiler.define_macro("CARES_STATICLIB", 1)
+        else:
+            self.compiler.define_macro("HAVE_CONFIG_H", 1)
+            self.compiler.define_macro("_LARGEFILE_SOURCE", 1)
+            self.compiler.define_macro("_FILE_OFFSET_BITS", 64)
+            self.compiler.define_macro("CARES_STATICLIB", 1)
+
+            if sys.platform.startswith("linux"):
+                self.compiler.add_library("rt")
+            elif sys.platform == "darwin":
+                self.compiler.define_macro("_DARWIN_USE_64_BIT_INODE", 1)
+            elif sys.platform.startswith("freebsd") or sys.platform.startswith(
+                "dragonfly"
+            ):
+                self.compiler.add_library("kvm")
+            elif sys.platform.startswith("sunos"):
+                self.compiler.add_library("socket")
+                self.compiler.add_library("nsl")
+                self.compiler.add_library("kstat")
+
+        # Build the Python extension
+        super().build_extensions()
+
     def initialize_options(self):
         self.cython_always = False
         self.cython_annotate = False
@@ -130,121 +194,6 @@ class cares_build_ext(build_ext):
         self.parallel = True
         super().initialize_options()
 
-    def add_include_dir(self, dir, force=False):
-        if use_system_lib and not force:
-            return
-        dirs = self.compiler.include_dirs
-        dirs.insert(0, dir)
-        self.compiler.set_include_dirs(dirs)
-
-    def build_extensions(self):
-        self.add_include_dir(self.ext_headers)
-        # make sure we get the inc folder
-        self.add_include_dir(os.path.join(self.ext_headers, "inc"))
-        self.add_include_dir(os.path.join(self.cares_dir, "include"))
-        self.add_include_dir(os.path.join(self.cares_dir, "src", "lib"))
-        self.add_include_dir(os.path.join(self.cares_dir, "src", "lib", "include"))
-        self.add_include_dir(os.path.join(self.build_config_dir, "include"), True)
-        if sys.platform != "win32":
-            self.compiler.define_macro("HAVE_CONFIG_H", 1)
-            self.compiler.define_macro("_LARGEFILE_SOURCE", 1)
-            self.compiler.define_macro("_FILE_OFFSET_BITS", 64)
-        if sys.platform.startswith("linux"):
-            # Check if it's actually Android
-            if os.environ.get("ANDROID_ROOT") and os.environ.get("ANDROID_DATA"):
-                self.add_include_dir(
-                    os.path.join(self.build_config_dir, "config_android")
-                )
-            else:
-                self.add_include_dir(
-                    os.path.join(self.build_config_dir, "config_linux")
-                )
-            self.compiler.add_library("dl")
-            self.compiler.add_library("rt")
-        elif sys.platform == "darwin":
-            self.add_include_dir(os.path.join(self.build_config_dir, "config_darwin"))
-            self.compiler.define_macro("_DARWIN_USE_64_BIT_INODE", 1)
-        elif sys.platform.startswith("freebsd"):
-            self.add_include_dir(os.path.join(self.build_config_dir, "config_freebsd"))
-            self.compiler.add_library("kvm")
-        elif sys.platform.startswith("dragonfly"):
-            self.add_include_dir(os.path.join(self.build_config_dir, "config_freebsd"))
-        elif sys.platform.startswith("netbsd"):
-            self.add_include_dir(os.path.join(self.build_config_dir, "config_netbsd"))
-        elif sys.platform.startswith("openbsd"):
-            self.add_include_dir(os.path.join(self.build_config_dir, "config_openbsd"))
-        elif sys.platform.startswith("sunos"):
-            self.add_include_dir(os.path.join(self.build_config_dir, "config_sunos"))
-            self.compiler.add_library("socket")
-            self.compiler.add_library("nsl")
-            self.compiler.add_library("kstat")
-        elif sys.platform == "cygwin":
-            self.add_include_dir(os.path.join(self.build_config_dir, "config_cygwin"))
-        elif sys.platform == "win32":
-            if "mingw" not in self.compiler.compiler_type:
-                self.extensions[0].extra_link_args = ["/NODEFAULTLIB:libcmt"]
-            self.compiler.add_library("advapi32")
-            self.compiler.add_library("iphlpapi")
-            self.compiler.add_library("psapi")
-            self.compiler.add_library("ws2_32")
-            self.compiler.define_macro("CARES_HAVE_WINSOCK2_H", 1)
-            self.compiler.define_macro("CARES_HAVE_WS2TCPIP_H", 1)
-            self.compiler.define_macro("CARES_HAVE_WINDOWS_H", 1)
-
-        if use_system_lib:
-            self.compiler.add_library("cares")
-        else:
-            sources = cares_sources.copy()
-            self.compiler.define_macro("CARES_THREADS", 1)
-            self.compiler.define_macro("CARES_STATICLIB", 1)
-            if hasattr(select, "poll"):
-                sources += ["deps/c-ares/src/lib/event/ares_event_poll.c"]
-                self.compiler.define_macro("HAVE_POLL", 1)
-                self.compiler.define_macro("HAVE_POLL_H", 1)
-            if hasattr(select, "kqueue"):
-                sources += ["deps/c-ares/src/lib/event/ares_event_kqueue.c"]
-                self.compiler.define_macro("HAVE_KQUEUE", 1)
-                self.compiler.define_macro("HAVE_SYS_TYPES_H", 1)
-                self.compiler.define_macro("HAVE_SYS_EVENT_H", 1)
-                self.compiler.define_macro("HAVE_SYS_TIME_H", 1)
-                self.compiler.define_macro("HAVE_FCNTL_H", 1)
-            if hasattr(select, "epoll"):
-                sources += ["deps/c-ares/src/lib/event/ares_event_epoll.c"]
-                self.compiler.define_macro("HAVE_EPOLL", 1)
-                self.compiler.define_macro("HAVE_SYS_EPOLL_H", 1)
-                self.compiler.define_macro("HAVE_FCNTL_H", 1)
-            if hasattr(os, "pipe") and sys.platform != "win32":
-                sources += ["deps/c-ares/src/lib/event/ares_event_select.c"]
-                self.compiler.define_macro("HAVE_PIPE", 1)
-
-            # Currently all extensions need these sources...
-            # In the future we may decide to compile the c-ares library
-            # first then add it in after due to how long it can take to
-            # compile everything
-
-            # TODO: Optionally allow source compiling
-            # for now we have to get hacky to cut the time needed compiling this
-            # stuff by 5x times
-
-            # for e in self.extensions:
-            #     e.sources += sources
-
-            c = self.compiler
-            if not os.path.exists("build"):
-                os.mkdir("build")
-            objects = c.compile(sources, "build")
-            c.create_static_lib(objects, output_libname="cares", output_dir="build")
-            for e in self.extensions:
-                if e.name == "cyares.handles":
-                    # cyares.handles doesn't need c-ares
-                    # it's only the others so exclude it.
-                    continue
-
-                if "build/cares" not in e.libraries:
-                    e.libraries.append("build/cares")
-        super().build_extensions()
-
-    # Copied from winloop
     def finalize_options(self):
         need_cythonize = self.cython_always
         cfiles = {}
@@ -299,7 +248,6 @@ class cares_build_ext(build_ext):
                 # Try using a cache to help with compiling as well...
                 cache=True,
             )
-
         return super().finalize_options()
 
 

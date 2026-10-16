@@ -1,15 +1,10 @@
 from __future__ import annotations
 
-import sys
-from typing import Any, Callable, Literal, overload
+from collections.abc import Callable
+from typing import Any, Literal, Self, overload
 
 from .handles import Future
 from .resulttypes import AddrInfoResult, DNSResult, HostResult, NameInfoResult
-
-if sys.version_info < (3, 11):
-    from typing_extensions import Self
-else:
-    from typing import Self
 
 CYARES_SOCKET_BAD: int = ...
 

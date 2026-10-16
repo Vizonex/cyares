@@ -111,7 +111,7 @@ class Future(Generic[_T]):
         self._result = None
         self._cancelled = False
         self.event = Event()
-        self._callbacks: list[Callable[["Future[_T]"], None]] = []
+        self._callbacks: list[Callable[[Future[_T]], None]] = []
         # Token will allow use to reach the homethread allowing for a seamless
         # transition
         self._token = current_token()
