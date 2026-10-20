@@ -254,7 +254,8 @@ cdef class Channel:
         local_ip = None,
         local_dev = None,
         resolvconf_path = None,
-        bint event_thread = False
+        bint event_thread = False,
+        qcache_max_ttl = None
     ):
         cdef Py_buffer view
         cdef int optmask = 0
@@ -400,6 +401,11 @@ cdef class Channel:
                 cyares_get_buffer(resolvconf_path, &view)
                 self.options.resolvconf_path = <char*>view.buf
                 cyares_release_buffer(&view)
+            
+            if qcache_max_ttl:
+                optmask |= ARES_OPT_QUERY_CACHE
+                self.options.qcache_max_ttl = <unsigned int>qcache_max_ttl
+
 
             r = ares_init_options(&self.channel, &self.options, optmask)
             if r != ARES_SUCCESS:
@@ -420,6 +426,8 @@ cdef class Channel:
         finally:
             if strs != NULL:
                 PyMem_Free(strs)
+
+        
 
         self.server_state_handle = None
     
