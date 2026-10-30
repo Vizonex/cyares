@@ -302,6 +302,8 @@ typedef void* (*cyares_arealloc)(void *ptr, size_t size);
     int ARES_OPT_EDNSPSZ
     int ARES_OPT_RESOLVCONF
     int ARES_OPT_EVENT_THREAD
+    int ARES_OPT_QUERY_CACHE
+
 
     int ARES_NI_NOFQDN
     int ARES_NI_NUMERICHOST
