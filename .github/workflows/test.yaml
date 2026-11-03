@@ -1,4 +1,3 @@
-# NOTE I'm borrowing from pycares so that we don't have to reinvent the wheel.
 name: Test
 on:
   push:
@@ -11,6 +10,10 @@ on:
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
   cancel-in-progress: true
+
+permissions:
+  pull-requests: write
+  contents: write
 
 jobs:
   build:
@@ -48,4 +51,21 @@ jobs:
       # Run at higher verbosity (This is a newer library after all...)
       run: pytest tests -vv
       shell: bash
-    
+      
+  # Allow dependabot to run a after all tests have passed through.
+  # This will enable lazy merging.
+  dependabot:
+    needs: [build]
+    runs-on: ubuntu-latest
+    if: ${{ github.actor == 'dependabot[bot]' }}
+    steps:
+      - name: Dependabot metadata
+        id: metadata
+        uses: dependabot/fetch-metadata@v3.1.0
+        with:
+          github-token: "${{ secrets.GITHUB_TOKEN }}"
+      - name: Enable auto-merge for Dependabot PRs
+        run: gh pr merge --auto --squash "$PR_URL"
+        env:
+          PR_URL: ${{github.event.pull_request.html_url}}
+          GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
