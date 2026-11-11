@@ -12,5 +12,4 @@ dnslib==0.9.26
 pytest-codspeed==5.0.4
 pycares==5.2.1
 trio>=0.30.0
-wepoll==0.5.1; platform_system == "Windows"
 rsloop==0.1.66

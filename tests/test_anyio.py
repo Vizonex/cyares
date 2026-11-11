@@ -36,16 +36,6 @@ if has_module("rsloop"):
             ("asyncio", {"loop_factory": rsloop.new_event_loop}), id="asyncio[rsloop]"
         )
     )
-if sys.platform == "win32":
-    if has_module("wepoll"):
-        import wepoll
-
-        PARAMS.append(
-            pytest.param(
-                ("asyncio", {"loop_factory": wepoll.new_event_loop}),
-                id="asyncio[wepoll]",
-            )
-        )
 
 if has_module("trio"):
     PARAMS.append(pytest.param(("trio", {}), id="trio"))
