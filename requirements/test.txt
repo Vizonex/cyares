@@ -12,4 +12,4 @@ dnslib==0.9.26
 pytest-codspeed==5.0.4
 pycares==5.2.1
 trio>=0.30.0
-rsloop==0.1.66
+rsloop==0.1.67
