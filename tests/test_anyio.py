@@ -37,6 +37,15 @@ if has_module("rsloop"):
         )
     )
 
+if has_module("blazio"):
+    import blazio
+
+    PARAMS.append(
+        pytest.param(
+            ("asyncio", {"loop_factory": blazio.new_event_loop}), id="asyncio[blazio]"
+        )
+    )
+
 if has_module("trio"):
     PARAMS.append(pytest.param(("trio", {}), id="trio"))
 
