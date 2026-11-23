@@ -29,6 +29,14 @@ if has_module("rsloop"):
         )
     )
 
+if has_module("blazio"):
+    import blazio
+
+    PARAMS.append(
+        pytest.param(
+            ("asyncio", {"loop_factory": blazio.new_event_loop}), id="asyncio[blazio]"
+        )
+    )
 
 @pytest.fixture(params=PARAMS)
 def anyio_backend(request: pytest.FixtureRequest):
